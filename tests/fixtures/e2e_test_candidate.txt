@@ -1,0 +1,14 @@
+E2E Test Candidate
+Original Test Headline
+Original E2E Summary with over 6 years experience in technical talent acquisition and software systems.
+contact@e2etest.com | +1-555-0199 | Remote | https://linkedin.com/in/e2ecandidate
+
+Work Experience:
+ABC Technologies
+Software Engineer
+January 2022 - December 2024
+- Spearheaded software recruitment and development operations across platform teams.
+- Implemented automated sourcing pipelines and reduced candidate time to hire by 30%.
+
+Skills:
+Java, Python, SQL
