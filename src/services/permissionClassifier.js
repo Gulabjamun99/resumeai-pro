@@ -1,15 +1,16 @@
 /**
- * Dynamic Change-Permission Classifier
+ * Dynamic Change-Permission Classifier (Rule #6 & Multi-Turn Scope Engine)
  * Evaluates natural language user prompts and returns a deterministic PermissionScope object.
  */
 
 export function classifyPermissionScope(promptText) {
   const text = (promptText || '').toLowerCase().trim();
 
-  // Test E: Ambiguous Request Detection
+  // 1. Ambiguous Request Detection (Rule #6)
   const ambiguousPatterns = [
     'cv thoda improve kar do', 'make my cv better', 'improve my cv', 
-    'make it nice', 'update cv', 'make it better', 'cv achha kar do'
+    'make it nice', 'update cv', 'make it better', 'cv achha kar do',
+    'improve it', 'thoda theek kar do'
   ];
   if (ambiguousPatterns.some(p => text === p || text.startsWith(p))) {
     return {
@@ -24,8 +25,8 @@ export function classifyPermissionScope(promptText) {
     };
   }
 
-  // Test C: Formatting Only
-  if (text.includes('formatting only') || text.includes('sirf formatting') || text.includes('content same')) {
+  // 2. Formatting Only
+  if (text.includes('formatting only') || text.includes('sirf formatting') || text.includes('content same') || text.includes('layout only')) {
     return {
       scope: 'FORMATTING_ONLY',
       label: 'Formatting & Layout Only',
@@ -38,12 +39,42 @@ export function classifyPermissionScope(promptText) {
     };
   }
 
-  // Test A: Edit Specific Section (Summary)
-  if (text.includes('summary') && (text.includes('improve') || text.includes('edit') || text.includes('sirf'))) {
+  // 3. Edit Section: Headline / Title
+  if (text.includes('headline') || text.includes('designation') || (text.includes('title') && !text.includes('job'))) {
     return {
       scope: 'EDIT_SECTION',
-      label: 'Edit Summary Only',
-      description: 'Modifies professional summary only. Experience, Education, Skills, and Contact remain 100% LOCKED.',
+      label: 'Edit Professional Headline',
+      description: 'Updates professional headline/title. All other sections and factual history remain locked.',
+      requires_clarification: false,
+      allowed_actions: ['REPLACE_HEADLINE'],
+      target_sections: ['headline'],
+      locked_sections: ['experience', 'education', 'certifications', 'skills', 'contact'],
+      allow_rephrasing: false,
+      allow_fabrication: false
+    };
+  }
+
+  // 4. Edit Section: Phone / Contact
+  if (text.includes('phone') || text.includes('mobile') || text.includes('number') || text.includes('email') || text.includes('contact')) {
+    return {
+      scope: 'EDIT_SECTION',
+      label: 'Update Contact Details',
+      description: 'User-authorized contact information update. Work history and credentials remain locked.',
+      requires_clarification: false,
+      allowed_actions: ['UPDATE_CONTACT'],
+      target_sections: ['contact'],
+      locked_sections: ['experience', 'education', 'certifications', 'skills'],
+      allow_rephrasing: false,
+      allow_fabrication: false
+    };
+  }
+
+  // 5. Edit Section: Summary
+  if ((text.includes('summary') || text.includes('profile')) && (text.includes('improve') || text.includes('edit') || text.includes('short') || text.includes('concise') || text.includes('sirf') || text.includes('rewrite'))) {
+    return {
+      scope: 'EDIT_SECTION',
+      label: 'Edit Professional Summary',
+      description: 'Modifies professional summary statement. Experience, Education, Skills, and Contact remain LOCKED.',
       requires_clarification: false,
       allowed_actions: ['EDIT_SUMMARY'],
       target_sections: ['summary'],
@@ -53,23 +84,23 @@ export function classifyPermissionScope(promptText) {
     };
   }
 
-  // Test B: Rewrite Experience Section for ATS
-  if (text.includes('experience') && (text.includes('rewrite') || text.includes('ats ke liye') || text.includes('ats'))) {
+  // 6. Edit Section: Skills
+  if (text.includes('skill') || text.includes('aws') || text.includes('java') || text.includes('python')) {
     return {
-      scope: 'REWRITE_SECTION',
-      label: 'Rewrite Experience Section for ATS',
-      description: 'Rephrases work experience bullets for ATS keyword density. Summary, Education, Certifications, and Contact remain 100% LOCKED.',
+      scope: 'EDIT_SECTION',
+      label: 'Modify Technical Skills',
+      description: 'Adds, removes, or updates specific technical skills. Experience, Education, and Contact remain LOCKED.',
       requires_clarification: false,
-      allowed_actions: ['REWRITE_EXPERIENCE'],
-      target_sections: ['experience'],
-      locked_sections: ['summary', 'education', 'certifications', 'skills', 'contact'],
-      allow_rephrasing: true,
+      allowed_actions: ['MODIFY_SKILLS'],
+      target_sections: ['skills'],
+      locked_sections: ['experience', 'education', 'certifications', 'summary', 'contact'],
+      allow_rephrasing: false,
       allow_fabrication: false
     };
   }
 
-  // Test D: Rewrite Full CV for ATS
-  if (text.includes('poora cv') || text.includes('complete cv') || text.includes('rewrite entire cv')) {
+  // 7. Rewrite Full CV
+  if (text.includes('poora cv') || text.includes('complete cv') || text.includes('rewrite entire cv') || text.includes('full cv')) {
     return {
       scope: 'REWRITE_FULL',
       label: 'Full CV ATS Overhaul',
@@ -83,10 +114,10 @@ export function classifyPermissionScope(promptText) {
     };
   }
 
-  // Default / Standard Add Only Scope (ISSUE 2 FIX: Target ONLY experience section)
+  // 8. Default: Add New Experience Only
   return {
     scope: 'ADD_ONLY',
-    label: 'Add New Experience Only',
+    label: 'Add Career Experience',
     description: 'Appends new career experience chronologically. 100% of existing bullets, summary, education, skills, and contact remain LOCKED.',
     requires_clarification: false,
     allowed_actions: ['ADD_EXPERIENCE'],
