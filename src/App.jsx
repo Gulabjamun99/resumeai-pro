@@ -18,8 +18,10 @@ import { parseUserIntentToChangePlan, executeChangePlan, verifyRequestedChange, 
 import { runCompleteValidationSuite } from './services/validationSuite';
 import { exportResumeToPdf, printResume } from './utils/pdfExporter';
 import { exportResumeToDocx } from './utils/docxExporter';
-import { Download, Printer, FileText, Sparkles, Columns, RefreshCw, Upload, Edit3, RotateCcw, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Download, Printer, FileText, Sparkles, Columns, RefreshCw, Upload, Edit3, RotateCcw, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+
+const STORAGE_KEY = 'resumeai_pro_session_v1';
 
 export default function App() {
   const [currentScreen, setScreen] = useState(1); // Production Flow starts on Screen 1 Upload
@@ -43,6 +45,53 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('split');
   const [validationReport, setValidationReport] = useState(null);
   const [requestedFacts, setRequestedFacts] = useState([]);
+
+  // Restore Session on Page Refresh / Reopen (Full Persistence)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.sourceResume && parsed.currentCvState && parsed.versionHistory?.length > 0) {
+          setSourceResume(parsed.sourceResume);
+          setCurrentCvState(parsed.currentCvState);
+          setVersionHistory(parsed.versionHistory);
+          setCurrentVersion(parsed.currentVersion || 1);
+          setScreen(7); // Automatically resume at Studio Preview
+        }
+      }
+    } catch (e) {
+      console.warn("Could not restore session from storage:", e);
+    }
+  }, []);
+
+  // Save Session on State Changes
+  useEffect(() => {
+    if (sourceResume && currentCvState && versionHistory.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          sourceResume,
+          currentCvState,
+          versionHistory,
+          currentVersion
+        }));
+      } catch (e) {
+        console.warn("Could not save session to storage:", e);
+      }
+    }
+  }, [sourceResume, currentCvState, versionHistory, currentVersion]);
+
+  // Clear Session & Reset
+  const handleClearSession = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setSourceResume(null);
+    setCurrentCvState(null);
+    setVersionHistory([]);
+    setCurrentVersion(1);
+    setPromptText("");
+    setActiveChangePlan(null);
+    setScreen(1);
+  };
 
   // Production Upload Handler - Parses ANY uploaded user CV dynamically
   const handleProductionFileUpload = (e) => {
@@ -348,7 +397,7 @@ export default function App() {
               onRollbackVersion={handleRollbackVersion}
             />
 
-            {/* Studio Toolbar with Sequential Edit & Download Actions */}
+            {/* Studio Toolbar with Sequential Edit, Session Reset & Downloads */}
             <div className="flex flex-wrap justify-between items-center bg-slate-900 border border-slate-800 rounded-xl p-3 px-4 shadow-lg gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-300 mr-2 flex items-center gap-1.5">
@@ -380,8 +429,17 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Action Buttons: Make Another Change & Downloads */}
+              {/* Action Buttons: Make Another Change, Reset & Downloads */}
               <div className="flex items-center gap-2.5">
+                <button
+                  onClick={handleClearSession}
+                  className="bg-slate-800 hover:bg-red-950/60 text-slate-400 hover:text-red-300 border border-slate-700 hover:border-red-800 text-xs px-3 py-2 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+                  title="Clear session and start with a new CV"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Start New CV</span>
+                </button>
+
                 <button
                   onClick={handleMakeAnotherChange}
                   className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
