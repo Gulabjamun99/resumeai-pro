@@ -1,0 +1,84 @@
+{
+  "header": {
+    "name": "Ananya Sharma",
+    "title": "Senior Product Manager | Enterprise SaaS Strategy",
+    "summary": "Email: ananya.sharma@techcorp.io | Phone: +1-415-555-0188 | Location: San Francisco, CA LinkedIn: https://linkedin.com/in/ananyasharma-pm Professional Summary Data-driven Product Leader with 8+ years of experience scaling B2B SaaS products from 0 to 1."
+  },
+  "contact": {
+    "email": "ananya.sharma@techcorp.io",
+    "phone": "+1-415-555-0188",
+    "address": "Global",
+    "linkedin": "https://linkedin.com/in/ananyasharma-pm"
+  },
+  "skills": [
+    "End-to-End Project Execution",
+    "Strategic Planning & Execution",
+    "Stakeholder & Vendor Management",
+    "Process Automation & Optimization",
+    "Data Analytics & Reporting"
+  ],
+  "languages": [
+    {
+      "name": "English",
+      "level": "Professional"
+    }
+  ],
+  "positionsHiredFor": [
+    "Project Manager",
+    "Team Lead",
+    "Specialist",
+    "Consultant"
+  ],
+  "education": [
+    "Bachelor's Degree in Science / Engineering",
+    "Post Graduate Diploma in Management"
+  ],
+  "certifications": [
+    "Professional Certification in Management",
+    "Industry Specialization Credential"
+  ],
+  "itSkills": [
+    "Workflow Automation",
+    "Analytics & Reporting",
+    "MS Office",
+    "Collaboration Tools"
+  ],
+  "experiences": [
+    {
+      "id": "exp-product-lead",
+      "role": "Lead Product Manager",
+      "company": "AI NextGen Labs",
+      "period": "Jan 2025 – Present",
+      "location": "San Francisco, CA",
+      "bullets": [
+        "Since January 2025, leading enterprise LLM orchestration and AI agent product strategies.",
+        "Architecting multi-agent workflow automation platforms for AI NextGen Labs."
+      ]
+    },
+    {
+      "id": "exp-generic-1",
+      "role": "Senior Consultant / Specialist",
+      "company": "Global Solutions Enterprise",
+      "period": "Jan 2023 – Present",
+      "location": "Remote / Hybrid",
+      "bullets": [
+        "Email: ananya.sharma@techcorp.io | Phone: +1-415-555-0188 | Location: San Francisco, CA",
+        "Data-driven Product Leader with 8+ years of experience scaling B2B SaaS products from 0 to 1.",
+        "Senior Product Manager - CloudPulse Systems | Mar 2022 - Dec 2024",
+        "- Led product roadmap for core enterprise analytics suite generating $15M ARR.",
+        "- Increased user retention by 28% through targeted onboarding UX overhauls."
+      ]
+    },
+    {
+      "id": "exp-generic-2",
+      "role": "Professional Associate",
+      "company": "Innovate Tech Corp",
+      "period": "Jun 2020 – Dec 2022",
+      "location": "Tech Hub",
+      "bullets": [
+        "- Managed end-to-end launch of real-time data integration connector platform.",
+        "- Grew monthly active users (MAU) from 10k to 120k within 18 months."
+      ]
+    }
+  ]
+}
