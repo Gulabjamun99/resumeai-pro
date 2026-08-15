@@ -1,10 +1,13 @@
 import React from 'react';
-import { MessageSquare, Play, Sparkles, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { MessageSquare, Play, Sparkles, AlertTriangle, ShieldCheck, RefreshCw } from 'lucide-react';
+import { classifyPermissionScope } from '../services/permissionClassifier';
 
 export default function Screen3Request({ promptText, setPromptText, onAnalyzePrompt, permissionScope }) {
+  const currentScope = classifyPermissionScope(promptText) || permissionScope;
+
   const testScenarios = [
     {
-      label: "Standard Rohit Update",
+      label: "Standard Update (New Job + AI)",
       prompt: "2025 ke April ke baad se independent consulting kar raha hoon. Clients ke requirement ke hisab se job requirements close karta hoon. 1.5 years se AI agents jaise Antigravity, Claude, ChatGPT, z.ai jaise platforms par kaam kar raha hoon. Multiple projects banaye aur live kiye hain. Ye sab new job mein add karo. Baaki sab same rehna chahiye."
     },
     {
@@ -39,33 +42,47 @@ export default function Screen3Request({ promptText, setPromptText, onAnalyzePro
           </h2>
         </div>
         <span className="text-xs text-sky-300 bg-sky-950 px-2.5 py-1 rounded-full border border-sky-800 font-mono">
-          Dynamic Scope System Active
+          Live Scope Classifier Active
         </span>
       </div>
 
       <p className="text-xs text-slate-400">
-        Enter natural language instructions. The <code>PermissionClassifier</code> will dynamically derive modification boundaries before formulation of the Change Plan.
+        Apni instruction yahan type karein ya edit karein. System dynamically aapke request ke anusar Change Plan formulate karega.
       </p>
 
       {/* Textarea */}
-      <textarea
-        value={promptText}
-        onChange={(e) => setPromptText(e.target.value)}
-        placeholder="Type instructions here..."
-        className="w-full h-32 bg-slate-950 border border-slate-700 rounded-lg p-3.5 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-mono resize-none"
-      />
+      <div className="relative">
+        <textarea
+          value={promptText}
+          onChange={(e) => setPromptText(e.target.value)}
+          placeholder="Yahan apni instruction type karein (e.g. 2025 ke baad new role add karo, ya summary improve karo)..."
+          className="w-full h-36 bg-slate-950 border border-slate-700 rounded-lg p-3.5 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-mono resize-none"
+        />
+        {promptText && (
+          <button
+            onClick={() => setPromptText("")}
+            className="absolute top-2 right-2 text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white px-2 py-0.5 rounded border border-slate-700"
+          >
+            Clear
+          </button>
+        )}
+      </div>
 
       {/* Test Scenario Buttons */}
       <div className="flex flex-col gap-1.5">
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-          Quick Test Scenarios (Section 22 Tests A - E):
+          Quick Preset Scenarios (Click to load):
         </span>
         <div className="flex flex-wrap gap-2">
           {testScenarios.map((scen, idx) => (
             <button
               key={idx}
               onClick={() => setPromptText(scen.prompt)}
-              className="text-[10.5px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-2.5 py-1 rounded-md border border-slate-700 transition"
+              className={`text-[10.5px] px-2.5 py-1 rounded-md border transition ${
+                promptText === scen.prompt
+                  ? 'bg-sky-600 text-white border-sky-500 shadow-md'
+                  : 'bg-slate-800 hover:bg-slate-700 text-sky-300 border-slate-700'
+              }`}
             >
               {scen.label}
             </button>
@@ -74,25 +91,25 @@ export default function Screen3Request({ promptText, setPromptText, onAnalyzePro
       </div>
 
       {/* Permission Scope Preview Badge */}
-      {permissionScope && (
+      {currentScope && (
         <div className={`p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
-          permissionScope.scope === 'AMBIGUOUS' 
+          currentScope.scope === 'AMBIGUOUS' 
             ? 'bg-amber-950/60 border-amber-500/50 text-amber-200'
             : 'bg-slate-950 border-sky-800/60 text-sky-200'
         }`}>
-          {permissionScope.scope === 'AMBIGUOUS' ? (
+          {currentScope.scope === 'AMBIGUOUS' ? (
             <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
           ) : (
-            <ShieldCheck className="w-5 h-5 text-sky-400 flex-shrink-0 mt-0.5" />
+            <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
           )}
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
-              <span className="font-bold uppercase tracking-wider">{permissionScope.label}</span>
+              <span className="font-bold uppercase tracking-wider">{currentScope.label}</span>
               <span className="text-[10px] font-mono bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">
-                SCOPE: {permissionScope.scope}
+                SCOPE: {currentScope.scope}
               </span>
             </div>
-            <p className="text-[11px] text-slate-300">{permissionScope.description}</p>
+            <p className="text-[11px] text-slate-300">{currentScope.description}</p>
           </div>
         </div>
       )}
@@ -100,7 +117,7 @@ export default function Screen3Request({ promptText, setPromptText, onAnalyzePro
       <div className="flex justify-end mt-2">
         <button
           onClick={onAnalyzePrompt}
-          className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-6 py-2.5 rounded-lg shadow-lg shadow-sky-500/25 flex items-center gap-2 transition"
+          className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-6 py-2.5 rounded-lg shadow-lg shadow-sky-500/25 flex items-center gap-2 transition cursor-pointer"
         >
           <Play className="w-4 h-4 fill-white" />
           <span>Classify Scope & Generate Change Plan (Screen 4)</span>
