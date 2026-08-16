@@ -70,6 +70,7 @@ test.describe('ResumeAI Pro — Cross-Browser Production Verification', () => {
     await expect(docxBtn).toBeEnabled();
 
     // 9. Start New CV (Clean State Reset)
+    page.once('dialog', dialog => dialog.accept());
     await page.click('button:has-text("Start New CV")');
     await expect(page.locator('text=Screen 1 — Upload Your Existing CV')).toBeVisible();
   });

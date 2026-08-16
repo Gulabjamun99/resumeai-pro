@@ -517,3 +517,207 @@ export function runAtsAudit(resume) {
     passed: (matchPercentage || 83) >= 70
   };
 }
+
+/**
+ * JOB DESCRIPTION MATCH & EVIDENCE GAP ANALYZER (P1 DIRECTIVE)
+ * Strictly analyzes a target Job Description against CURRENT_CV_STATE & SOURCE_CV_MASTER.
+ * Enforces ANTI-HALLUCINATION: Distinguishes EVIDENCED, PARTIALLY_EVIDENCED, and NOT_EVIDENCED.
+ */
+export function analyzeJobDescriptionMatch(jdText, currentCvState, sourceMaster) {
+  if (!jdText || typeof jdText !== 'string' || jdText.trim().length === 0) {
+    return {
+      error: "Please enter a valid job description.",
+      matchScore: 0,
+      requirements: [],
+      safeSuggestions: [],
+      summary: { total: 0, evidencedCount: 0, partialCount: 0, gapCount: 0 }
+    };
+  }
+
+  const rawJd = jdText.trim();
+  const lowerJd = rawJd.toLowerCase();
+
+  // 1. Security & Prompt Injection Filter in JD text
+  if (lowerJd.includes('ignore previous instructions') || lowerJd.includes('system prompt override') || lowerJd.includes('developer mode enabled')) {
+    return {
+      error: "SAFETY GUARD: Suspicious instruction pattern detected inside Job Description text. Prompt injection ignored.",
+      matchScore: 0,
+      requirements: [],
+      safeSuggestions: [],
+      summary: { total: 0, evidencedCount: 0, partialCount: 0, gapCount: 0 }
+    };
+  }
+
+  // 2. Extract Key Skill & Competency Terms from JD
+  const COMMON_SKILL_VOCABULARY = [
+    "React", "Node.js", "Python", "Java", "AWS", "SQL", "TypeScript", "JavaScript",
+    "Kubernetes", "Docker", "Go", "Golang", "C++", "C#", ".NET", "GCP", "Azure",
+    "GraphQL", "REST API", "Microservices", "CI/CD", "Git", "Agile", "Scrum",
+    "Talent Acquisition", "Technical Recruiting", "Sourcing", "ATS Optimization",
+    "Stakeholder Management", "Team Leadership", "Data Analytics", "System Architecture",
+    "Product Management", "Performance Optimization", "Security & Compliance"
+  ];
+
+  const extractedRequirements = [];
+  const lowerCvText = JSON.stringify(currentCvState || {}).toLowerCase();
+  const cvSkills = (currentCvState?.skills || []).map(s => s.toLowerCase());
+  const cvBullets = (currentCvState?.experiences || []).flatMap(e => e.bullets || []);
+  const cvSummary = currentCvState?.header?.summary || "";
+  const cvTitle = currentCvState?.header?.title || "";
+
+  // Check matching terms in JD
+  COMMON_SKILL_VOCABULARY.forEach(term => {
+    const lowerTerm = term.toLowerCase();
+    // Regex for whole-word search in JD
+    const regex = new RegExp(`\\b${lowerTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (regex.test(rawJd)) {
+      // Find evidence in CV
+      let status = 'NOT_EVIDENCED';
+      let evidenceSnippet = 'No evidence found in active CV';
+      let cvLocation = 'None';
+
+      // Check explicit skills
+      if (cvSkills.some(s => s === lowerTerm || s.includes(lowerTerm))) {
+        status = 'EVIDENCED';
+        evidenceSnippet = `Explicitly listed in Skills array: "${term}"`;
+        cvLocation = 'Skills Section';
+      } else {
+        // Check experiences bullets
+        const matchingBullet = cvBullets.find(b => b.toLowerCase().includes(lowerTerm));
+        if (matchingBullet) {
+          status = 'EVIDENCED';
+          evidenceSnippet = `Demonstrated in Work Experience: "${matchingBullet.substring(0, 80)}..."`;
+          cvLocation = 'Experience Section';
+        } else if (cvSummary.toLowerCase().includes(lowerTerm) || cvTitle.toLowerCase().includes(lowerTerm)) {
+          status = 'EVIDENCED';
+          evidenceSnippet = `Referenced in Professional Summary / Title`;
+          cvLocation = 'Header Section';
+        } else {
+          // Check partial evidence (related keywords or substrings)
+          const partialBullet = cvBullets.find(b => {
+            const words = lowerTerm.split(' ');
+            return words.some(w => w.length > 3 && b.toLowerCase().includes(w));
+          });
+          if (partialBullet) {
+            status = 'PARTIALLY_EVIDENCED';
+            evidenceSnippet = `Related context mentioned: "${partialBullet.substring(0, 70)}..."`;
+            cvLocation = 'Experience Context';
+          }
+        }
+      }
+
+      extractedRequirements.push({
+        id: `req-${term.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+        name: term,
+        status, // 'EVIDENCED' | 'PARTIALLY_EVIDENCED' | 'NOT_EVIDENCED'
+        evidenceSnippet,
+        cvLocation
+      });
+    }
+  });
+
+  // Calculate Deterministic Match Score
+  const evidencedCount = extractedRequirements.filter(r => r.status === 'EVIDENCED').length;
+  const partialCount = extractedRequirements.filter(r => r.status === 'PARTIALLY_EVIDENCED').length;
+  const gapCount = extractedRequirements.filter(r => r.status === 'NOT_EVIDENCED').length;
+  const total = extractedRequirements.length;
+
+  const matchScore = total > 0 
+    ? Math.min(100, Math.max(10, Math.round(((evidencedCount * 1.0 + partialCount * 0.5) / total) * 100)))
+    : 75;
+
+  // 3. Formulate Safe Suggestions (Only for Evidenced / Documented Skills)
+  const safeSuggestions = [];
+
+  // Suggestion A: Align headline with top evidenced JD domain if not already aligned
+  const topEvidencedSkills = extractedRequirements.filter(r => r.status === 'EVIDENCED').map(r => r.name);
+  if (topEvidencedSkills.length > 0 && !topEvidencedSkills.some(s => cvTitle.toLowerCase().includes(s.toLowerCase()))) {
+    const suggestedHeadline = `${cvTitle} (Specialized in ${topEvidencedSkills.slice(0, 2).join(' & ')})`;
+    safeSuggestions.push({
+      id: 'sug-headline-align',
+      requirement: 'Target Job Alignment',
+      currentEvidence: `Current title: "${cvTitle}"`,
+      suggestedChange: `Align Headline: "${suggestedHeadline}"`,
+      reason: `Highlights evidenced core competencies (${topEvidencedSkills.slice(0, 2).join(', ')}) directly in the headline.`,
+      field: 'header.title',
+      originalValue: cvTitle,
+      proposedValue: suggestedHeadline,
+      selected: true
+    });
+  }
+
+  // Suggestion B: Prioritize evidenced skills at the front of the Skills section
+  if (topEvidencedSkills.length > 0 && currentCvState?.skills) {
+    const reorderedSkills = [
+      ...topEvidencedSkills.filter(s => currentCvState.skills.some(cs => cs.toLowerCase() === s.toLowerCase())),
+      ...currentCvState.skills.filter(cs => !topEvidencedSkills.some(s => s.toLowerCase() === cs.toLowerCase()))
+    ];
+    if (JSON.stringify(reorderedSkills) !== JSON.stringify(currentCvState.skills)) {
+      safeSuggestions.push({
+        id: 'sug-skills-reorder',
+        requirement: 'ATS Keyword Priority',
+        currentEvidence: `Skills currently listed in default order`,
+        suggestedChange: `Prioritize target skills: ${topEvidencedSkills.slice(0, 3).join(', ')} at front of Skills array`,
+        reason: `Improves ATS parsing prominence for explicitly matching skills without fabricating new qualifications.`,
+        field: 'skills',
+        originalValue: currentCvState.skills,
+        proposedValue: reorderedSkills,
+        selected: true
+      });
+    }
+  }
+
+  return {
+    matchScore,
+    requirements: extractedRequirements,
+    safeSuggestions,
+    summary: {
+      total,
+      evidencedCount,
+      partialCount,
+      gapCount
+    }
+  };
+}
+
+/**
+ * BUILDS A STRUCTURED CHANGE PLAN FROM ACCEPTED JD SUGGESTIONS
+ */
+export function buildChangePlanFromJdSuggestions(selectedSuggestions, currentCvState) {
+  const operations = [];
+  const authorizedChanges = [];
+
+  (selectedSuggestions || []).forEach(sug => {
+    if (sug.field === 'header.title') {
+      operations.push({
+        id: `op-jd-headline-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'headline',
+        field: 'header.title',
+        requestedValue: sug.proposedValue,
+        description: `Set Headline to: "${sug.proposedValue}"`
+      });
+      authorizedChanges.push({ field: 'header.title', value: sug.proposedValue, authorization: 'USER_EXPLICIT' });
+    } else if (sug.field === 'skills') {
+      // Reorder skills
+      operations.push({
+        id: `op-jd-skills-${Date.now()}`,
+        operation: 'FORMAT',
+        section: 'skills',
+        field: 'skills',
+        requestedValue: sug.proposedValue,
+        description: `Reordered skills to prioritize evidenced target keywords`
+      });
+      authorizedChanges.push({ field: 'skills', value: sug.proposedValue, authorization: 'USER_EXPLICIT' });
+    }
+  });
+
+  return {
+    scope: 'FORMATTING_ONLY',
+    operations,
+    authorizedChanges,
+    targetSections: ['headline', 'skills'],
+    rawPrompt: `Job Description Alignment: ${operations.map(o => o.description).join('; ')}`
+  };
+}
+

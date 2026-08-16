@@ -188,6 +188,21 @@ export default function App() {
     setScreen(4); // Advance to Screen 4 (Review & Approval Gate)
   };
 
+  // Formulate Change Plan from Job Description Match Mode
+  const handleApplyJdPlan = (jdPlan, promptSummary) => {
+    const reqId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    setActiveRequestId(reqId);
+    setErrorMessage(null);
+    setPromptText(promptSummary);
+    setPermissionScope({ 
+      scope: 'FORMATTING_ONLY', 
+      label: 'Job Description Match Alignment', 
+      description: 'Aligning CV phrasing with evidenced JD requirements' 
+    });
+    setActiveChangePlan(jdPlan);
+    setScreen(4); // Advance to Screen 4 (Review & Approval Gate)
+  };
+
   // Execute Approved Change Plan on Screen 4 -> Screen 5 Generation -> Screen 6 Validation
   const handleExecuteApprovedPlan = () => {
     if (!currentCvState || !activeChangePlan) return;
@@ -418,6 +433,9 @@ export default function App() {
             permissionScope={permissionScope}
             currentVersion={currentVersion}
             versionHistory={versionHistory}
+            currentCvState={currentCvState}
+            sourceResume={sourceResume}
+            onApplyJdPlan={handleApplyJdPlan}
           />
         )}
 
