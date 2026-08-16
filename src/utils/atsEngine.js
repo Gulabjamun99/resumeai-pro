@@ -853,4 +853,184 @@ export function buildChangePlanFromStarSuggestions(selectedSuggestions, currentC
   };
 }
 
+/**
+ * GRANULAR MULTI-DIMENSION ATS HEALTH SCORECARD & DIAGNOSTIC BREAKDOWN (P1.3 DIRECTIVE)
+ * Evaluates CURRENT_CV_STATE across 5 objective diagnostic pillars:
+ * 1. Keyword Optimization & Density (0-100)
+ * 2. Action Verb & STAR Power (0-100)
+ * 3. Quantifiability & Metric Density (0-100)
+ * 4. Structural Parseability (0-100)
+ * 5. Brevity & Readability (0-100)
+ * Computes a weighted overall ATS Health Index (0-100) and returns deterministic actionable insights.
+ */
+export function calculateGranularAtsScorecard(resume, targetKeywords = []) {
+  if (!resume) {
+    return {
+      overallScore: 0,
+      grade: 'Incomplete',
+      dimensions: {
+        keywords: { score: 0, label: 'Keyword Optimization', weight: '25%', details: 'No resume loaded', status: 'Low' },
+        actionVerbs: { score: 0, label: 'Action Verb Power', weight: '20%', details: 'No experience bullets found', status: 'Low' },
+        metrics: { score: 0, label: 'Quantifiable Metrics', weight: '20%', details: 'No metrics detected', status: 'Low' },
+        structure: { score: 0, label: 'Structural Parseability', weight: '20%', details: 'Missing standard sections', status: 'Low' },
+        brevity: { score: 0, label: 'Brevity & Readability', weight: '15%', details: 'No content to evaluate', status: 'Low' }
+      },
+      matchedKeywords: [],
+      metricsFoundCount: 0,
+      actionVerbsFoundCount: 0,
+      totalBullets: 0,
+      actionableTips: ['Upload or create a resume to view ATS health metrics.']
+    };
+  }
+
+  const fullText = JSON.stringify(resume).toLowerCase();
+  const allBullets = (resume.experiences || []).flatMap(e => e.bullets || []);
+  const totalBullets = allBullets.length;
+
+  // 1. KEYWORD OPTIMIZATION (Weight: 25%)
+  const keywordTaxonomy = targetKeywords.length > 0 ? targetKeywords : ATS_KEYWORD_TAXONOMY;
+  const matchedKeywords = keywordTaxonomy.filter(kw => fullText.includes(kw.toLowerCase()));
+  const keywordRatio = keywordTaxonomy.length > 0 ? (matchedKeywords.length / keywordTaxonomy.length) : 1;
+  const keywordScore = Math.min(100, Math.round(keywordRatio * 100));
+
+  // 2. ACTION VERB & STAR POWER (Weight: 20%)
+  const STRONG_ACTION_VERB_REGEX = /^(spearheaded|engineered|architected|optimized|developed|orchestrated|accelerated|streamlined|delivered|implemented|led|built|automated|managed|designed|scaled|launched|formulated|executed|mentored|drove|established|reduced|increased|boosted|transformed|negotiated|authored|published|conducted|standardized|secured|championed|pioneered|migrated|centralized|revamped|instituted|directed|supervised|coordinated|achieved)/i;
+  
+  let actionVerbCount = 0;
+  allBullets.forEach(b => {
+    const trimmed = (b || '').trim();
+    if (STRONG_ACTION_VERB_REGEX.test(trimmed)) {
+      actionVerbCount++;
+    }
+  });
+  const actionVerbRatio = totalBullets > 0 ? (actionVerbCount / totalBullets) : 0;
+  const actionVerbScore = Math.min(100, Math.round(actionVerbRatio * 100));
+
+  // 3. QUANTIFIABILITY & METRIC DENSITY (Weight: 20%)
+  const METRIC_REGEX = /(\b\d+([,.]\d+)?\s*(%|percent|k|m|b|x|users|clients|candidates|hires|engineers|teams|days|hours|minutes|seconds|ms|queries|requests|rps|tps|scale|revenue|budget|arr|gmv)\b|\$\s*\d+|\b\d{2,}\b)/i;
+  
+  let metricCount = 0;
+  allBullets.forEach(b => {
+    if (METRIC_REGEX.test(b || '')) {
+      metricCount++;
+    }
+  });
+  const metricRatio = totalBullets > 0 ? (metricCount / totalBullets) : 0;
+  const metricScore = Math.min(100, Math.round(Math.min(1.0, metricRatio / 0.40) * 100));
+
+  // 4. STRUCTURAL PARSEABILITY (Weight: 20%)
+  let structurePoints = 0;
+  const maxStructurePoints = 5;
+  
+  // Section 1: Candidate Header / Contact
+  if (resume.header?.name && (resume.contact?.email || resume.contact?.phone || resume.header?.email)) structurePoints++;
+  // Section 2: Summary / Profile
+  if (resume.header?.summary && resume.header.summary.length > 20) structurePoints++;
+  // Section 3: Experience entries with company & dates
+  if (resume.experiences && resume.experiences.length > 0 && resume.experiences.every(e => e.role && (e.company || e.dates))) structurePoints++;
+  // Section 4: Education or Certifications
+  if ((resume.education && resume.education.length > 0) || (resume.certifications && resume.certifications.length > 0)) structurePoints++;
+  // Section 5: Skills / Technical Proficiencies
+  if (resume.skills && resume.skills.length >= 3) structurePoints++;
+
+  const structureScore = Math.round((structurePoints / maxStructurePoints) * 100);
+
+  // 5. BREVITY & READABILITY (Weight: 15%)
+  let optimalBulletCount = 0;
+  let wordCountSum = 0;
+  allBullets.forEach(b => {
+    const words = (b || '').trim().split(/\s+/).filter(Boolean);
+    wordCountSum += words.length;
+    if (words.length >= 10 && words.length <= 35) {
+      optimalBulletCount++;
+    }
+  });
+  const avgWordsPerBullet = totalBullets > 0 ? Math.round(wordCountSum / totalBullets) : 0;
+  const brevityRatio = totalBullets > 0 ? (optimalBulletCount / totalBullets) : 1;
+  const brevityScore = Math.min(100, Math.round(brevityRatio * 100));
+
+  // OVERALL WEIGHTED ATS HEALTH INDEX
+  const overallScore = Math.round(
+    (keywordScore * 0.25) +
+    (actionVerbScore * 0.20) +
+    (metricScore * 0.20) +
+    (structureScore * 0.20) +
+    (brevityScore * 0.15)
+  );
+
+  let grade = 'Excellent';
+  if (overallScore < 60) grade = 'Needs Improvement';
+  else if (overallScore < 75) grade = 'Good';
+  else if (overallScore < 88) grade = 'Very Good';
+
+  // ACTIONABLE INSIGHTS GENERATION
+  const actionableTips = [];
+  if (actionVerbScore < 75) {
+    actionableTips.push(`Strengthen ${totalBullets - actionVerbCount} bullet(s) by starting with high-impact active verbs (e.g. "Architected", "Optimized", "Spearheaded").`);
+  }
+  if (metricScore < 70) {
+    actionableTips.push(`Add measurable metrics or percentages to experience bullets to demonstrate quantified impact.`);
+  }
+  if (keywordScore < 70) {
+    actionableTips.push(`Incorporate target technical keywords and industry terms from the job description.`);
+  }
+  if (structureScore < 100) {
+    actionableTips.push(`Ensure all core ATS sections (Contact, Profile Summary, Work Experience, Education, Skills) are populated.`);
+  }
+  if (brevityScore < 70 && avgWordsPerBullet > 35) {
+    actionableTips.push(`Average bullet length is ${avgWordsPerBullet} words. Aim for 12–28 words per bullet for optimal ATS readability.`);
+  }
+  if (actionableTips.length === 0) {
+    actionableTips.push('Exceptional ATS formatting: High action verb density, measurable metrics, and clean structural hierarchy.');
+  }
+
+  return {
+    overallScore,
+    grade,
+    dimensions: {
+      keywords: {
+        score: keywordScore,
+        label: 'Keyword Optimization',
+        weight: '25%',
+        details: `${matchedKeywords.length}/${keywordTaxonomy.length} core taxonomy keywords detected (${keywordScore}%)`,
+        status: keywordScore >= 75 ? 'Optimal' : keywordScore >= 50 ? 'Moderate' : 'Low'
+      },
+      actionVerbs: {
+        score: actionVerbScore,
+        label: 'Action Verb & STAR Power',
+        weight: '20%',
+        details: `${actionVerbCount}/${totalBullets} bullets start with high-impact active verbs`,
+        status: actionVerbScore >= 75 ? 'Optimal' : actionVerbScore >= 50 ? 'Moderate' : 'Needs Polish'
+      },
+      metrics: {
+        score: metricScore,
+        label: 'Quantifiable Metrics & Numbers',
+        weight: '20%',
+        details: `${metricCount}/${totalBullets} bullets contain quantified outcomes (% / $ / #)`,
+        status: metricScore >= 70 ? 'Optimal' : metricScore >= 40 ? 'Moderate' : 'Needs Metrics'
+      },
+      structure: {
+        score: structureScore,
+        label: 'Structural Parseability',
+        weight: '20%',
+        details: `${structurePoints}/${maxStructurePoints} standard ATS sections verified`,
+        status: structureScore === 100 ? 'Optimal' : 'Incomplete'
+      },
+      brevity: {
+        score: brevityScore,
+        label: 'Brevity & Recruiter Readability',
+        weight: '15%',
+        details: `Avg ${avgWordsPerBullet} words/bullet (${optimalBulletCount}/${totalBullets} optimal)`,
+        status: brevityScore >= 70 ? 'Optimal' : 'Needs Trimming'
+      }
+    },
+    matchedKeywords,
+    metricsFoundCount: metricCount,
+    actionVerbsFoundCount: actionVerbCount,
+    totalBullets,
+    actionableTips
+  };
+}
+
+
 

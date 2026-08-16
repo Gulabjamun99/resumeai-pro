@@ -45,7 +45,7 @@ test.describe('ResumeAI Pro — Production Black-Box E2E Tests', () => {
     // 4. Turn 2: Add Consulting Experience on top of v2
     await page.click('button:has-text("Make Another Change")');
     await expect(page.locator('text=Screen 3 — Change Request')).toBeVisible();
-    await expect(page.locator('text=Active Base: Version 2')).toBeVisible();
+    await expect(page.locator('text=Active Working Copy:')).toBeVisible();
 
     await page.fill('textarea', 'Now add my independent consulting work after April 2025. Keep everything you changed in the previous version.');
     await page.click('button:has-text("Classify Intent & Formulate Change Plan")');
@@ -58,7 +58,7 @@ test.describe('ResumeAI Pro — Production Black-Box E2E Tests', () => {
 
     // 5. Turn 3: Add AWS and Remove Java on top of v3
     await page.click('button:has-text("Make Another Change")');
-    await expect(page.locator('text=Active Base: Version 3')).toBeVisible();
+    await expect(page.locator('text=Active Working Copy:')).toBeVisible();
 
     await page.fill('textarea', 'Add AWS to my skills and remove Java. Do not change anything else.');
     await page.click('button:has-text("Classify Intent & Formulate Change Plan")');
@@ -134,6 +134,7 @@ test.describe('ResumeAI Pro — Production Black-Box E2E Tests', () => {
     await page.click('button:has-text("View Side-by-Side Comparison")');
 
     // Click Start New CV
+    page.once('dialog', dialog => dialog.accept());
     await page.click('button:has-text("Start New CV")');
 
     // Verify redirected back to Screen 1

@@ -10,6 +10,7 @@ import Screen8Download from './components/Screen8Download';
 import ClarificationModal from './components/ClarificationModal';
 import ResumeDocument from './components/ResumeDocument';
 import TemplateSelector from './components/TemplateSelector';
+import AtsScorecardPanel from './components/AtsScorecardPanel';
 import VersionHistory from './components/VersionHistory';
 import { ROHIT_ORIGINAL_RESUME, DEFAULT_USER_PROMPT } from './data/rohitData';
 import { parseGenericCvText } from './services/cvExtractor';
@@ -492,6 +493,9 @@ export default function App() {
               selectedTemplateId={selectedTemplateId}
               onSelectTemplate={setSelectedTemplateId}
             />
+
+            {/* Granular ATS Health & Diagnostic Scorecard (P1.3 Directive) */}
+            <AtsScorecardPanel resume={currentCvState} />
 
             {/* Studio Header Toolbar */}
             <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap justify-between items-center gap-4">
