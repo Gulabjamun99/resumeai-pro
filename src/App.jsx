@@ -222,7 +222,7 @@ export default function App() {
     }
 
     // Step 4: Run Complete Validation Suite
-    const report = runCompleteValidationSuite(sourceResume, lockedCv, promptText, permissionScope);
+    const report = runCompleteValidationSuite(sourceResume, lockedCv, promptText, permissionScope, activeChangePlan);
 
     setProposedCvState(lockedCv);
     setRequestedFacts(facts);
@@ -612,7 +612,8 @@ export default function App() {
         {currentScreen === 8 && currentCvState && (
           <Screen8Download 
             updatedResume={currentCvState}
-            onPrint={() => printResume('preview-resume-updated')}
+            currentVersion={currentVersion}
+            onStartNew={handleClearSession}
           />
         )}
       </main>

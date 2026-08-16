@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   MessageSquare, Play, Sparkles, AlertTriangle, ShieldCheck, Layers, 
-  FileText, CheckCircle2, AlertCircle, HelpCircle, ArrowRight, Check, X
+  FileText, CheckCircle2, AlertCircle, HelpCircle, ArrowRight, Check, X,
+  Zap, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { 
   parseUserIntentToChangePlan, 
   analyzeJobDescriptionMatch, 
-  buildChangePlanFromJdSuggestions 
+  buildChangePlanFromJdSuggestions,
+  analyzeBulletStarRefinement,
+  buildChangePlanFromStarSuggestions
 } from '../utils/atsEngine';
 import { classifyPermissionScope } from '../services/permissionClassifier';
 
@@ -27,6 +30,19 @@ export default function Screen3Request({
   const [jdAnalysisResult, setJdAnalysisResult] = useState(null);
   const [selectedSuggestions, setSelectedSuggestions] = useState([]);
   const [tableFilter, setTableFilter] = useState('ALL'); // 'ALL' | 'EVIDENCED' | 'GAPS'
+
+  // STAR Bullet Refinement state
+  const [isStarExpanded, setIsStarExpanded] = useState(false);
+  const starSuggestions = useMemo(() => {
+    return analyzeBulletStarRefinement(currentCvState);
+  }, [currentCvState]);
+  const [selectedStarIds, setSelectedStarIds] = useState([]);
+
+  React.useEffect(() => {
+    if (starSuggestions.length > 0 && selectedStarIds.length === 0) {
+      setSelectedStarIds(starSuggestions.map(s => s.id));
+    }
+  }, [starSuggestions]);
 
   const currentScope = classifyPermissionScope(promptText) || permissionScope;
   const currentPlan = parseUserIntentToChangePlan(promptText, null, null);
@@ -96,6 +112,22 @@ export default function Screen3Request({
     const chosenSugs = jdAnalysisResult.safeSuggestions.filter(s => selectedSuggestions.includes(s.id));
     const plan = buildChangePlanFromJdSuggestions(chosenSugs, currentCvState);
     onApplyJdPlan(plan, `Job Description Match Optimization (${chosenSugs.length} improvements applied)`);
+  };
+
+  // STAR toggle handlers
+  const handleToggleStarSuggestion = (starId) => {
+    if (selectedStarIds.includes(starId)) {
+      setSelectedStarIds(selectedStarIds.filter(id => id !== starId));
+    } else {
+      setSelectedStarIds([...selectedStarIds, starId]);
+    }
+  };
+
+  const handleApplyStarImprovements = () => {
+    if (!onApplyJdPlan || selectedStarIds.length === 0) return;
+    const chosen = starSuggestions.filter(s => selectedStarIds.includes(s.id));
+    const plan = buildChangePlanFromStarSuggestions(chosen, currentCvState);
+    onApplyJdPlan(plan, `STAR Action-Verb Polish (${chosen.length} bullets refined)`);
   };
 
   const filteredRequirements = jdAnalysisResult?.requirements?.filter(req => {
@@ -204,6 +236,103 @@ export default function Screen3Request({
               ))}
             </div>
           </div>
+
+          {/* P2.4: Evidence-Safe STAR & Action-Verb Bullet Polish Section */}
+          {starSuggestions.length > 0 && (
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-3">
+              <div 
+                onClick={() => setIsStarExpanded(!isStarExpanded)}
+                className="flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-md bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                    <Zap className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-200">
+                      Smart STAR & Action-Verb Bullet Polish
+                    </h3>
+                    <p className="text-[11px] text-slate-400">
+                      Found {starSuggestions.length} passive bullet{starSuggestions.length > 1 ? 's' : ''} that can be strengthened without fabricating unverified metrics.
+                    </p>
+                  </div>
+                </div>
+
+                <button className="text-slate-400 hover:text-white">
+                  {isStarExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {isStarExpanded && (
+                <div className="flex flex-col gap-2.5 pt-2 border-t border-slate-850">
+                  <div className="grid gap-2">
+                    {starSuggestions.map(sug => {
+                      const isSelected = selectedStarIds.includes(sug.id);
+                      return (
+                        <div 
+                          key={sug.id}
+                          onClick={() => handleToggleStarSuggestion(sug.id)}
+                          className={`p-3 rounded-lg border transition cursor-pointer flex items-start justify-between gap-3 ${
+                            isSelected 
+                              ? 'bg-sky-950/40 border-sky-700 text-slate-100' 
+                              : 'bg-slate-900/60 border-slate-800 text-slate-400'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div className={`w-4 h-4 rounded border mt-0.5 flex items-center justify-center ${
+                              isSelected ? 'bg-sky-500 border-sky-400 text-white' : 'border-slate-600 bg-slate-800'
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                            </div>
+                            <div className="flex flex-col gap-1 text-xs">
+                              <span className="font-semibold text-slate-400 text-[10.5px]">
+                                {sug.role} ({sug.company})
+                              </span>
+                              <span className="text-[11px] text-slate-400 line-through">
+                                "{sug.originalBullet}"
+                              </span>
+                              <span className="text-[11px] text-emerald-300 font-semibold">
+                                ➔ "{sug.suggestedBullet}"
+                              </span>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px]">
+                                <span className="text-sky-400 font-mono bg-sky-950 px-1.5 py-0.5 rounded border border-sky-800">
+                                  Verb: {sug.strongVerb}
+                                </span>
+                                <span className="text-slate-400 font-mono bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                                  {sug.metricNote}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                            isSelected ? 'bg-sky-900/80 text-sky-200 border-sky-600' : 'bg-slate-800 text-slate-400 border-slate-700'
+                          }`}>
+                            {isSelected ? 'Accepted' : 'Rejected'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      onClick={handleApplyStarImprovements}
+                      disabled={selectedStarIds.length === 0}
+                      className={`text-xs font-bold px-5 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer ${
+                        selectedStarIds.length === 0
+                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                          : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Apply {selectedStarIds.length} Selected STAR Polish{selectedStarIds.length > 1 ? 'es' : ''} (Screen 4)</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Real-Time Permission & Operation Preview Badge */}
           {currentScope && (

@@ -25,7 +25,7 @@ export default function ResumeDocument({ resume, id = "resume-document", isEdita
         style={{ boxSizing: 'border-box' }}
       >
         {/* Contact Info */}
-        <div>
+        <div className="cv-section page-break-inside-avoid">
           <h3 className="text-[12px] font-bold uppercase tracking-wider text-sky-400 border-b border-slate-700 pb-1 mb-2">
             Contact Information
           </h3>
@@ -56,7 +56,7 @@ export default function ResumeDocument({ resume, id = "resume-document", isEdita
         </div>
 
         {/* Core Competencies / Skills */}
-        <div>
+        <div className="cv-section cv-skill-group page-break-inside-avoid">
           <h3 className="text-[12px] font-bold uppercase tracking-wider text-sky-400 border-b border-slate-700 pb-1 mb-2">
             Skill
           </h3>
@@ -69,7 +69,7 @@ export default function ResumeDocument({ resume, id = "resume-document", isEdita
 
         {/* Languages */}
         {languages && languages.length > 0 && (
-          <div>
+          <div className="cv-section page-break-inside-avoid">
             <h3 className="text-[12px] font-bold uppercase tracking-wider text-sky-400 border-b border-slate-700 pb-1 mb-2">
               Language
             </h3>
@@ -86,7 +86,7 @@ export default function ResumeDocument({ resume, id = "resume-document", isEdita
 
         {/* Position Hired For */}
         {positionsHiredFor && positionsHiredFor.length > 0 && (
-          <div>
+          <div className="cv-section page-break-inside-avoid">
             <h3 className="text-[12px] font-bold uppercase tracking-wider text-sky-400 border-b border-slate-700 pb-1 mb-2">
               Skills/Position Hired For:
             </h3>
@@ -103,7 +103,7 @@ export default function ResumeDocument({ resume, id = "resume-document", isEdita
         style={{ boxSizing: 'border-box' }}
       >
         {/* HEADER AREA */}
-        <div className="border-b border-slate-200 pb-3">
+        <div className="cv-section page-break-inside-avoid border-b border-slate-200 pb-3">
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight leading-none mb-1">
             {header.name}
           </h1>
@@ -116,15 +116,15 @@ export default function ResumeDocument({ resume, id = "resume-document", isEdita
         </div>
 
         {/* WORK EXPERIENCE */}
-        <div>
-          <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-1 mb-3 flex items-center gap-1.5">
+        <div className="cv-section">
+          <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-1 mb-3 flex items-center gap-1.5 page-break-inside-avoid">
             <span className="w-1.5 h-3.5 bg-sky-600 rounded-sm inline-block"></span>
             Work Experience
           </h3>
 
           <div className="flex flex-col gap-4">
             {experiences.map((exp) => (
-              <div key={exp.id} className="flex flex-col gap-1">
+              <div key={exp.id} className="cv-experience-item page-break-inside-avoid flex flex-col gap-1">
                 <div className="flex justify-between items-baseline">
                   <span className="text-[11.5px] font-bold text-slate-900">
                     {exp.role} {exp.subtitle && <span className="font-normal text-slate-600">| {exp.subtitle}</span>}
@@ -153,7 +153,7 @@ export default function ResumeDocument({ resume, id = "resume-document", isEdita
 
         {/* EDUCATION */}
         {education && education.length > 0 && (
-          <div>
+          <div className="cv-section cv-education-item page-break-inside-avoid">
             <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
               <span className="w-1.5 h-3.5 bg-sky-600 rounded-sm inline-block"></span>
               Education
@@ -168,7 +168,7 @@ export default function ResumeDocument({ resume, id = "resume-document", isEdita
 
         {/* CERTIFICATIONS */}
         {certifications && certifications.length > 0 && (
-          <div>
+          <div className="cv-section cv-certification-item page-break-inside-avoid">
             <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
               <span className="w-1.5 h-3.5 bg-sky-600 rounded-sm inline-block"></span>
               Certifications
@@ -183,7 +183,7 @@ export default function ResumeDocument({ resume, id = "resume-document", isEdita
 
         {/* IT SKILLS */}
         {itSkills && itSkills.length > 0 && (
-          <div>
+          <div className="cv-section page-break-inside-avoid">
             <h3 className="text-[12px] font-bold uppercase tracking-wider text-slate-800 border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
               <span className="w-1.5 h-3.5 bg-sky-600 rounded-sm inline-block"></span>
               IT Skills

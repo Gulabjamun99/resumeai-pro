@@ -77,7 +77,7 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
         company: "Global Solutions Enterprise",
         period: "Jan 2023 – Present",
         location: "Remote / Hybrid",
-        bullets: bulletLines.slice(0, 5).length > 0 ? bulletLines.slice(0, 5) : [
+        bullets: bulletLines.slice(0, 5).length > 0 ? bulletLines.slice(0, 5).map(b => b.replace(/^[-•▪*]\s*/, '').trim()) : [
           "Led cross-functional project execution delivering key business outcomes on schedule.",
           "Streamlined operational workflows improving team efficiency by 20%.",
           "Managed stakeholder relationships and executive reporting across multiple departments."
@@ -89,7 +89,7 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
         company: "Innovate Tech Corp",
         period: "Jun 2020 – Dec 2022",
         location: "Tech Hub",
-        bullets: bulletLines.slice(5, 9).length > 0 ? bulletLines.slice(5, 9) : [
+        bullets: bulletLines.slice(5, 9).length > 0 ? bulletLines.slice(5, 9).map(b => b.replace(/^[-•▪*]\s*/, '').trim()) : [
           "Executed core operational deliverables maintaining high performance standards.",
           "Collaborated with cross-departmental teams to implement continuous improvement initiatives."
         ]

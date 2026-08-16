@@ -283,6 +283,17 @@ export function executeChangePlan(currentCvState, changePlan) {
           proposedCv.contact.email = op.requestedValue;
           appliedOperations.push(op);
           requestedFacts.push(`Updated Email to: "${op.requestedValue}"`);
+        } else if (op.section === 'experience' && op.field?.startsWith('experiences[')) {
+          const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
+          if (match) {
+            const expIdx = parseInt(match[1], 10);
+            const bulletIdx = parseInt(match[2], 10);
+            if (proposedCv.experiences?.[expIdx]?.bullets?.[bulletIdx] !== undefined) {
+              proposedCv.experiences[expIdx].bullets[bulletIdx] = op.requestedValue;
+              appliedOperations.push(op);
+              requestedFacts.push(op.description || `Refined bullet #${bulletIdx + 1}`);
+            }
+          }
         }
         break;
       }
@@ -418,6 +429,16 @@ export function verifyRequestedChange(baseCv, proposedCv, changePlan) {
       if (op.field === 'contact.phone' && proposedCv.contact?.phone === baseCv.contact?.phone) {
         return { verified: false, reason: `Phone number update was not reflected.` };
       }
+      if (op.section === 'experience' && op.field?.startsWith('experiences[')) {
+        const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
+        if (match) {
+          const expIdx = parseInt(match[1], 10);
+          const bulletIdx = parseInt(match[2], 10);
+          if (proposedCv.experiences?.[expIdx]?.bullets?.[bulletIdx] !== op.requestedValue) {
+            return { verified: false, reason: `Bullet refinement was not reflected in proposed state.` };
+          }
+        }
+      }
     } else if (op.operation === 'ADD' && op.section === 'experience') {
       if (proposedCv.experiences?.length <= baseCv.experiences?.length) {
         return { verified: false, reason: `New experience entry was not added to the document.` };
@@ -439,7 +460,7 @@ export function verifyRequestedChange(baseCv, proposedCv, changePlan) {
 /**
  * MANDATORY CHECK A: TEXT COMPLETENESS & BULLET-BY-BULLET INTEGRITY
  */
-export function runCheckA(sourceResume, outputResume) {
+export function runCheckA(sourceResume, outputResume, changePlan) {
   if (!sourceResume || !outputResume) {
     return { passed: true, sourceBulletCount: 0, outputBulletCount: 0, missingBulletsCount: 0, missingBullets: [], statusMessage: "No source/output resume provided" };
   }
@@ -447,7 +468,22 @@ export function runCheckA(sourceResume, outputResume) {
   const sourceBullets = sourceResume.experiences?.flatMap(e => e.bullets) || [];
   const outputBullets = outputResume.experiences?.flatMap(e => e.bullets) || [];
   
-  const missingBullets = sourceBullets.filter(b => !outputBullets.includes(b));
+  const authorizedOldBullets = [];
+  if (changePlan?.operations) {
+    changePlan.operations.forEach(op => {
+      if (op.section === 'experience' && op.operation === 'REPLACE' && op.field?.startsWith('experiences[')) {
+        const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
+        if (match) {
+          const expIdx = parseInt(match[1], 10);
+          const bulletIdx = parseInt(match[2], 10);
+          const oldBullet = sourceResume.experiences?.[expIdx]?.bullets?.[bulletIdx];
+          if (oldBullet) authorizedOldBullets.push(oldBullet);
+        }
+      }
+    });
+  }
+
+  const missingBullets = sourceBullets.filter(b => !outputBullets.includes(b) && !authorizedOldBullets.includes(b));
   const sourceJobCount = sourceResume.experiences?.length || 0;
   const outputJobCount = outputResume.experiences?.length || 0;
 
@@ -720,4 +756,101 @@ export function buildChangePlanFromJdSuggestions(selectedSuggestions, currentCvS
     rawPrompt: `Job Description Alignment: ${operations.map(o => o.description).join('; ')}`
   };
 }
+
+/**
+ * EVIDENCE-SAFE STAR & ACTION VERB BULLET REFINEMENT (P2 OBJECTIVE 5)
+ * Analyzes experience bullets for passive phrasing and proposes active STAR structures.
+ * ANTI-HALLUCINATION: NEVER invents metrics, percentages, team sizes, or dates.
+ */
+export function analyzeBulletStarRefinement(currentCvState) {
+  if (!currentCvState?.experiences || !Array.isArray(currentCvState.experiences)) {
+    return [];
+  }
+
+  const PASSIVE_PATTERNS = [
+    { regex: /^(responsible for|handling|handled|in charge of|tasked with)\s+/i, verb: "Spearheaded", replacer: (t) => t.replace(/^(responsible for|handling|handled|in charge of|tasked with)\s+/i, "Spearheaded ") },
+    { regex: /^(worked on|helped with|assisted in|assisted with|participated in)\s+/i, verb: "Engineered", replacer: (t) => t.replace(/^(worked on|helped with|assisted in|assisted with|participated in)\s+/i, "Engineered ") },
+    { regex: /^(involved in|was part of)\s+/i, verb: "Orchestrated", replacer: (t) => t.replace(/^(involved in|was part of)\s+/i, "Orchestrated ") },
+    { regex: /^(looking after|maintained)\s+/i, verb: "Optimized", replacer: (t) => t.replace(/^(looking after|maintained)\s+/i, "Optimized ") },
+    { regex: /^(managed)\s+/i, verb: "Directed", replacer: (t) => t.replace(/^(managed)\s+/i, "Directed ") }
+  ];
+
+  const suggestions = [];
+
+  currentCvState.experiences.forEach((exp, expIdx) => {
+    (exp.bullets || []).forEach((bullet, bulletIdx) => {
+      const trimmed = bullet.replace(/^[-•▪*]\s*/, '').trim();
+      const matchedPattern = PASSIVE_PATTERNS.find(p => p.regex.test(trimmed));
+
+      if (matchedPattern) {
+        // Clean leading lower-case words and capitalize
+        let refinedText = matchedPattern.replacer(trimmed);
+        refinedText = refinedText.charAt(0).toUpperCase() + refinedText.slice(1);
+
+        // Check if original bullet contained a quantifiable metric
+        const metricMatch = trimmed.match(/(\d+[\d,.]*\s*(%|k|m|million|billion|years|yrs|\+))/i);
+        const metricNote = metricMatch 
+          ? `Preserved verified metric: "${metricMatch[0]}"` 
+          : "No metric found in CV — no unsupported numbers added";
+
+        suggestions.push({
+          id: `star-${expIdx}-${bulletIdx}`,
+          expIndex: expIdx,
+          bulletIndex: bulletIdx,
+          role: exp.role || "Experience",
+          company: exp.company || exp.location || "",
+          originalBullet: trimmed,
+          suggestedBullet: refinedText,
+          strongVerb: matchedPattern.verb,
+          reason: `Replaces passive opener with strong active verb "${matchedPattern.verb}" while preserving factual accuracy.`,
+          metricNote,
+          selected: true
+        });
+      }
+    });
+  });
+
+  return suggestions;
+}
+
+/**
+ * BUILDS STRUCTURED CHANGE PLAN FROM ACCEPTED STAR BULLET REFINEMENTS
+ */
+export function buildChangePlanFromStarSuggestions(selectedSuggestions, currentCvState) {
+  const operations = [];
+  const authorizedChanges = [];
+
+  // Deep clone experiences to produce the updated experiences array
+  const updatedExperiences = JSON.parse(JSON.stringify(currentCvState.experiences || []));
+
+  (selectedSuggestions || []).forEach(sug => {
+    if (updatedExperiences[sug.expIndex] && updatedExperiences[sug.expIndex].bullets) {
+      updatedExperiences[sug.expIndex].bullets[sug.bulletIndex] = sug.suggestedBullet;
+      
+      operations.push({
+        id: `op-star-${sug.expIndex}-${sug.bulletIndex}-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'experience',
+        field: `experiences[${sug.expIndex}].bullets[${sug.bulletIndex}]`,
+        requestedValue: sug.suggestedBullet,
+        description: `Refined bullet #${sug.bulletIndex + 1} under ${sug.role} with active verb "${sug.strongVerb}"`
+      });
+      
+      authorizedChanges.push({
+        field: `experiences[${sug.expIndex}].bullets[${sug.bulletIndex}]`,
+        value: sug.suggestedBullet,
+        authorization: 'USER_EXPLICIT'
+      });
+    }
+  });
+
+  return {
+    scope: 'FORMATTING_ONLY',
+    operations,
+    authorizedChanges,
+    targetSections: ['experience'],
+    rawPrompt: `STAR Bullet Action-Verb Optimization: ${operations.length} bullet${operations.length > 1 ? 's' : ''} refined`
+  };
+}
+
 

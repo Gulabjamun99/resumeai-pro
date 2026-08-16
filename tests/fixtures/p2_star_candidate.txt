@@ -1,0 +1,14 @@
+E2E Test Candidate
+Senior Talent Specialist
+Professional recruiter with 6 years experience.
+contact@e2etest.com | +1-555-0199 | Remote | https://linkedin.com/in/e2ecandidate
+
+Work Experience:
+ABC Technologies
+Talent Acquisition Lead
+January 2022 - December 2024
+- Responsible for managing recruitment workflows across engineering teams.
+- Worked on cloud deployment automation with 20% latency reduction.
+
+Skills:
+Technical Recruiting, Sourcing, ATS

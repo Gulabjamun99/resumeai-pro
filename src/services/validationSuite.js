@@ -3,12 +3,27 @@ import { ATS_KEYWORD_TAXONOMY } from '../data/rohitData.js';
 /**
  * Full 6-Layer Quality Control Audit Engine (Corrected)
  */
-export function runCompleteValidationSuite(sourceMaster, outputResume, promptText, permissionScope) {
-  const sourceBullets = sourceMaster.experiences.flatMap(e => e.bullets);
-  const outputBullets = outputResume.experiences.flatMap(e => e.bullets);
+export function runCompleteValidationSuite(sourceMaster, outputResume, promptText, permissionScope, changePlan) {
+  const sourceBullets = sourceMaster.experiences?.flatMap(e => e.bullets) || [];
+  const outputBullets = outputResume.experiences?.flatMap(e => e.bullets) || [];
   
-  // Layer 1: Check A - Content Completeness & Unintended Deletions
-  const missingSourceBullets = sourceBullets.filter(b => !outputBullets.includes(b));
+  // Layer 1: Check A - Content Completeness & Unintended Deletions (excluding authorized replacements)
+  const authorizedOldBullets = [];
+  if (changePlan?.operations) {
+    changePlan.operations.forEach(op => {
+      if (op.section === 'experience' && op.operation === 'REPLACE' && op.field?.startsWith('experiences[')) {
+        const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
+        if (match) {
+          const expIdx = parseInt(match[1], 10);
+          const bulletIdx = parseInt(match[2], 10);
+          const oldBullet = sourceMaster.experiences?.[expIdx]?.bullets?.[bulletIdx];
+          if (oldBullet) authorizedOldBullets.push(oldBullet);
+        }
+      }
+    });
+  }
+
+  const missingSourceBullets = sourceBullets.filter(b => !outputBullets.includes(b) && !authorizedOldBullets.includes(b));
   const checkA_Passed = missingSourceBullets.length === 0;
 
   // Layer 2: Check B - Requested Additions Verification

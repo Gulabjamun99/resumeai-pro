@@ -67,9 +67,12 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
         targetExp.period = sourceExp.period;
         targetExp.location = sourceExp.location;
 
-        // Ensure original source bullets are preserved line-by-line
+        // Ensure original source bullets are preserved line-by-line (unless authorized for replacement)
         sourceExp.bullets.forEach((sourceBullet, idx) => {
-          if (!targetExp.bullets.includes(sourceBullet)) {
+          const isAuthorizedReplacement = Array.from(authorizedFields).some(field => 
+            field.startsWith('experiences[') && field.endsWith(`.bullets[${idx}]`)
+          );
+          if (!targetExp.bullets.includes(sourceBullet) && !isAuthorizedReplacement) {
             targetExp.bullets.splice(idx, 0, sourceBullet);
           }
         });

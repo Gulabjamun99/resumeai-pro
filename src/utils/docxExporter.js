@@ -1,131 +1,162 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
+/**
+ * RESUMEAI PRO — SECURE OPENXML DOCX EXPORTER (P2 HARDENING)
+ * Features:
+ * - Dynamic Lazy Import of docx module (Code Splitting)
+ * - Safe Candidate Filename Sanitizer Integration
+ * - Error Boundary & Loading State Handling
+ */
 
-export function exportResumeToDocx(resume, filename = "Candidate_ATS_Updated_Resume.docx") {
-  if (!resume) return;
+import { sanitizeCandidateFilename } from './pdfExporter';
 
-  const { header, contact, skills, experiences, education, certifications, itSkills } = resume;
+export async function exportResumeToDocx(resume, version = 1) {
+  if (!resume) {
+    throw new Error("No active CV data provided for DOCX export.");
+  }
 
-  const doc = new Document({
-    sections: [
-      {
-        properties: {
-          page: {
-            margin: { top: 720, bottom: 720, left: 720, right: 720 }
-          }
-        },
-        children: [
-          // Header Name & Title
-          new Paragraph({
-            text: header.name,
-            heading: HeadingLevel.TITLE,
-            spacing: { after: 100 }
-          }),
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: header.title,
-                bold: true,
-                color: "0284C7",
-                size: 24
-              })
-            ],
-            spacing: { after: 200 }
-          }),
+  const filename = sanitizeCandidateFilename(resume.header?.name, version, 'docx');
 
-          // Contact Details
-          new Paragraph({
-            children: [
-              new TextRun({ text: `Email: ${contact.email} | Phone: ${contact.phone} | Location: ${contact.address}`, size: 18 }),
-              contact.linkedin ? new TextRun({ text: ` | LinkedIn: ${contact.linkedin}`, size: 18 }) : new TextRun("")
-            ],
-            spacing: { after: 300 }
-          }),
+  try {
+    // Dynamic import for code splitting
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
 
-          // Professional Summary Section
-          new Paragraph({
-            text: "PROFESSIONAL SUMMARY",
-            heading: HeadingLevel.HEADING_2,
-            spacing: { before: 200, after: 100 }
-          }),
-          new Paragraph({
-            text: header.summary,
-            spacing: { after: 300 }
-          }),
+    const { header = {}, contact = {}, skills = [], experiences = [], education = [], certifications = [], itSkills = [] } = resume;
 
-          // Work Experience Section
-          new Paragraph({
-            text: "WORK EXPERIENCE",
-            heading: HeadingLevel.HEADING_2,
-            spacing: { before: 200, after: 100 }
-          }),
-          ...experiences.flatMap(exp => [
+    const doc = new Document({
+      sections: [
+        {
+          properties: {
+            page: {
+              margin: { top: 720, bottom: 720, left: 720, right: 720 }
+            }
+          },
+          children: [
+            // Header Name & Title
             new Paragraph({
-              children: [
-                new TextRun({ text: exp.role, bold: true, size: 22 }),
-                exp.subtitle ? new TextRun({ text: ` | ${exp.subtitle}`, italic: true, size: 20 }) : new TextRun(""),
-                new TextRun({ text: `   (${exp.period})`, bold: true, color: "475569", size: 18 })
-              ],
-              spacing: { before: 150, after: 50 }
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({ text: exp.company || exp.location, italic: true, color: "64748B", size: 18 })
-              ],
+              text: header.name || "Candidate",
+              heading: HeadingLevel.TITLE,
               spacing: { after: 100 }
             }),
-            ...exp.bullets.map(bullet => new Paragraph({
-              text: `•  ${bullet}`,
-              spacing: { after: 50 }
-            }))
-          ]),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: header.title || "Professional Profile",
+                  bold: true,
+                  color: "0284C7",
+                  size: 24
+                })
+              ],
+              spacing: { after: 200 }
+            }),
 
-          // Education Section
-          new Paragraph({
-            text: "EDUCATION",
-            heading: HeadingLevel.HEADING_2,
-            spacing: { before: 300, after: 100 }
-          }),
-          ...education.map(edu => new Paragraph({
-            text: `▪  ${edu}`,
-            spacing: { after: 50 }
-          })),
+            // Contact Details
+            new Paragraph({
+              children: [
+                new TextRun({ 
+                  text: `Email: ${contact.email || ''} | Phone: ${contact.phone || ''} | Location: ${contact.address || ''}`, 
+                  size: 18 
+                }),
+                contact.linkedin ? new TextRun({ text: ` | LinkedIn: ${contact.linkedin}`, size: 18 }) : new TextRun("")
+              ],
+              spacing: { after: 300 }
+            }),
 
-          // Certifications Section
-          new Paragraph({
-            text: "CERTIFICATIONS",
-            heading: HeadingLevel.HEADING_2,
-            spacing: { before: 200, after: 100 }
-          }),
-          ...certifications.map(cert => new Paragraph({
-            text: `▪  ${cert}`,
-            spacing: { after: 50 }
-          })),
+            // Professional Summary Section
+            new Paragraph({
+              text: "PROFESSIONAL SUMMARY",
+              heading: HeadingLevel.HEADING_2,
+              spacing: { before: 200, after: 100 }
+            }),
+            new Paragraph({
+              text: header.summary || "",
+              spacing: { after: 300 }
+            }),
 
-          // Core Skills & IT Skills Section
-          new Paragraph({
-            text: "SKILLS & COMPETENCIES",
-            heading: HeadingLevel.HEADING_2,
-            spacing: { before: 200, after: 100 }
-          }),
-          new Paragraph({
-            text: skills.join(", "),
-            spacing: { after: 100 }
-          }),
-          itSkills && itSkills.length > 0 ? new Paragraph({
-            text: `IT Skills: ${itSkills.join(", ")}`,
-            spacing: { after: 100 }
-          }) : new Paragraph("")
-        ]
-      }
-    ]
-  });
+            // Work Experience Section
+            new Paragraph({
+              text: "WORK EXPERIENCE",
+              heading: HeadingLevel.HEADING_2,
+              spacing: { before: 200, after: 100 }
+            }),
+            ...experiences.flatMap(exp => [
+              new Paragraph({
+                children: [
+                  new TextRun({ text: exp.role || "", bold: true, size: 22 }),
+                  exp.subtitle ? new TextRun({ text: ` | ${exp.subtitle}`, italic: true, size: 20 }) : new TextRun(""),
+                  new TextRun({ text: `   (${exp.period || ''})`, bold: true, color: "475569", size: 18 })
+                ],
+                spacing: { before: 150, after: 50 }
+              }),
+              new Paragraph({
+                children: [
+                  new TextRun({ text: exp.company || exp.location || "", italic: true, color: "64748B", size: 18 })
+                ],
+                spacing: { after: 100 }
+              }),
+              ...(exp.bullets || []).map(bullet => new Paragraph({
+                text: `•  ${bullet}`,
+                spacing: { after: 50 }
+              }))
+            ]),
 
-  Packer.toBlob(doc).then(blob => {
+            // Education Section
+            ...(education.length > 0 ? [
+              new Paragraph({
+                text: "EDUCATION",
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 300, after: 100 }
+              }),
+              ...education.map(edu => new Paragraph({
+                text: `▪  ${edu}`,
+                spacing: { after: 50 }
+              }))
+            ] : []),
+
+            // Certifications Section
+            ...(certifications.length > 0 ? [
+              new Paragraph({
+                text: "CERTIFICATIONS",
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 200, after: 100 }
+              }),
+              ...certifications.map(cert => new Paragraph({
+                text: `▪  ${cert}`,
+                spacing: { after: 50 }
+              }))
+            ] : []),
+
+            // Core Skills & IT Skills Section
+            new Paragraph({
+              text: "SKILLS & COMPETENCIES",
+              heading: HeadingLevel.HEADING_2,
+              spacing: { before: 200, after: 100 }
+            }),
+            new Paragraph({
+              text: skills.join(", "),
+              spacing: { after: 100 }
+            }),
+            ...(itSkills && itSkills.length > 0 ? [
+              new Paragraph({
+                text: `IT Skills: ${itSkills.join(", ")}`,
+                spacing: { after: 100 }
+              })
+            ] : [])
+          ]
+        }
+      ]
+    });
+
+    const blob = await Packer.toBlob(doc);
     const downloadAnchor = document.createElement("a");
     downloadAnchor.href = URL.createObjectURL(blob);
     downloadAnchor.download = filename;
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
-  });
+    setTimeout(() => URL.revokeObjectURL(downloadAnchor.href), 1000);
+
+    return { success: true, filename };
+  } catch (err) {
+    console.error("DOCX Export failed:", err);
+    throw new Error(err.message || "Failed to generate DOCX. Your active CV state has been preserved.");
+  }
 }
