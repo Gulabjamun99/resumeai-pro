@@ -488,11 +488,41 @@ export default function Screen3Request({
                 </div>
               </div>
 
+              {/* P1.4: Explainability Callout & Simulation Banner */}
+              {jdAnalysisResult.summary && (
+                <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-3 flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-slate-200">Score Audit & Explainability:</span>
+                    <span className="text-slate-400 font-mono text-[11px]">
+                      {jdAnalysisResult.summary.exactCount || 0} Exact • {jdAnalysisResult.summary.strongCount || 0} Strong Synonym • {jdAnalysisResult.summary.partialCount || 0} Partial • {jdAnalysisResult.summary.gapCount || 0} Gaps
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    Why {jdAnalysisResult.matchScore}%? {jdAnalysisResult.summary.evidencedCount} of {jdAnalysisResult.summary.total} target competencies have verified evidence in candidate history. {jdAnalysisResult.summary.gapCount} high-priority terms remain unsupported.
+                  </p>
+
+                  {/* Non-Mutating Projected Impact Simulator */}
+                  {jdAnalysisResult.simulation && jdAnalysisResult.simulation.delta > 0 && (
+                    <div className="mt-1 bg-sky-950/60 border border-sky-500/30 rounded-md p-2 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-sky-300">Projected ATS Impact:</span>
+                        <span className="text-xs font-mono font-bold text-emerald-400">
+                          {jdAnalysisResult.simulation.currentScore}% → {jdAnalysisResult.simulation.projectedScore}% (+{jdAnalysisResult.simulation.delta}%)
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-amber-300/90 font-mono">
+                        ⚠ Projection only • Active CV has not been modified
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Requirements Evidence Table */}
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">
-                    Extracted Job Requirements & Evidence
+                    Extracted Job Requirements & Deep Evidence Lineage
                   </span>
                   
                   {/* Filter Pills */}
@@ -523,9 +553,9 @@ export default function Screen3Request({
                     <thead>
                       <tr className="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800 text-[11px]">
                         <th className="p-2.5 px-3">Requirement</th>
-                        <th className="p-2.5 px-3">Status</th>
-                        <th className="p-2.5 px-3">Evidence Found in CV</th>
-                        <th className="p-2.5 px-3">Section</th>
+                        <th className="p-2.5 px-3">Confidence & Status</th>
+                        <th className="p-2.5 px-3">Evidence Provenance Lineage</th>
+                        <th className="p-2.5 px-3">CV Location</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/80 font-mono text-[11px]">
@@ -533,27 +563,37 @@ export default function Screen3Request({
                         <tr key={req.id} className="hover:bg-slate-900/50 transition">
                           <td className="p-2.5 px-3 font-semibold text-slate-100">{req.name}</td>
                           <td className="p-2.5 px-3">
-                            {req.status === 'EVIDENCED' && (
+                            {req.confidence === 'EXACT' && (
                               <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 w-fit">
                                 <CheckCircle2 className="w-3 h-3" />
-                                EVIDENCED
+                                EXACT
                               </span>
                             )}
-                            {req.status === 'PARTIALLY_EVIDENCED' && (
+                            {req.confidence === 'STRONG' && (
+                              <span className="bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 w-fit">
+                                <CheckCircle2 className="w-3 h-3" />
+                                STRONG
+                              </span>
+                            )}
+                            {req.confidence === 'PARTIAL' && (
                               <span className="bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 w-fit">
                                 <AlertCircle className="w-3 h-3" />
                                 PARTIAL
                               </span>
                             )}
-                            {req.status === 'NOT_EVIDENCED' && (
+                            {(!req.confidence || req.confidence === 'NONE') && (
                               <span className="bg-slate-900 text-slate-400 border border-slate-700 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 w-fit">
                                 <X className="w-3 h-3" />
-                                NOT EVIDENCED
+                                NONE
                               </span>
                             )}
                           </td>
-                          <td className="p-2.5 px-3 text-slate-300">{req.evidenceSnippet}</td>
-                          <td className="p-2.5 px-3 text-slate-400">{req.cvLocation}</td>
+                          <td className="p-2.5 px-3 text-slate-300 max-w-xs truncate" title={req.evidenceSnippet}>
+                            {req.evidenceSnippet}
+                          </td>
+                          <td className="p-2.5 px-3 text-slate-400 max-w-xs truncate" title={req.cvLocation}>
+                            {req.cvLocation}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

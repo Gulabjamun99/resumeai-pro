@@ -34,6 +34,23 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
   // 4. Extract Bullets
   const bulletLines = lines.filter(l => l.startsWith('•') || l.startsWith('-') || l.startsWith('▪') || l.length > 60);
 
+  // 5. Extract Skills
+  let extractedSkills = [];
+  const skillsHeaderIdx = lines.findIndex(l => l.match(/^skills\s*[:\-]?$/i) || l.match(/^technical skills\s*[:\-]?$/i));
+  if (skillsHeaderIdx !== -1 && lines[skillsHeaderIdx + 1]) {
+    const rawSkillsLine = lines[skillsHeaderIdx + 1];
+    extractedSkills = rawSkillsLine.split(/[,|•;]+/).map(s => s.trim()).filter(Boolean);
+  }
+  if (extractedSkills.length === 0) {
+    extractedSkills = [
+      "End-to-End Project Execution",
+      "Strategic Planning & Execution",
+      "Stakeholder & Vendor Management",
+      "Process Automation & Optimization",
+      "Data Analytics & Reporting"
+    ];
+  }
+
   return {
     header: {
       name: nameLine,
@@ -46,13 +63,7 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
       address,
       linkedin
     },
-    skills: [
-      "End-to-End Project Execution",
-      "Strategic Planning & Execution",
-      "Stakeholder & Vendor Management",
-      "Process Automation & Optimization",
-      "Data Analytics & Reporting"
-    ],
+    skills: extractedSkills,
     languages: [
       { name: "English", level: "Professional" }
     ],

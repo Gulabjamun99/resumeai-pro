@@ -12,14 +12,17 @@ import {
   BookOpen, 
   Target 
 } from 'lucide-react';
-import { calculateGranularAtsScorecard } from '../utils/atsEngine';
+import { calculateGranularAtsScorecard, calculateDetailedAtsScore, generateScoreExplanationTree } from '../utils/atsEngine';
 
 export default function AtsScorecardPanel({ resume, targetKeywords = [] }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [activeExplainTab, setActiveExplainTab] = useState('keywords');
 
   if (!resume) return null;
 
   const scorecard = calculateGranularAtsScorecard(resume, targetKeywords);
+  const detailedScore = calculateDetailedAtsScore(resume, targetKeywords);
+  const explanation = generateScoreExplanationTree(detailedScore);
   const { overallScore, grade, dimensions, actionableTips } = scorecard;
 
   // Dynamic status badge styling
@@ -42,6 +45,14 @@ export default function AtsScorecardPanel({ resume, targetKeywords = [] }) {
     structure: <FileCheck className="w-3.5 h-3.5 text-purple-400" />,
     brevity: <BookOpen className="w-3.5 h-3.5 text-blue-400" />
   };
+
+  const explainTabs = [
+    { id: 'keywords', label: 'Keywords (25 pts)', pts: `${detailedScore.dimensions.keywords.score}/25` },
+    { id: 'actionVerbs', label: 'STAR Verbs (20 pts)', pts: `${detailedScore.dimensions.actionVerbs.score}/20` },
+    { id: 'metrics', label: 'Metrics (20 pts)', pts: `${detailedScore.dimensions.metrics.score}/20` },
+    { id: 'structure', label: 'Structure (20 pts)', pts: `${detailedScore.dimensions.structure.score}/20` },
+    { id: 'readability', label: 'Readability (15 pts)', pts: `${detailedScore.dimensions.readability.score}/15` }
+  ];
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl text-slate-100 flex flex-col gap-3 transition-all duration-300">
@@ -67,11 +78,11 @@ export default function AtsScorecardPanel({ resume, targetKeywords = [] }) {
         {/* Quick Highlights & Expand Button */}
         <div className="flex items-center gap-3 self-end sm:self-auto">
           <div className="hidden md:flex items-center gap-2 text-[10px] font-mono text-slate-400">
-            <span>Keywords: <strong className="text-sky-300">{dimensions.keywords.score}%</strong></span>
+            <span>Keywords: <strong className="text-sky-300">{detailedScore.dimensions.keywords.score}/25</strong></span>
             <span>•</span>
-            <span>STAR Verbs: <strong className="text-amber-300">{dimensions.actionVerbs.score}%</strong></span>
+            <span>STAR Verbs: <strong className="text-amber-300">{detailedScore.dimensions.actionVerbs.score}/20</strong></span>
             <span>•</span>
-            <span>Metrics: <strong className="text-emerald-300">{dimensions.metrics.score}%</strong></span>
+            <span>Metrics: <strong className="text-emerald-300">{detailedScore.dimensions.metrics.score}/20</strong></span>
           </div>
 
           <button
@@ -143,6 +154,61 @@ export default function AtsScorecardPanel({ resume, targetKeywords = [] }) {
             </div>
           </div>
 
+          {/* P1.4: Granular Score Trace & Explainability Tab Card */}
+          {explanation && explanation.trees && (
+            <div className="bg-slate-950/90 border border-slate-800 rounded-lg p-3.5 flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-800 pb-2.5">
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">
+                  Score Explainability & Trace Breakdown
+                </span>
+                <div className="flex flex-wrap gap-1 text-[10px]">
+                  {explainTabs.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveExplainTab(t.id)}
+                      className={`px-2.5 py-1 rounded-md transition font-medium cursor-pointer ${
+                        activeExplainTab === t.id
+                          ? 'bg-sky-600 text-white shadow-sm'
+                          : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {t.label} ({t.pts})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Active Tab Explanation Tree */}
+              {explanation.trees[activeExplainTab] && (
+                <div className="flex flex-col gap-2 bg-slate-900/60 p-3 rounded-lg border border-slate-800/80">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-200">
+                      Why {explanation.trees[activeExplainTab].scoreText}?
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      {explanation.trees[activeExplainTab].why}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-1 mt-1 font-mono text-[10.5px]">
+                    {explanation.trees[activeExplainTab].items.slice(0, 8).map((it, idx) => (
+                      <div 
+                        key={idx}
+                        className={`p-1.5 rounded flex items-center gap-2 ${
+                          it.type === 'positive' ? 'text-emerald-300 bg-emerald-950/30' :
+                          it.type === 'negative' ? 'text-rose-300 bg-rose-950/30' :
+                          'text-slate-300 bg-slate-800/40'
+                        }`}
+                      >
+                        <span>{it.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Actionable Insights Banner */}
           <div className="bg-slate-950/90 border border-slate-800 p-3.5 rounded-lg flex flex-col gap-2">
             <div className="flex items-center gap-1.5">
@@ -166,3 +232,4 @@ export default function AtsScorecardPanel({ resume, targetKeywords = [] }) {
     </div>
   );
 }
+

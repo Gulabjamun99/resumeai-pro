@@ -1,4 +1,27 @@
 import { ATS_KEYWORD_TAXONOMY } from '../data/rohitData.js';
+import { 
+  matchesTermInText, 
+  traceEvidenceLineage, 
+  evaluateEvidenceConfidence, 
+  calculateDetailedAtsScore, 
+  generateScoreExplanationTree, 
+  simulateScoreImprovement,
+  analyzeMetricOpportunities,
+  CANONICAL_SYNONYMS,
+  PARTIAL_RELATIONSHIPS
+} from './ats/index.js';
+
+export {
+  matchesTermInText,
+  traceEvidenceLineage,
+  evaluateEvidenceConfidence,
+  calculateDetailedAtsScore,
+  generateScoreExplanationTree,
+  simulateScoreImprovement,
+  analyzeMetricOpportunities,
+  CANONICAL_SYNONYMS,
+  PARTIAL_RELATIONSHIPS
+};
 
 /**
  * Natural Language User-Intent Parser:
@@ -591,81 +614,79 @@ export function analyzeJobDescriptionMatch(jdText, currentCvState, sourceMaster)
     "GraphQL", "REST API", "Microservices", "CI/CD", "Git", "Agile", "Scrum",
     "Talent Acquisition", "Technical Recruiting", "Sourcing", "ATS Optimization",
     "Stakeholder Management", "Team Leadership", "Data Analytics", "System Architecture",
-    "Product Management", "Performance Optimization", "Security & Compliance"
+    "Product Management", "Performance Optimization", "Security & Compliance", "PostgreSQL",
+    "Machine Learning", "NLP", "LLMs"
   ];
 
   const extractedRequirements = [];
-  const lowerCvText = JSON.stringify(currentCvState || {}).toLowerCase();
-  const cvSkills = (currentCvState?.skills || []).map(s => s.toLowerCase());
-  const cvBullets = (currentCvState?.experiences || []).flatMap(e => e.bullets || []);
-  const cvSummary = currentCvState?.header?.summary || "";
-  const cvTitle = currentCvState?.header?.title || "";
+  const safeSuggestions = [];
 
-  // Check matching terms in JD
+  let exactCount = 0;
+  let strongCount = 0;
+  let partialCount = 0;
+  let gapCount = 0;
+
   COMMON_SKILL_VOCABULARY.forEach(term => {
-    const lowerTerm = term.toLowerCase();
-    // Regex for whole-word search in JD
-    const regex = new RegExp(`\\b${lowerTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
-    if (regex.test(rawJd)) {
-      // Find evidence in CV
-      let status = 'NOT_EVIDENCED';
-      let evidenceSnippet = 'No evidence found in active CV';
-      let cvLocation = 'None';
+    const canonicalEntry = CANONICAL_SYNONYMS[term.toLowerCase().trim()];
+    const aliases = canonicalEntry ? canonicalEntry.aliases : [];
+    const termInJd = matchesTermInText(term, rawJd) || aliases.some(a => matchesTermInText(a, rawJd));
 
-      // Check explicit skills
-      if (cvSkills.some(s => s === lowerTerm || s.includes(lowerTerm))) {
+    if (termInJd) {
+      const lineage = traceEvidenceLineage(term, currentCvState);
+      
+      let status = 'NOT_EVIDENCED';
+      if (lineage.confidence === 'EXACT' || lineage.confidence === 'STRONG') {
         status = 'EVIDENCED';
-        evidenceSnippet = `Explicitly listed in Skills array: "${term}"`;
-        cvLocation = 'Skills Section';
+        if (lineage.confidence === 'EXACT') exactCount++;
+        else strongCount++;
+      } else if (lineage.confidence === 'PARTIAL') {
+        status = 'PARTIALLY_EVIDENCED';
+        partialCount++;
       } else {
-        // Check experiences bullets
-        const matchingBullet = cvBullets.find(b => b.toLowerCase().includes(lowerTerm));
-        if (matchingBullet) {
-          status = 'EVIDENCED';
-          evidenceSnippet = `Demonstrated in Work Experience: "${matchingBullet.substring(0, 80)}..."`;
-          cvLocation = 'Experience Section';
-        } else if (cvSummary.toLowerCase().includes(lowerTerm) || cvTitle.toLowerCase().includes(lowerTerm)) {
-          status = 'EVIDENCED';
-          evidenceSnippet = `Referenced in Professional Summary / Title`;
-          cvLocation = 'Header Section';
-        } else {
-          // Check partial evidence (related keywords or substrings)
-          const partialBullet = cvBullets.find(b => {
-            const words = lowerTerm.split(' ');
-            return words.some(w => w.length > 3 && b.toLowerCase().includes(w));
-          });
-          if (partialBullet) {
-            status = 'PARTIALLY_EVIDENCED';
-            evidenceSnippet = `Related context mentioned: "${partialBullet.substring(0, 70)}..."`;
-            cvLocation = 'Experience Context';
-          }
-        }
+        gapCount++;
       }
 
       extractedRequirements.push({
         id: `req-${term.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
         name: term,
-        status, // 'EVIDENCED' | 'PARTIALLY_EVIDENCED' | 'NOT_EVIDENCED'
-        evidenceSnippet,
-        cvLocation
+        status,
+        confidence: lineage.confidence,
+        matchType: lineage.matchType,
+        evidenceSnippet: lineage.snippet,
+        cvLocation: lineage.lineageBreadcrumb,
+        source: lineage.source,
+        scoreContribution: lineage.scoreContribution
       });
+
+      // Formulate safe suggestions for evidenced skills under experience
+      if ((lineage.confidence === 'EXACT' || lineage.confidence === 'STRONG') && lineage.source?.type === 'experience') {
+        safeSuggestions.push({
+          id: `sug-${term.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+          targetSection: 'Skills / Summary',
+          suggestionType: 'EVIDENCE_BACKED_EMPHASIS',
+          skillName: term,
+          rationale: `Candidate has verified experience with "${term}" (${lineage.lineageBreadcrumb}). Emphasize in Skills list for ATS parseability.`,
+          isSafe: true,
+          requiresCandidateApproval: true
+        });
+      }
     }
   });
 
-  // Calculate Deterministic Match Score
-  const evidencedCount = extractedRequirements.filter(r => r.status === 'EVIDENCED').length;
-  const partialCount = extractedRequirements.filter(r => r.status === 'PARTIALLY_EVIDENCED').length;
-  const gapCount = extractedRequirements.filter(r => r.status === 'NOT_EVIDENCED').length;
   const total = extractedRequirements.length;
-
   const matchScore = total > 0 
-    ? Math.min(100, Math.max(10, Math.round(((evidencedCount * 1.0 + partialCount * 0.5) / total) * 100)))
+    ? Math.round(((exactCount * 1.0 + strongCount * 0.85 + partialCount * 0.40) / total) * 100)
     : 75;
 
-  // 3. Formulate Safe Suggestions (Only for Evidenced / Documented Skills)
-  const safeSuggestions = [];
+  // Calculate detailed scorecard & explainability
+  const detailedScore = calculateDetailedAtsScore(currentCvState, extractedRequirements.map(r => r.name));
+  const explanation = generateScoreExplanationTree(detailedScore);
 
-  // Suggestion A: Align headline with top evidenced JD domain if not already aligned
+  // Compute non-mutating simulated score improvement
+  const simulation = simulateScoreImprovement(currentCvState, extractedRequirements.map(r => r.name), safeSuggestions);
+
+  // 3. Formulate Additional Safe Suggestions (Headline alignment)
+  const cvTitle = currentCvState?.header?.title || "";
   const topEvidencedSkills = extractedRequirements.filter(r => r.status === 'EVIDENCED').map(r => r.name);
   if (topEvidencedSkills.length > 0 && !topEvidencedSkills.some(s => cvTitle.toLowerCase().includes(s.toLowerCase()))) {
     const suggestedHeadline = `${cvTitle} (Specialized in ${topEvidencedSkills.slice(0, 2).join(' & ')})`;
@@ -709,10 +730,15 @@ export function analyzeJobDescriptionMatch(jdText, currentCvState, sourceMaster)
     safeSuggestions,
     summary: {
       total,
-      evidencedCount,
+      evidencedCount: exactCount + strongCount,
+      exactCount,
+      strongCount,
       partialCount,
       gapCount
-    }
+    },
+    detailedScore,
+    explanation,
+    simulation
   };
 }
 
