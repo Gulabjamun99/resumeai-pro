@@ -3,8 +3,15 @@ import { Download, FileCode, Printer, CheckCircle2, RefreshCw, AlertTriangle, Fi
 import { exportResumeToPdf, printResume, sanitizeCandidateFilename } from '../utils/pdfExporter';
 import { exportResumeToDocx } from '../utils/docxExporter';
 import ResumeDocument from './ResumeDocument';
+import TemplateSelector from './TemplateSelector';
 
-export default function Screen8Download({ updatedResume, currentVersion = 1, onStartNew }) {
+export default function Screen8Download({ 
+  updatedResume, 
+  currentVersion = 1, 
+  onStartNew,
+  selectedTemplateId = 'dual-column',
+  onSelectTemplate
+}) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingDocx, setIsGeneratingDocx] = useState(false);
   const [exportError, setExportError] = useState(null);
@@ -33,7 +40,7 @@ export default function Screen8Download({ updatedResume, currentVersion = 1, onS
     setIsGeneratingDocx(true);
     setExportError(null);
     try {
-      const res = await exportResumeToDocx(updatedResume, currentVersion);
+      const res = await exportResumeToDocx(updatedResume, currentVersion, selectedTemplateId);
       setLastExportedFile(res.filename);
     } catch (err) {
       setExportError(err.message || "Unable to generate the DOCX file. Your current CV has not been changed. Please try again.");
@@ -43,7 +50,7 @@ export default function Screen8Download({ updatedResume, currentVersion = 1, onS
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl max-w-4xl mx-auto w-full my-6 flex flex-col items-center gap-6 text-center">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl max-w-4xl mx-auto w-full my-6 flex flex-col items-center gap-6 text-center">
       <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-xl shadow-emerald-500/10">
         <CheckCircle2 className="w-8 h-8" />
       </div>
@@ -54,6 +61,16 @@ export default function Screen8Download({ updatedResume, currentVersion = 1, onS
           Your document has passed all validation layers (Zero Content Loss, ATS Compatibility, and Anti-Hallucination Fact Locking).
         </p>
       </div>
+
+      {/* Template Selector on Screen 8 */}
+      {onSelectTemplate && (
+        <div className="w-full max-w-2xl text-left">
+          <TemplateSelector 
+            selectedTemplateId={selectedTemplateId} 
+            onSelectTemplate={onSelectTemplate} 
+          />
+        </div>
+      )}
 
       {/* Candidate & Version Details Card */}
       <div className="w-full max-w-md bg-slate-950/80 border border-slate-800 rounded-xl p-4 text-left flex flex-col gap-2.5 text-xs">
@@ -130,7 +147,11 @@ export default function Screen8Download({ updatedResume, currentVersion = 1, onS
       {/* Visible Vector Document Preview */}
       <div className="w-full bg-slate-950/70 border border-slate-800 rounded-xl p-4 overflow-x-auto my-3 flex justify-center shadow-inner">
         <div className="bg-white rounded shadow-2xl overflow-hidden text-slate-900 border border-slate-300">
-          <ResumeDocument resume={updatedResume} id="preview-resume-updated-screen8" />
+          <ResumeDocument 
+            resume={updatedResume} 
+            id="preview-resume-updated-screen8" 
+            templateId={selectedTemplateId}
+          />
         </div>
       </div>
 

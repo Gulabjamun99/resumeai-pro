@@ -1,8 +1,19 @@
 import React from 'react';
 import { History, Check, RotateCcw, Clock, Layers } from 'lucide-react';
 
-export default function VersionHistory({ versionsList = [], currentVersion, onSelectVersion, onRollbackVersion }) {
-  if (!versionsList || versionsList.length === 0) return null;
+export default function VersionHistory({ 
+  versionsList, 
+  versions, 
+  currentVersion, 
+  onSelectVersion, 
+  onRollbackVersion,
+  onRollback,
+  onMakeChange 
+}) {
+  const activeList = versionsList || versions || [];
+  const handleRollback = onRollbackVersion || onRollback;
+
+  if (!activeList || activeList.length === 0) return null;
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg text-slate-100 flex flex-col gap-3">
@@ -14,12 +25,12 @@ export default function VersionHistory({ versionsList = [], currentVersion, onSe
           </h3>
         </div>
         <span className="text-[10px] bg-slate-800 text-sky-300 px-2 py-0.5 rounded-full font-mono border border-slate-700">
-          {versionsList.length} Total Versions
+          {activeList.length} Total Versions
         </span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
-        {versionsList.map((ver) => {
+        {activeList.map((ver) => {
           const isActive = currentVersion === ver.version;
 
           return (
@@ -65,10 +76,10 @@ export default function VersionHistory({ versionsList = [], currentVersion, onSe
                       View
                     </button>
                   )}
-                  {!isActive && onRollbackVersion && (
+                  {!isActive && handleRollback && (
                     <button
-                      onClick={() => onRollbackVersion(ver.version)}
-                      className="bg-slate-800 hover:bg-slate-700 text-amber-300 px-1.5 py-0.5 rounded flex items-center gap-1 transition"
+                      onClick={() => handleRollback(ver.version)}
+                      className="bg-slate-800 hover:bg-slate-700 text-amber-300 px-1.5 py-0.5 rounded flex items-center gap-1 transition cursor-pointer"
                       title="Rollback to this version"
                     >
                       <RotateCcw className="w-2.5 h-2.5" />

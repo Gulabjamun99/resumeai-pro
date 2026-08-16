@@ -1,6 +1,7 @@
 /**
- * RESUMEAI PRO — SECURE OPENXML DOCX EXPORTER (P2 HARDENING)
+ * RESUMEAI PRO — SECURE OPENXML DOCX EXPORTER (P1.2 MULTI-TEMPLATE SUPPORT)
  * Features:
+ * - Template-Aware Layout Customization (dual-column, single-column, modern-minimal)
  * - Dynamic Lazy Import of docx module (Code Splitting)
  * - Safe Candidate Filename Sanitizer Integration
  * - Error Boundary & Loading State Handling
@@ -8,7 +9,7 @@
 
 import { sanitizeCandidateFilename } from './pdfExporter';
 
-export async function exportResumeToDocx(resume, version = 1) {
+export async function exportResumeToDocx(resume, version = 1, templateId = 'dual-column') {
   if (!resume) {
     throw new Error("No active CV data provided for DOCX export.");
   }
@@ -20,6 +21,12 @@ export async function exportResumeToDocx(resume, version = 1) {
     const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
 
     const { header = {}, contact = {}, skills = [], experiences = [], education = [], certifications = [], itSkills = [] } = resume;
+
+    const accentColor = templateId === 'modern-minimal' 
+      ? '0D9488' 
+      : templateId === 'single-column' 
+      ? '0F172A' 
+      : '0284C7';
 
     const doc = new Document({
       sections: [
@@ -41,7 +48,7 @@ export async function exportResumeToDocx(resume, version = 1) {
                 new TextRun({
                   text: header.title || "Professional Profile",
                   bold: true,
-                  color: "0284C7",
+                  color: accentColor,
                   size: 24
                 })
               ],

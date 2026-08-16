@@ -9,6 +9,7 @@ import Screen6Validation from './components/Screen6Validation';
 import Screen8Download from './components/Screen8Download';
 import ClarificationModal from './components/ClarificationModal';
 import ResumeDocument from './components/ResumeDocument';
+import TemplateSelector from './components/TemplateSelector';
 import VersionHistory from './components/VersionHistory';
 import { ROHIT_ORIGINAL_RESUME, DEFAULT_USER_PROMPT } from './data/rohitData';
 import { parseGenericCvText } from './services/cvExtractor';
@@ -16,7 +17,7 @@ import { classifyPermissionScope } from './services/permissionClassifier';
 import { enforceContentLocks } from './services/lockEnforcer';
 import { parseUserIntentToChangePlan, executeChangePlan, verifyRequestedChange, runCheckA, runCheckB, runAtsAudit } from './utils/atsEngine';
 import { runCompleteValidationSuite } from './services/validationSuite';
-import { exportResumeToPdf, printResume } from './utils/pdfExporter';
+import { exportResumeToPdf, printResume, sanitizeCandidateFilename } from './utils/pdfExporter';
 import { exportResumeToDocx } from './utils/docxExporter';
 import { Download, Printer, FileText, Sparkles, Columns, RefreshCw, Upload, Edit3, RotateCcw, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -33,6 +34,9 @@ export default function App() {
   const [versionHistory, setVersionHistory] = useState([]); // Array of immutable version snapshots [v1, v2, v3...]
   const [currentVersion, setCurrentVersion] = useState(1);
   
+  // Presentation State (P1.2 Multi-Template Engine)
+  const [selectedTemplateId, setSelectedTemplateId] = useState('dual-column');
+
   // In-Flight Transaction Management (Rule #4 & #5)
   const [promptText, setPromptText] = useState("");
   const [activeChangePlan, setActiveChangePlan] = useState(null);
@@ -70,6 +74,7 @@ export default function App() {
           setCurrentCvState(parsed.currentCvState);
           setVersionHistory(parsed.versionHistory);
           setCurrentVersion(parsed.currentVersion || 1);
+          setSelectedTemplateId(parsed.selectedTemplateId || 'dual-column');
           setScreen(7); // Automatically resume at Studio Preview
         } else {
           console.warn("Storage data failed schema validation. Clearing invalid session.");
@@ -91,13 +96,14 @@ export default function App() {
           sourceResume,
           currentCvState,
           versionHistory,
-          currentVersion
+          currentVersion,
+          selectedTemplateId
         }));
       } catch (e) {
         console.warn("Storage quota exceeded or storage error:", e);
       }
     }
-  }, [sourceResume, currentCvState, versionHistory, currentVersion]);
+  }, [sourceResume, currentCvState, versionHistory, currentVersion, selectedTemplateId]);
 
   // Clear Session & Reset with accidental-click confirmation
   const handleClearSession = () => {
@@ -109,6 +115,7 @@ export default function App() {
     setCurrentCvState(null);
     setVersionHistory([]);
     setCurrentVersion(1);
+    setSelectedTemplateId('dual-column');
     setPromptText("");
     setActiveChangePlan(null);
     setStorageError(null);
@@ -139,6 +146,7 @@ export default function App() {
         setCurrentCvState(JSON.parse(JSON.stringify(dynamicMaster)));
         setVersionHistory([v1Snapshot]);
         setCurrentVersion(1);
+        setSelectedTemplateId('dual-column');
         setPromptText("2025 ke April ke baad se independent consulting kar raha hoon. AI agents platforms par kaam kiya hai. Ye sab new job mein add karo.");
         setScreen(2);
       };
@@ -163,6 +171,7 @@ export default function App() {
     setCurrentCvState(JSON.parse(JSON.stringify(master)));
     setVersionHistory([v1Snapshot]);
     setCurrentVersion(1);
+    setSelectedTemplateId('dual-column');
     setPromptText(DEFAULT_USER_PROMPT);
     setScreen(2);
   };
@@ -450,49 +459,52 @@ export default function App() {
           />
         )}
 
-        {/* SCREEN 5: MULTI-STEP GENERATION PROGRESS */}
+        {/* SCREEN 5: GENERATION ANIMATION */}
         {currentScreen === 5 && (
-          <Screen5Generation onComplete={() => setScreen(6)} />
-        )}
-
-        {/* SCREEN 6: QUALITY CONTROL & VALIDATION SCORECARD */}
-        {currentScreen === 6 && (
-          <Screen6Validation 
-            validationReport={validationReport}
-            onProceedToPreview={handleCommitNewVersion}
+          <Screen5Generation 
+            activeChangePlan={activeChangePlan}
+            onComplete={() => setScreen(6)}
           />
         )}
 
-        {/* SCREEN 7: FINAL PREVIEW (SPLIT STUDIO) */}
-        {currentScreen === 7 && sourceResume && currentCvState && (
+        {/* SCREEN 6: QUALITY CONTROL & VALIDATION AUDIT */}
+        {currentScreen === 6 && validationReport && (
+          <Screen6Validation 
+            report={validationReport}
+            onProceed={handleCommitNewVersion}
+            onReject={() => setScreen(3)}
+          />
+        )}
+
+        {/* SCREEN 7: FINAL COMPARISON STUDIO */}
+        {currentScreen === 7 && currentCvState && (
           <div className="flex flex-col gap-6">
-            {/* Interactive Version History & Rollback Timeline */}
+            {/* Version History Drawer */}
             <VersionHistory 
-              versionsList={versionHistory}
+              versions={versionHistory}
               currentVersion={currentVersion}
-              onSelectVersion={(v) => {
-                const snap = versionHistory.find(item => item.version === v);
-                if (snap) {
-                  setCurrentCvState(JSON.parse(JSON.stringify(snap.cvState)));
-                  setCurrentVersion(v);
-                }
-              }}
-              onRollbackVersion={handleRollbackVersion}
+              onRollback={handleRollbackVersion}
+              onMakeChange={handleMakeAnotherChange}
             />
 
-            {/* Studio Toolbar with Sequential Edit, Session Reset & Downloads */}
-            <div className="flex flex-wrap justify-between items-center bg-slate-900 border border-slate-800 rounded-xl p-3 px-4 shadow-lg gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300 mr-2 flex items-center gap-1.5">
-                  <Columns className="w-4 h-4 text-sky-400" /> Studio Layout:
-                </span>
+            {/* Template Selector Card (P1.2 Multi-Template Engine) */}
+            <TemplateSelector 
+              selectedTemplateId={selectedTemplateId}
+              onSelectTemplate={setSelectedTemplateId}
+            />
+
+            {/* Studio Header Toolbar */}
+            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap justify-between items-center gap-4">
+              {/* Tab Selector: Split / Source / Updated */}
+              <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
                 <button
                   onClick={() => setActiveTab('split')}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
+                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
                     activeTab === 'split' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
                   }`}
                 >
-                  Side-by-Side Split
+                  <Columns className="w-3.5 h-3.5" />
+                  Side-by-Side Comparison
                 </button>
                 <button
                   onClick={() => setActiveTab('updated')}
@@ -533,7 +545,7 @@ export default function App() {
                 </button>
 
                 <button
-                  onClick={() => exportResumeToPdf('preview-resume-updated', `Resume_v${currentVersion}.pdf`)}
+                  onClick={() => exportResumeToPdf('preview-resume-updated', currentCvState?.header?.name || 'Candidate', currentVersion)}
                   className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -541,7 +553,7 @@ export default function App() {
                 </button>
 
                 <button
-                  onClick={() => exportResumeToDocx(currentCvState, `Resume_v${currentVersion}.docx`)}
+                  onClick={() => exportResumeToDocx(currentCvState, currentVersion, selectedTemplateId)}
                   className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5" />
@@ -564,7 +576,7 @@ export default function App() {
                     </span>
                   </div>
                   <div id="preview-resume-source" className="bg-white rounded-lg shadow-2xl overflow-hidden border border-slate-800 text-slate-900">
-                    <ResumeDocument resume={sourceResume} isUpdated={false} />
+                    <ResumeDocument resume={sourceResume} isUpdated={false} templateId={selectedTemplateId} />
                   </div>
                 </div>
               )}
@@ -582,7 +594,7 @@ export default function App() {
                     </span>
                   </div>
                   <div id="preview-resume-updated" className="bg-white rounded-lg shadow-2xl overflow-hidden border-2 border-sky-500/50 shadow-sky-500/10 text-slate-900">
-                    <ResumeDocument resume={currentCvState} isUpdated={true} />
+                    <ResumeDocument resume={currentCvState} isUpdated={true} templateId={selectedTemplateId} />
                   </div>
                 </div>
               )}
@@ -614,6 +626,8 @@ export default function App() {
             updatedResume={currentCvState}
             currentVersion={currentVersion}
             onStartNew={handleClearSession}
+            selectedTemplateId={selectedTemplateId}
+            onSelectTemplate={setSelectedTemplateId}
           />
         )}
       </main>
