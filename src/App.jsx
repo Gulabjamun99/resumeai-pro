@@ -99,8 +99,11 @@ export default function App() {
     }
   }, [sourceResume, currentCvState, versionHistory, currentVersion]);
 
-  // Clear Session & Reset
+  // Clear Session & Reset with accidental-click confirmation
   const handleClearSession = () => {
+    if (window.confirm && !window.confirm("Start New CV? This will clear your current working CV and version history.")) {
+      return;
+    }
     localStorage.removeItem(STORAGE_KEY);
     setSourceResume(null);
     setCurrentCvState(null);
@@ -363,6 +366,30 @@ export default function App() {
                 <RefreshCw className="w-4 h-4 text-sky-400" />
                 <span>Load Demo Test Fixture</span>
               </button>
+            </div>
+
+            {/* 4-Step Concise User Guidance */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-2xl mt-2 text-left">
+              <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 1</span>
+                <span className="text-xs text-slate-200 font-semibold block">Upload CV</span>
+                <span className="text-[11px] text-slate-400">PDF, DOCX, or TXT</span>
+              </div>
+              <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 2</span>
+                <span className="text-xs text-slate-200 font-semibold block">Describe Change</span>
+                <span className="text-[11px] text-slate-400">Plain English/Hinglish</span>
+              </div>
+              <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 3</span>
+                <span className="text-xs text-slate-200 font-semibold block">Review Plan</span>
+                <span className="text-[11px] text-slate-400">Inspect & approve edits</span>
+              </div>
+              <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 4</span>
+                <span className="text-xs text-slate-200 font-semibold block">Export CV</span>
+                <span className="text-[11px] text-slate-400">Download PDF/DOCX</span>
+              </div>
             </div>
           </div>
         )}
