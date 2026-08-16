@@ -46,26 +46,44 @@ export default function App() {
   const [validationReport, setValidationReport] = useState(null);
   const [requestedFacts, setRequestedFacts] = useState([]);
 
-  // Restore Session on Page Refresh / Reopen (Full Persistence)
+  const [storageError, setStorageError] = useState(null);
+
+  // Restore Session on Page Refresh / Reopen (Full Persistence & Robust Schema Check)
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.sourceResume && parsed.currentCvState && parsed.versionHistory?.length > 0) {
+        let parsed;
+        try {
+          parsed = JSON.parse(saved);
+        } catch (jsonErr) {
+          console.warn("Storage data was malformed JSON. Clearing corrupted session:", jsonErr);
+          localStorage.removeItem(STORAGE_KEY);
+          setStorageError("Unable to restore your previous CV safely due to corrupted data. Please start a new CV or retry.");
+          return;
+        }
+
+        // Validate essential CV schema integrity
+        const isValidResume = (r) => r && r.header?.name && Array.isArray(r.skills) && Array.isArray(r.experiences);
+        if (isValidResume(parsed.sourceResume) && isValidResume(parsed.currentCvState) && Array.isArray(parsed.versionHistory) && parsed.versionHistory.length > 0) {
           setSourceResume(parsed.sourceResume);
           setCurrentCvState(parsed.currentCvState);
           setVersionHistory(parsed.versionHistory);
           setCurrentVersion(parsed.currentVersion || 1);
           setScreen(7); // Automatically resume at Studio Preview
+        } else {
+          console.warn("Storage data failed schema validation. Clearing invalid session.");
+          localStorage.removeItem(STORAGE_KEY);
+          setStorageError("Unable to restore your previous CV safely. Please start a new CV or retry.");
         }
       }
     } catch (e) {
-      console.warn("Could not restore session from storage:", e);
+      console.warn("Storage access error (e.g. quota or sandbox restriction):", e);
+      setStorageError("Unable to access local browser storage. You can continue working in this session.");
     }
   }, []);
 
-  // Save Session on State Changes
+  // Save Session on State Changes with Quota Error Handling
   useEffect(() => {
     if (sourceResume && currentCvState && versionHistory.length > 0) {
       try {
@@ -76,7 +94,7 @@ export default function App() {
           currentVersion
         }));
       } catch (e) {
-        console.warn("Could not save session to storage:", e);
+        console.warn("Storage quota exceeded or storage error:", e);
       }
     }
   }, [sourceResume, currentCvState, versionHistory, currentVersion]);
@@ -90,6 +108,7 @@ export default function App() {
     setCurrentVersion(1);
     setPromptText("");
     setActiveChangePlan(null);
+    setStorageError(null);
     setScreen(1);
   };
 
@@ -291,6 +310,25 @@ export default function App() {
             <button 
               onClick={() => setErrorMessage(null)}
               className="bg-red-900/50 hover:bg-red-800 text-red-100 text-[11px] px-3 py-1 rounded border border-red-700"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Storage Notice Banner */}
+        {storageError && (
+          <div className="bg-amber-950/80 border border-amber-500/50 p-4 rounded-xl text-amber-200 text-xs flex items-center justify-between shadow-xl">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+              <div>
+                <span className="font-bold uppercase tracking-wider block">Storage Notice</span>
+                <span>{storageError}</span>
+              </div>
+            </div>
+            <button 
+              onClick={() => setStorageError(null)}
+              className="bg-amber-900/50 hover:bg-amber-800 text-amber-100 text-[11px] px-3 py-1 rounded border border-amber-700"
             >
               Dismiss
             </button>
