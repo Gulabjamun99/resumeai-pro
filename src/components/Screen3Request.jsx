@@ -109,7 +109,11 @@ export default function Screen3Request({
 
   const handleApplySelectedJdImprovements = () => {
     if (!jdAnalysisResult || !onApplyJdPlan) return;
-    const chosenSugs = jdAnalysisResult.safeSuggestions.filter(s => selectedSuggestions.includes(s.id));
+    const allCandidates = [
+      ...(jdAnalysisResult.safeSuggestions || []),
+      ...(jdAnalysisResult.decisionIntelligence?.topSafeActions || [])
+    ];
+    const chosenSugs = allCandidates.filter(s => selectedSuggestions.includes(s.id));
     const plan = buildChangePlanFromJdSuggestions(chosenSugs, currentCvState);
     onApplyJdPlan(plan, `Job Description Match Optimization (${chosenSugs.length} improvements applied)`);
   };
@@ -456,70 +460,236 @@ export default function Screen3Request({
           {/* Analysis Results Display */}
           {jdAnalysisResult && !jdAnalysisResult.error && (
             <div className="flex flex-col gap-5 mt-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
-              {/* Match Score & Summary Bar */}
-              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-800 pb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center font-mono font-bold text-lg text-sky-300">
-                    {jdAnalysisResult.matchScore}%
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-100">
-                      Evidence-Based Job Match Score
-                    </h3>
-                    <p className="text-[11px] text-slate-400">
-                      Calculated deterministically from requirements found in active Version {currentVersion || 1}.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800 px-2.5 py-1 rounded-full flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    {jdAnalysisResult.summary.evidencedCount} Evidenced
-                  </span>
-                  <span className="text-[11px] font-semibold bg-amber-950 text-amber-300 border border-amber-800 px-2.5 py-1 rounded-full flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {jdAnalysisResult.summary.partialCount} Partial
-                  </span>
-                  <span className="text-[11px] font-semibold bg-slate-900 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-full flex items-center gap-1">
-                    <HelpCircle className="w-3.5 h-3.5" />
-                    {jdAnalysisResult.summary.gapCount} Gaps
-                  </span>
-                </div>
-              </div>
-
-              {/* P1.4: Explainability Callout & Simulation Banner */}
-              {jdAnalysisResult.summary && (
-                <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-3 flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-200">Score Audit & Explainability:</span>
-                    <span className="text-slate-400 font-mono text-[11px]">
-                      {jdAnalysisResult.summary.exactCount || 0} Exact • {jdAnalysisResult.summary.strongCount || 0} Strong Synonym • {jdAnalysisResult.summary.partialCount || 0} Partial • {jdAnalysisResult.summary.gapCount || 0} Gaps
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-300">
-                    Why {jdAnalysisResult.matchScore}%? {jdAnalysisResult.summary.evidencedCount} of {jdAnalysisResult.summary.total} target competencies have verified evidence in candidate history. {jdAnalysisResult.summary.gapCount} high-priority terms remain unsupported.
-                  </p>
-
-                  {/* Non-Mutating Projected Impact Simulator */}
-                  {jdAnalysisResult.simulation && jdAnalysisResult.simulation.delta > 0 && (
-                    <div className="mt-1 bg-sky-950/60 border border-sky-500/30 rounded-md p-2 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-bold text-sky-300">Projected ATS Impact:</span>
-                        <span className="text-xs font-mono font-bold text-emerald-400">
-                          {jdAnalysisResult.simulation.currentScore}% → {jdAnalysisResult.simulation.projectedScore}% (+{jdAnalysisResult.simulation.delta}%)
+              {/* P1.5: 5-Signal Multi-Dimensional Job Fit Card */}
+              {jdAnalysisResult.decisionIntelligence?.jobFit && (
+                <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col gap-3 shadow-lg">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-800/80 pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-sky-500/20 to-teal-500/20 border border-sky-500/40 flex flex-col items-center justify-center font-mono">
+                        <span className="text-lg font-extrabold text-sky-300 leading-none">
+                          {jdAnalysisResult.decisionIntelligence.jobFit.overallJobFit}%
                         </span>
+                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">FIT</span>
                       </div>
-                      <span className="text-[10px] text-amber-300/90 font-mono">
-                        ⚠ Projection only • Active CV has not been modified
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wide">
+                            Overall Job Fit Score
+                          </h3>
+                          <span className="text-[10px] font-mono font-bold bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded-full">
+                            P1.5 Decision Intelligence
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Comprehensive evaluation across 5 distinct ATS & Recruiter fit signals.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] font-mono">
+                      <span className="bg-emerald-950 text-emerald-300 border border-emerald-800/80 px-2.5 py-1 rounded-md flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        {jdAnalysisResult.summary.evidencedCount} Evidenced
+                      </span>
+                      <span className="bg-amber-950 text-amber-300 border border-amber-800/80 px-2.5 py-1 rounded-md flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        {jdAnalysisResult.summary.partialCount} Partial
+                      </span>
+                      <span className="bg-slate-900 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-md flex items-center gap-1">
+                        <HelpCircle className="w-3.5 h-3.5" />
+                        {jdAnalysisResult.summary.gapCount} Gaps
                       </span>
                     </div>
-                  )}
+                  </div>
+
+                  {/* 5-Signal Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1">
+                    <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-lg flex flex-col gap-0.5">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase">ATS Compatibility</span>
+                      <span className="text-base font-mono font-bold text-sky-400">
+                        {jdAnalysisResult.decisionIntelligence.jobFit.atsCompatibility}%
+                      </span>
+                    </div>
+                    <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-lg flex flex-col gap-0.5">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase">Evidence Strength</span>
+                      <span className="text-base font-mono font-bold text-emerald-400">
+                        {jdAnalysisResult.decisionIntelligence.jobFit.evidenceStrength}%
+                      </span>
+                    </div>
+                    <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-lg flex flex-col gap-0.5">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase">Recruiter Readability</span>
+                      <span className="text-base font-mono font-bold text-indigo-400">
+                        {jdAnalysisResult.decisionIntelligence.jobFit.recruiterReadability}%
+                      </span>
+                    </div>
+                    <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-lg flex flex-col gap-0.5">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase">Keyword Coverage</span>
+                      <span className="text-base font-mono font-bold text-teal-400">
+                        {jdAnalysisResult.decisionIntelligence.jobFit.keywordCoverage}%
+                      </span>
+                    </div>
+                    <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-lg flex flex-col gap-0.5 col-span-2 sm:col-span-1">
+                      <span className="text-[10px] text-slate-400 font-semibold uppercase">Credibility & Safety</span>
+                      <span className="text-base font-mono font-bold text-cyan-400">
+                        {jdAnalysisResult.decisionIntelligence.jobFit.contentCredibility}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-slate-400 italic bg-slate-900/40 p-2 rounded border border-slate-800/60">
+                    ⚠ {jdAnalysisResult.decisionIntelligence.jobFit.disclaimer}
+                  </p>
+                </div>
+              )}
+
+              {/* Recruiter Risk Alerts */}
+              {jdAnalysisResult.decisionIntelligence?.recruiterRisks?.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-400 uppercase tracking-wide">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>Recruiter Risk Alerts ({jdAnalysisResult.decisionIntelligence.recruiterRisks.length} Detected)</span>
+                  </div>
+                  <div className="grid gap-2">
+                    {jdAnalysisResult.decisionIntelligence.recruiterRisks.map((risk, idx) => (
+                      <div key={idx} className="bg-amber-950/30 border border-amber-500/30 rounded-lg p-3 flex flex-col gap-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/80 text-amber-200 font-mono font-bold">
+                              {risk.severity}
+                            </span>
+                            {risk.title}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-300">{risk.description}</p>
+                        <p className="text-[11px] text-amber-200/90 font-medium">{risk.recommendation}</p>
+                        {risk.blockedActions?.length > 0 && (
+                          <div className="text-[10px] text-red-300 font-mono bg-red-950/40 p-1.5 rounded border border-red-800/40 flex items-center gap-1">
+                            <ShieldCheck className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                            <span>Guarded Action: {risk.blockedActions.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Match Score & Summary Bar (P1.4 / P1.5 Backward-Compatible) */}
+              <div className="bg-slate-900/90 border border-slate-800 rounded-lg p-3 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-200">Evidence-Based Job Match Score</span>
+                  <span className="text-slate-400 font-mono text-[11px]">
+                    Score Audit & Explainability: {jdAnalysisResult.summary.exactCount || 0} Exact • {jdAnalysisResult.summary.strongCount || 0} Strong Synonym • {jdAnalysisResult.summary.partialCount || 0} Partial • {jdAnalysisResult.summary.gapCount || 0} Gaps
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300">
+                  Why {jdAnalysisResult.matchScore}%? {jdAnalysisResult.summary.evidencedCount} of {jdAnalysisResult.summary.total} target competencies have verified evidence in candidate history. {jdAnalysisResult.summary.gapCount} high-priority terms remain unsupported.
+                </p>
+
+                {/* Non-Mutating Projected Impact Simulator */}
+                {jdAnalysisResult.simulation && jdAnalysisResult.simulation.delta > 0 && (
+                  <div className="mt-1 bg-sky-950/60 border border-sky-500/30 rounded-md p-2.5 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-sky-300">Projected ATS Impact:</span>
+                      <span className="text-xs font-mono font-bold text-emerald-400">
+                        {jdAnalysisResult.simulation.currentScore}% → {jdAnalysisResult.simulation.projectedScore}% (+{jdAnalysisResult.simulation.delta}%)
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-amber-300/90 font-mono">
+                      ⚠ Projection only • Active CV has not been modified
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* TOP SAFE ACTIONS (ROI-Ranked) */}
+              {jdAnalysisResult.decisionIntelligence?.topSafeActions?.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-200 uppercase tracking-wide flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-emerald-400" />
+                      <span>TOP SAFE ACTIONS (Ranked by ROI & Evidence Proof)</span>
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-mono">
+                      {selectedSuggestions.length} active
+                    </span>
+                  </div>
+
+                  <div className="grid gap-2">
+                    {jdAnalysisResult.decisionIntelligence.topSafeActions.map((act) => {
+                      const isSelected = selectedSuggestions.includes(act.id);
+                      return (
+                        <div
+                          key={act.id}
+                          onClick={() => handleToggleSuggestion(act.id)}
+                          className={`p-3 rounded-lg border transition cursor-pointer flex items-start justify-between gap-3 ${
+                            isSelected
+                              ? 'bg-emerald-950/30 border-emerald-700/60 text-slate-100'
+                              : 'bg-slate-900/60 border-slate-800 text-slate-400'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div className={`w-4 h-4 rounded border mt-0.5 flex items-center justify-center ${
+                              isSelected ? 'bg-emerald-500 border-emerald-400 text-white' : 'border-slate-600 bg-slate-800'
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                            </div>
+                            <div className="flex flex-col gap-0.5 text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-emerald-300">{act.title}</span>
+                                <span className="text-[10px] font-mono font-bold bg-emerald-900/60 text-emerald-200 border border-emerald-700/60 px-1.5 py-0.2 rounded">
+                                  +{act.impactWeight || 2} pts
+                                </span>
+                              </div>
+                              <span className="text-[11px] text-slate-200 font-medium">{act.action}</span>
+                              <span className="text-[11px] text-slate-400">{act.reason}</span>
+                            </div>
+                          </div>
+
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border font-mono ${
+                            isSelected ? 'bg-emerald-900/80 text-emerald-200 border-emerald-600' : 'bg-slate-800 text-slate-400 border-slate-700'
+                          }`}>
+                            {isSelected ? 'Accepted' : 'Excluded'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* BLOCKED ACTIONS PANEL */}
+              {jdAnalysisResult.decisionIntelligence?.blockedActions?.length > 0 && (
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-red-400 uppercase tracking-wide">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>🛡 BLOCKED ACTIONS (Anti-Hallucination & Fact Lock Guards)</span>
+                  </div>
+
+                  <div className="grid gap-2">
+                    {jdAnalysisResult.decisionIntelligence.blockedActions.slice(0, 4).map((blk, idx) => (
+                      <div key={idx} className="p-2.5 bg-red-950/20 border border-red-800/30 rounded-lg flex flex-col gap-1 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-red-300 flex items-center gap-1.5">
+                            <span>✕</span>
+                            <span>{blk.title}</span>
+                          </span>
+                          <span className="text-[10px] font-mono font-bold bg-red-950 text-red-400 border border-red-800 px-1.5 py-0.5 rounded">
+                            BLOCKED (+0 pts)
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400">{blk.reason}</p>
+                        <p className="text-[10px] text-slate-500 font-mono italic">
+                          Allowed Resolution: {blk.allowedResolution}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
               {/* Requirements Evidence Table */}
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 mt-2">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">
                     Extracted Job Requirements & Deep Evidence Lineage
@@ -553,7 +723,9 @@ export default function Screen3Request({
                     <thead>
                       <tr className="bg-slate-900 text-slate-400 font-semibold border-b border-slate-800 text-[11px]">
                         <th className="p-2.5 px-3">Requirement</th>
+                        <th className="p-2.5 px-3">Importance</th>
                         <th className="p-2.5 px-3">Confidence & Status</th>
+                        <th className="p-2.5 px-3">Recommendation</th>
                         <th className="p-2.5 px-3">Evidence Provenance Lineage</th>
                         <th className="p-2.5 px-3">CV Location</th>
                       </tr>
@@ -562,6 +734,15 @@ export default function Screen3Request({
                       {filteredRequirements.map((req) => (
                         <tr key={req.id} className="hover:bg-slate-900/50 transition">
                           <td className="p-2.5 px-3 font-semibold text-slate-100">{req.name}</td>
+                          <td className="p-2.5 px-3">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              req.importance === 'CRITICAL' ? 'bg-rose-950 text-rose-300 border border-rose-800' :
+                              req.importance === 'IMPORTANT' ? 'bg-sky-950 text-sky-300 border border-sky-800' :
+                              'bg-slate-900 text-slate-400 border border-slate-700'
+                            }`}>
+                              {req.importance || 'STANDARD'}
+                            </span>
+                          </td>
                           <td className="p-2.5 px-3">
                             {req.confidence === 'EXACT' && (
                               <span className="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 w-fit">
@@ -588,6 +769,16 @@ export default function Screen3Request({
                               </span>
                             )}
                           </td>
+                          <td className="p-2.5 px-3">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              req.recommendation === 'KEEP' ? 'text-emerald-300 bg-emerald-950/60 border border-emerald-800' :
+                              req.recommendation === 'STRENGTHEN' || req.recommendation === 'STRENGTHEN_PLACEMENT' ? 'text-sky-300 bg-sky-950/60 border border-sky-800' :
+                              req.recommendation === 'DO_NOT_INVENT' ? 'text-red-300 bg-red-950/60 border border-red-800' :
+                              'text-slate-400 bg-slate-900 border border-slate-700'
+                            }`}>
+                              {req.recommendation || (req.status === 'EVIDENCED' ? 'KEEP' : 'DO_NOT_INVENT')}
+                            </span>
+                          </td>
                           <td className="p-2.5 px-3 text-slate-300 max-w-xs truncate" title={req.evidenceSnippet}>
                             {req.evidenceSnippet}
                           </td>
@@ -601,71 +792,21 @@ export default function Screen3Request({
                 </div>
               </div>
 
-              {/* Suggested Safe Improvements */}
-              {jdAnalysisResult.safeSuggestions?.length > 0 && (
-                <div className="flex flex-col gap-3 mt-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">
-                      Suggested Safe Improvements (Based Only on Verified Evidence)
-                    </span>
-                    <span className="text-[10px] text-sky-400 font-mono">
-                      {selectedSuggestions.length} of {jdAnalysisResult.safeSuggestions.length} selected
-                    </span>
-                  </div>
-
-                  <div className="grid gap-2.5">
-                    {jdAnalysisResult.safeSuggestions.map((sug) => {
-                      const isSelected = selectedSuggestions.includes(sug.id);
-                      return (
-                        <div
-                          key={sug.id}
-                          onClick={() => handleToggleSuggestion(sug.id)}
-                          className={`p-3 rounded-lg border transition cursor-pointer flex items-start justify-between gap-3 ${
-                            isSelected
-                              ? 'bg-sky-950/40 border-sky-700 text-slate-100'
-                              : 'bg-slate-900/60 border-slate-800 text-slate-400'
-                          }`}
-                        >
-                          <div className="flex items-start gap-2.5">
-                            <div className={`w-4 h-4 rounded border mt-0.5 flex items-center justify-center ${
-                              isSelected ? 'bg-sky-500 border-sky-400 text-white' : 'border-slate-600 bg-slate-800'
-                            }`}>
-                              {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                            </div>
-                            <div className="flex flex-col gap-0.5 text-xs">
-                              <span className="font-bold text-sky-300">{sug.requirement}</span>
-                              <span className="text-[11px] text-slate-200 font-semibold">{sug.suggestedChange}</span>
-                              <span className="text-[11px] text-slate-400">{sug.reason}</span>
-                            </div>
-                          </div>
-
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                            isSelected ? 'bg-sky-900/80 text-sky-200 border-sky-600' : 'bg-slate-800 text-slate-400 border-slate-700'
-                          }`}>
-                            {isSelected ? 'Accepted' : 'Rejected'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Apply Selected Button */}
-                  <div className="flex justify-end mt-2">
-                    <button
-                      onClick={handleApplySelectedJdImprovements}
-                      disabled={selectedSuggestions.length === 0}
-                      className={`text-xs font-bold px-6 py-2.5 rounded-lg shadow-lg flex items-center gap-2 transition cursor-pointer ${
-                        selectedSuggestions.length === 0
-                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-emerald-500/25'
-                      }`}
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Review & Apply {selectedSuggestions.length} Safe Improvement{selectedSuggestions.length > 1 ? 's' : ''} (Screen 4)</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+              {/* Action Button: Review ChangePlan */}
+              <div className="flex justify-end mt-2 pt-3 border-t border-slate-800">
+                <button
+                  onClick={handleApplySelectedJdImprovements}
+                  disabled={selectedSuggestions.length === 0}
+                  className={`text-xs font-bold px-6 py-2.5 rounded-lg shadow-lg flex items-center gap-2 transition cursor-pointer ${
+                    selectedSuggestions.length === 0
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-emerald-500/25'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Review ChangePlan & Apply ({selectedSuggestions.length} Safe Action{selectedSuggestions.length > 1 ? 's' : ''})</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

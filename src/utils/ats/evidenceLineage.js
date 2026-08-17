@@ -1,5 +1,5 @@
-import { evaluateEvidenceConfidence } from './confidenceEngine';
-import { matchesTermInText } from './keywordMatcher';
+import { evaluateEvidenceConfidence } from './confidenceEngine.js';
+import { matchesTermInText } from './keywordMatcher.js';
 
 /**
  * TRACES STRUCTURED EVIDENCE LINEAGE DOWN TO EXACT SECTION, COMPANY, ROLE & BULLET

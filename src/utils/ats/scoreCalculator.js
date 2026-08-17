@@ -1,8 +1,8 @@
-import { ATS_KEYWORD_TAXONOMY } from './canonicalTaxonomy';
-import { calculateKeywordFrequencyDamping } from './keywordMatcher';
-import { evaluateEvidenceConfidence } from './confidenceEngine';
-import { traceEvidenceLineage } from './evidenceLineage';
-import { METRIC_NUMERIC_REGEX } from './metricSafety';
+import { ATS_KEYWORD_TAXONOMY } from './canonicalTaxonomy.js';
+import { calculateKeywordFrequencyDamping } from './keywordMatcher.js';
+import { evaluateEvidenceConfidence } from './confidenceEngine.js';
+import { traceEvidenceLineage } from './evidenceLineage.js';
+import { METRIC_NUMERIC_REGEX } from './metricSafety.js';
 
 export const STRONG_ACTION_VERB_REGEX = /^(spearheaded|engineered|architected|optimized|developed|orchestrated|accelerated|streamlined|delivered|implemented|led|built|automated|managed|designed|scaled|launched|formulated|executed|mentored|drove|established|reduced|increased|boosted|transformed|negotiated|authored|published|conducted|standardized|secured|championed|pioneered|migrated|centralized|revamped|instituted|directed|supervised|coordinated|achieved)/i;
 

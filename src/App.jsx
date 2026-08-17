@@ -263,7 +263,13 @@ export default function App() {
     setCurrentVersion(nextVerNum);
     setProposedCvState(null);
 
-    confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+    try {
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      }
+    } catch {
+      // Ignore confetti error in headless test runners
+    }
     setScreen(7); // Advance to Screen 7 (Final Preview Studio)
   };
 

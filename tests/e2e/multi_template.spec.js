@@ -28,8 +28,8 @@ test.describe('ResumeAI Pro — P1.2: Multi-Template ATS Formatting Engine E2E',
     await page.click('button:has-text("Senior Cloud & AI Recruiter JD")');
     await page.click('button:has-text("Analyze Job Description against Active CV")');
 
-    await expect(page.locator('text=Suggested Safe Improvements')).toBeVisible({ timeout: 10000 });
-    await page.click('button:has-text("Review & Apply")');
+    await expect(page.locator('text=TOP SAFE ACTIONS')).toBeVisible({ timeout: 10000 });
+    await page.click('button:has-text("Review ChangePlan & Apply")');
 
     await expect(page.locator('text=Screen 4 — Structured Change Plan')).toBeVisible();
     await page.click('button:has-text("Approve & Apply Changes")');

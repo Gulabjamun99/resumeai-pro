@@ -1,4 +1,4 @@
-import { calculateDetailedAtsScore } from './scoreCalculator';
+import { calculateDetailedAtsScore } from './scoreCalculator.js';
 
 /**
  * PURE NON-MUTATING BEFORE/AFTER SCORE SIMULATOR (P1.4 DIRECTIVE)

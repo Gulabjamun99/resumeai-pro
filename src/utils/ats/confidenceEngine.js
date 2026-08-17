@@ -1,5 +1,5 @@
-import { CANONICAL_SYNONYMS, PARTIAL_RELATIONSHIPS } from './canonicalTaxonomy';
-import { matchesTermInText } from './keywordMatcher';
+import { CANONICAL_SYNONYMS, PARTIAL_RELATIONSHIPS } from './canonicalTaxonomy.js';
+import { matchesTermInText } from './keywordMatcher.js';
 
 /**
  * EVALUATES 4-TIER EVIDENCE CONFIDENCE FOR A TARGET REQUIREMENT

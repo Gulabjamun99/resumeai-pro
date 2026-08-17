@@ -1,4 +1,3 @@
-import { ATS_KEYWORD_TAXONOMY } from '../data/rohitData.js';
 import { 
   matchesTermInText, 
   traceEvidenceLineage, 
@@ -8,7 +7,20 @@ import {
   simulateScoreImprovement,
   analyzeMetricOpportunities,
   CANONICAL_SYNONYMS,
-  PARTIAL_RELATIONSHIPS
+  PARTIAL_RELATIONSHIPS,
+  ATS_KEYWORD_TAXONOMY,
+  analyzeCriticalGaps,
+  GAP_RECOMMENDATIONS,
+  REQUIREMENT_IMPORTANCE,
+  evaluatePlacementQuality,
+  analyzeEvidencePlacements,
+  detectRecruiterRisks,
+  RISK_CODES,
+  RISK_SEVERITY,
+  simulateDecisionImpact,
+  calculateMultiSignalJobFit,
+  generateDecisionIntelligence,
+  analyzeJobDescriptionMatch
 } from './ats/index.js';
 
 export {
@@ -20,7 +32,20 @@ export {
   simulateScoreImprovement,
   analyzeMetricOpportunities,
   CANONICAL_SYNONYMS,
-  PARTIAL_RELATIONSHIPS
+  PARTIAL_RELATIONSHIPS,
+  ATS_KEYWORD_TAXONOMY,
+  analyzeCriticalGaps,
+  GAP_RECOMMENDATIONS,
+  REQUIREMENT_IMPORTANCE,
+  evaluatePlacementQuality,
+  analyzeEvidencePlacements,
+  detectRecruiterRisks,
+  RISK_CODES,
+  RISK_SEVERITY,
+  simulateDecisionImpact,
+  calculateMultiSignalJobFit,
+  generateDecisionIntelligence,
+  analyzeJobDescriptionMatch
 };
 
 /**
@@ -402,8 +427,20 @@ export function executeChangePlan(currentCvState, changePlan) {
       }
 
       case 'FORMAT': {
+        if (op.section === 'skills' && Array.isArray(op.requestedValue)) {
+          proposedCv.skills = [...op.requestedValue];
+        }
         appliedOperations.push(op);
-        requestedFacts.push('Visual spacing and ATS layout alignment refreshed');
+        requestedFacts.push(op.description || 'Visual spacing and ATS layout alignment refreshed');
+        break;
+      }
+
+      case 'REVISE_BULLET': {
+        if (op.expIndex !== undefined && op.bulletIndex !== undefined && proposedCv.experiences?.[op.expIndex]?.bullets?.[op.bulletIndex] !== undefined) {
+          proposedCv.experiences[op.expIndex].bullets[op.bulletIndex] = op.requestedValue;
+          appliedOperations.push(op);
+          requestedFacts.push(op.description || `Refined bullet with active STAR verb`);
+        }
         break;
       }
 
@@ -494,11 +531,17 @@ export function runCheckA(sourceResume, outputResume, changePlan) {
   const authorizedOldBullets = [];
   if (changePlan?.operations) {
     changePlan.operations.forEach(op => {
-      if (op.section === 'experience' && op.operation === 'REPLACE' && op.field?.startsWith('experiences[')) {
-        const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
-        if (match) {
-          const expIdx = parseInt(match[1], 10);
-          const bulletIdx = parseInt(match[2], 10);
+      if (op.section === 'experience' && (op.operation === 'REPLACE' || op.operation === 'REVISE_BULLET')) {
+        let expIdx = op.expIndex;
+        let bulletIdx = op.bulletIndex;
+        if (expIdx === undefined && op.field?.startsWith('experiences[')) {
+          const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
+          if (match) {
+            expIdx = parseInt(match[1], 10);
+            bulletIdx = parseInt(match[2], 10);
+          }
+        }
+        if (expIdx !== undefined && bulletIdx !== undefined) {
           const oldBullet = sourceResume.experiences?.[expIdx]?.bullets?.[bulletIdx];
           if (oldBullet) authorizedOldBullets.push(oldBullet);
         }
@@ -577,200 +620,64 @@ export function runAtsAudit(resume) {
   };
 }
 
-/**
- * JOB DESCRIPTION MATCH & EVIDENCE GAP ANALYZER (P1 DIRECTIVE)
- * Strictly analyzes a target Job Description against CURRENT_CV_STATE & SOURCE_CV_MASTER.
- * Enforces ANTI-HALLUCINATION: Distinguishes EVIDENCED, PARTIALLY_EVIDENCED, and NOT_EVIDENCED.
- */
-export function analyzeJobDescriptionMatch(jdText, currentCvState, sourceMaster) {
-  if (!jdText || typeof jdText !== 'string' || jdText.trim().length === 0) {
-    return {
-      error: "Please enter a valid job description.",
-      matchScore: 0,
-      requirements: [],
-      safeSuggestions: [],
-      summary: { total: 0, evidencedCount: 0, partialCount: 0, gapCount: 0 }
-    };
-  }
 
-  const rawJd = jdText.trim();
-  const lowerJd = rawJd.toLowerCase();
 
-  // 1. Security & Prompt Injection Filter in JD text
-  if (lowerJd.includes('ignore previous instructions') || lowerJd.includes('system prompt override') || lowerJd.includes('developer mode enabled')) {
-    return {
-      error: "SAFETY GUARD: Suspicious instruction pattern detected inside Job Description text. Prompt injection ignored.",
-      matchScore: 0,
-      requirements: [],
-      safeSuggestions: [],
-      summary: { total: 0, evidencedCount: 0, partialCount: 0, gapCount: 0 }
-    };
-  }
-
-  // 2. Extract Key Skill & Competency Terms from JD
-  const COMMON_SKILL_VOCABULARY = [
-    "React", "Node.js", "Python", "Java", "AWS", "SQL", "TypeScript", "JavaScript",
-    "Kubernetes", "Docker", "Go", "Golang", "C++", "C#", ".NET", "GCP", "Azure",
-    "GraphQL", "REST API", "Microservices", "CI/CD", "Git", "Agile", "Scrum",
-    "Talent Acquisition", "Technical Recruiting", "Sourcing", "ATS Optimization",
-    "Stakeholder Management", "Team Leadership", "Data Analytics", "System Architecture",
-    "Product Management", "Performance Optimization", "Security & Compliance", "PostgreSQL",
-    "Machine Learning", "NLP", "LLMs"
-  ];
-
-  const extractedRequirements = [];
-  const safeSuggestions = [];
-
-  let exactCount = 0;
-  let strongCount = 0;
-  let partialCount = 0;
-  let gapCount = 0;
-
-  COMMON_SKILL_VOCABULARY.forEach(term => {
-    const canonicalEntry = CANONICAL_SYNONYMS[term.toLowerCase().trim()];
-    const aliases = canonicalEntry ? canonicalEntry.aliases : [];
-    const termInJd = matchesTermInText(term, rawJd) || aliases.some(a => matchesTermInText(a, rawJd));
-
-    if (termInJd) {
-      const lineage = traceEvidenceLineage(term, currentCvState);
-      
-      let status = 'NOT_EVIDENCED';
-      if (lineage.confidence === 'EXACT' || lineage.confidence === 'STRONG') {
-        status = 'EVIDENCED';
-        if (lineage.confidence === 'EXACT') exactCount++;
-        else strongCount++;
-      } else if (lineage.confidence === 'PARTIAL') {
-        status = 'PARTIALLY_EVIDENCED';
-        partialCount++;
-      } else {
-        gapCount++;
-      }
-
-      extractedRequirements.push({
-        id: `req-${term.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-        name: term,
-        status,
-        confidence: lineage.confidence,
-        matchType: lineage.matchType,
-        evidenceSnippet: lineage.snippet,
-        cvLocation: lineage.lineageBreadcrumb,
-        source: lineage.source,
-        scoreContribution: lineage.scoreContribution
-      });
-
-      // Formulate safe suggestions for evidenced skills under experience
-      if ((lineage.confidence === 'EXACT' || lineage.confidence === 'STRONG') && lineage.source?.type === 'experience') {
-        safeSuggestions.push({
-          id: `sug-${term.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-          targetSection: 'Skills / Summary',
-          suggestionType: 'EVIDENCE_BACKED_EMPHASIS',
-          skillName: term,
-          rationale: `Candidate has verified experience with "${term}" (${lineage.lineageBreadcrumb}). Emphasize in Skills list for ATS parseability.`,
-          isSafe: true,
-          requiresCandidateApproval: true
-        });
-      }
-    }
-  });
-
-  const total = extractedRequirements.length;
-  const matchScore = total > 0 
-    ? Math.round(((exactCount * 1.0 + strongCount * 0.85 + partialCount * 0.40) / total) * 100)
-    : 75;
-
-  // Calculate detailed scorecard & explainability
-  const detailedScore = calculateDetailedAtsScore(currentCvState, extractedRequirements.map(r => r.name));
-  const explanation = generateScoreExplanationTree(detailedScore);
-
-  // Compute non-mutating simulated score improvement
-  const simulation = simulateScoreImprovement(currentCvState, extractedRequirements.map(r => r.name), safeSuggestions);
-
-  // 3. Formulate Additional Safe Suggestions (Headline alignment)
-  const cvTitle = currentCvState?.header?.title || "";
-  const topEvidencedSkills = extractedRequirements.filter(r => r.status === 'EVIDENCED').map(r => r.name);
-  if (topEvidencedSkills.length > 0 && !topEvidencedSkills.some(s => cvTitle.toLowerCase().includes(s.toLowerCase()))) {
-    const suggestedHeadline = `${cvTitle} (Specialized in ${topEvidencedSkills.slice(0, 2).join(' & ')})`;
-    safeSuggestions.push({
-      id: 'sug-headline-align',
-      requirement: 'Target Job Alignment',
-      currentEvidence: `Current title: "${cvTitle}"`,
-      suggestedChange: `Align Headline: "${suggestedHeadline}"`,
-      reason: `Highlights evidenced core competencies (${topEvidencedSkills.slice(0, 2).join(', ')}) directly in the headline.`,
-      field: 'header.title',
-      originalValue: cvTitle,
-      proposedValue: suggestedHeadline,
-      selected: true
-    });
-  }
-
-  // Suggestion B: Prioritize evidenced skills at the front of the Skills section
-  if (topEvidencedSkills.length > 0 && currentCvState?.skills) {
-    const reorderedSkills = [
-      ...topEvidencedSkills.filter(s => currentCvState.skills.some(cs => cs.toLowerCase() === s.toLowerCase())),
-      ...currentCvState.skills.filter(cs => !topEvidencedSkills.some(s => s.toLowerCase() === cs.toLowerCase()))
-    ];
-    if (JSON.stringify(reorderedSkills) !== JSON.stringify(currentCvState.skills)) {
-      safeSuggestions.push({
-        id: 'sug-skills-reorder',
-        requirement: 'ATS Keyword Priority',
-        currentEvidence: `Skills currently listed in default order`,
-        suggestedChange: `Prioritize target skills: ${topEvidencedSkills.slice(0, 3).join(', ')} at front of Skills array`,
-        reason: `Improves ATS parsing prominence for explicitly matching skills without fabricating new qualifications.`,
-        field: 'skills',
-        originalValue: currentCvState.skills,
-        proposedValue: reorderedSkills,
-        selected: true
-      });
-    }
-  }
-
-  return {
-    matchScore,
-    requirements: extractedRequirements,
-    safeSuggestions,
-    summary: {
-      total,
-      evidencedCount: exactCount + strongCount,
-      exactCount,
-      strongCount,
-      partialCount,
-      gapCount
-    },
-    detailedScore,
-    explanation,
-    simulation
-  };
-}
-
-/**
- * BUILDS A STRUCTURED CHANGE PLAN FROM ACCEPTED JD SUGGESTIONS
- */
 export function buildChangePlanFromJdSuggestions(selectedSuggestions, currentCvState) {
   const operations = [];
   const authorizedChanges = [];
 
   (selectedSuggestions || []).forEach(sug => {
-    if (sug.field === 'header.title') {
+    // 1. Headline Alignment
+    if (sug.field === 'header.title' || sug.actionType === 'HEADLINE_ALIGN') {
+      const val = sug.proposedValue || sug.proposedHeadline || sug.action;
       operations.push({
-        id: `op-jd-headline-${Date.now()}`,
+        id: `op-jd-headline-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         operation: 'REPLACE',
         section: 'headline',
         field: 'header.title',
-        requestedValue: sug.proposedValue,
-        description: `Set Headline to: "${sug.proposedValue}"`
+        requestedValue: val,
+        description: `Set Headline to: "${val}"`
       });
-      authorizedChanges.push({ field: 'header.title', value: sug.proposedValue, authorization: 'USER_EXPLICIT' });
-    } else if (sug.field === 'skills') {
-      // Reorder skills
+      authorizedChanges.push({ field: 'header.title', value: val, authorization: 'USER_EXPLICIT' });
+    } 
+    // 2. Skill Repositioning
+    else if (sug.field === 'skills' || sug.actionType === 'REPOSITION_SKILL') {
+      let reordered = sug.proposedValue;
+      if (!reordered && sug.skillName && currentCvState?.skills) {
+        reordered = [
+          sug.skillName,
+          ...currentCvState.skills.filter(s => s.toLowerCase() !== sug.skillName.toLowerCase())
+        ];
+      }
+      if (reordered) {
+        operations.push({
+          id: `op-jd-skills-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          operation: 'FORMAT',
+          section: 'skills',
+          field: 'skills',
+          requestedValue: reordered,
+          description: `Reordered skills to prioritize evidenced target keyword "${sug.skillName || 'skills'}"`
+        });
+        authorizedChanges.push({ field: 'skills', value: reordered, authorization: 'USER_EXPLICIT' });
+      }
+    }
+    // 3. STAR Bullet Refinement
+    else if (sug.actionType === 'STAR_BULLET_REFINEMENT' && sug.refinedBullet) {
       operations.push({
-        id: `op-jd-skills-${Date.now()}`,
-        operation: 'FORMAT',
-        section: 'skills',
-        field: 'skills',
-        requestedValue: sug.proposedValue,
-        description: `Reordered skills to prioritize evidenced target keywords`
+        id: `op-jd-star-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        operation: 'REVISE_BULLET',
+        section: 'experience',
+        field: `experiences[${sug.targetExpIndex}].bullets[${sug.targetBulletIndex}]`,
+        expIndex: sug.targetExpIndex,
+        bulletIndex: sug.targetBulletIndex,
+        requestedValue: sug.refinedBullet,
+        description: `Upgraded bullet with active STAR verb: "${sug.refinedBullet.substring(0, 50)}..."`
       });
-      authorizedChanges.push({ field: 'skills', value: sug.proposedValue, authorization: 'USER_EXPLICIT' });
+      authorizedChanges.push({ 
+        field: `experiences[${sug.targetExpIndex}].bullets[${sug.targetBulletIndex}]`, 
+        value: sug.refinedBullet, 
+        authorization: 'USER_EXPLICIT' 
+      });
     }
   });
 
@@ -778,7 +685,7 @@ export function buildChangePlanFromJdSuggestions(selectedSuggestions, currentCvS
     scope: 'FORMATTING_ONLY',
     operations,
     authorizedChanges,
-    targetSections: ['headline', 'skills'],
+    targetSections: ['headline', 'skills', 'experience'],
     rawPrompt: `Job Description Alignment: ${operations.map(o => o.description).join('; ')}`
   };
 }

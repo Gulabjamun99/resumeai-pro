@@ -1,4 +1,4 @@
-import { STANDALONE_SHORT_TOKENS } from './canonicalTaxonomy';
+import { STANDALONE_SHORT_TOKENS } from './canonicalTaxonomy.js';
 
 /**
  * TOKENIZES PLAIN TEXT INTO NORMALIZED WORD TOKENS
