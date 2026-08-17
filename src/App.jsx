@@ -214,17 +214,20 @@ export default function App() {
   };
 
   // Execute Approved Change Plan on Screen 4 -> Screen 5 Generation -> Screen 6 Validation
-  const handleExecuteApprovedPlan = () => {
-    if (!currentCvState || !activeChangePlan) return;
+  const handleExecuteApprovedPlan = (approvedPlan = null) => {
+    const effectivePlan = approvedPlan || activeChangePlan;
+    if (!currentCvState || !effectivePlan) return;
+
+    setActiveChangePlan(effectivePlan);
 
     // Step 1: Execute transformation on CURRENT_CV_STATE
-    const { proposedCv, appliedOperations, requestedFacts: facts } = executeChangePlan(currentCvState, activeChangePlan);
+    const { proposedCv, appliedOperations, requestedFacts: facts } = executeChangePlan(currentCvState, effectivePlan);
 
     // Step 2: Reconcile via LockEnforcer Middleware
-    const lockedCv = enforceContentLocks(sourceResume, currentCvState, proposedCv, activeChangePlan);
+    const lockedCv = enforceContentLocks(sourceResume, currentCvState, proposedCv, effectivePlan);
 
     // Step 3: Verify Requested Change (Rule #12: No False Success)
-    const verification = verifyRequestedChange(currentCvState, lockedCv, activeChangePlan);
+    const verification = verifyRequestedChange(currentCvState, lockedCv, effectivePlan);
     if (!verification.verified) {
       setErrorMessage(verification.reason || "Requested change could not be verified.");
       setScreen(3);
@@ -232,7 +235,7 @@ export default function App() {
     }
 
     // Step 4: Run Complete Validation Suite
-    const report = runCompleteValidationSuite(sourceResume, lockedCv, promptText, permissionScope, activeChangePlan);
+    const report = runCompleteValidationSuite(sourceResume, lockedCv, promptText, permissionScope, effectivePlan);
 
     setProposedCvState(lockedCv);
     setRequestedFacts(facts);

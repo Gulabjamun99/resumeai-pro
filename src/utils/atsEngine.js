@@ -20,15 +20,20 @@ import {
   simulateDecisionImpact,
   calculateMultiSignalJobFit,
   generateDecisionIntelligence,
-  analyzeJobDescriptionMatch
+  analyzeJobDescriptionMatch,
+  classifyUserIntent,
+  USER_INTENTS,
+  generateFullDocumentOptimization,
+  optimizeBulletPoint,
+  SECTION_ACTIONS
 } from './ats/index.js';
 
 export {
-  matchesTermInText,
-  traceEvidenceLineage,
-  evaluateEvidenceConfidence,
-  calculateDetailedAtsScore,
-  generateScoreExplanationTree,
+  matchesTermInText, 
+  traceEvidenceLineage, 
+  evaluateEvidenceConfidence, 
+  calculateDetailedAtsScore, 
+  generateScoreExplanationTree, 
   simulateScoreImprovement,
   analyzeMetricOpportunities,
   CANONICAL_SYNONYMS,
@@ -45,16 +50,29 @@ export {
   simulateDecisionImpact,
   calculateMultiSignalJobFit,
   generateDecisionIntelligence,
-  analyzeJobDescriptionMatch
+  analyzeJobDescriptionMatch,
+  classifyUserIntent,
+  USER_INTENTS,
+  generateFullDocumentOptimization,
+  optimizeBulletPoint,
+  SECTION_ACTIONS
 };
 
 /**
  * Natural Language User-Intent Parser:
  * Converts arbitrary natural language user requests into a structured, executable ChangePlan.
  */
-export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMaster) {
+export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMaster, rawJd = null) {
   const rawText = (promptText || '').trim();
   const lower = rawText.toLowerCase();
+
+  // Classify intent deterministically
+  const intentClass = classifyUserIntent(rawText, Boolean(rawJd));
+
+  // If Full JD Alignment intent detected and JD is present, generate Full Document Plan
+  if (intentClass.intent === USER_INTENTS.FULL_JD_ALIGNMENT && rawJd) {
+    return generateFullDocumentOptimization(rawJd, currentCvState);
+  }
 
   const operations = [];
   const authorizedChanges = [];
@@ -362,13 +380,17 @@ export function executeChangePlan(currentCvState, changePlan) {
 
       case 'REWRITE': {
         if (op.section === 'summary') {
-          const currentSummary = proposedCv.header.summary || '';
-          const addition = " Recognized for cross-functional leadership, AI-driven recruitment workflows, and measurable stakeholder impact.";
-          if (!currentSummary.includes("AI-driven recruitment")) {
-            proposedCv.header.summary = `${currentSummary.trim()}${addition}`;
+          if (op.requestedValue) {
+            proposedCv.header.summary = op.requestedValue;
+          } else {
+            const currentSummary = proposedCv.header.summary || '';
+            const addition = " Recognized for cross-functional leadership, AI-driven recruitment workflows, and measurable stakeholder impact.";
+            if (!currentSummary.includes("AI-driven recruitment")) {
+              proposedCv.header.summary = `${currentSummary.trim()}${addition}`;
+            }
           }
           appliedOperations.push(op);
-          requestedFacts.push('Enhanced professional summary for ATS keyword density and executive leadership');
+          requestedFacts.push(op.description || 'Enhanced professional summary for ATS keyword density and executive leadership');
         } else if (op.section === 'experience') {
           // Rephrase experience bullets with strong action verbs
           if (proposedCv.experiences && proposedCv.experiences.length > 0) {

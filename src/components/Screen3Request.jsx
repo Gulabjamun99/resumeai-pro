@@ -50,6 +50,14 @@ export default function Screen3Request({
 
   const testScenarios = [
     {
+      label: "✨ Pura CV is JD ke hisab se bana do",
+      prompt: "Pura CV is JD ke hisab se bana do. Keep original template and factual baseline locked."
+    },
+    {
+      label: "🎯 Tailor Entire CV",
+      prompt: "Tailor my entire CV to match this Job Description while preserving all authentic employment dates and credentials."
+    },
+    {
       label: "Headline Change",
       prompt: "Headline ko AI-Driven Talent Acquisition Specialist kar do"
     },
@@ -68,6 +76,10 @@ export default function Screen3Request({
     {
       label: "Contact Update",
       prompt: "Phone number change karke 9876543210 kar do"
+    },
+    {
+      label: "📄 Keep Original Template",
+      prompt: "Keep the original format and template unchanged while improving bullet points."
     },
     {
       label: "Test E (Ambiguous)",
@@ -107,8 +119,18 @@ export default function Screen3Request({
     }
   };
 
+  const handleOptimizeEntireCvForJd = () => {
+    if (!jdText.trim() || !onApplyJdPlan) return;
+    const plan = jdAnalysisResult?.fullOptimization || generateFullDocumentOptimization(jdText, currentCvState);
+    onApplyJdPlan(plan, `Full CV Optimization for Target Job Description (100% Coverage)`);
+  };
+
   const handleApplySelectedJdImprovements = () => {
     if (!jdAnalysisResult || !onApplyJdPlan) return;
+    if (jdAnalysisResult.fullOptimization) {
+      onApplyJdPlan(jdAnalysisResult.fullOptimization, `Full CV Optimization for Target Job Description (100% Coverage)`);
+      return;
+    }
     const allCandidates = [
       ...(jdAnalysisResult.safeSuggestions || []),
       ...(jdAnalysisResult.decisionIntelligence?.topSafeActions || [])
@@ -460,6 +482,85 @@ export default function Screen3Request({
           {/* Analysis Results Display */}
           {jdAnalysisResult && !jdAnalysisResult.error && (
             <div className="flex flex-col gap-5 mt-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
+              {/* P1.6 Primary Call-to-Action: Optimize Entire CV (100% Coverage) */}
+              <div className="bg-gradient-to-r from-sky-950 via-slate-900 to-indigo-950 border-2 border-sky-500/50 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 flex-shrink-0">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white uppercase tracking-wide">
+                      Full CV & Job Description Optimization (100% Coverage)
+                    </h4>
+                    <p className="text-[11px] text-slate-300">
+                      Analyze all sections, upgrade bullets with STAR verbs, prioritize target keywords, and preserve original template.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleOptimizeEntireCvForJd}
+                  className="w-full sm:w-auto bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 transition cursor-pointer whitespace-nowrap"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>OPTIMIZE ENTIRE CV FOR THIS JD</span>
+                </button>
+              </div>
+
+              {/* P1.6 Directive Section 3: Explicit Intent Understanding Confirmation Card */}
+              <div className="bg-slate-900/90 border border-sky-500/40 rounded-xl p-4 flex flex-col gap-3 shadow-lg">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="bg-sky-500 text-slate-950 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded">
+                      REQUEST CONFIRMATION
+                    </span>
+                    <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                      Request Understood As: <span className="text-sky-300 font-extrabold">FULL CV TAILORING</span>
+                    </h3>
+                  </div>
+                  <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800">
+                    100% Inspection • Factual Safety Locked
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-300">
+                  <div className="flex flex-col gap-1.5 bg-slate-950/80 p-3 rounded-lg border border-slate-800">
+                    <span className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wide">Target Role & Scope</span>
+                    <span className="font-semibold text-slate-100">
+                      {jdAnalysisResult.fullOptimization?.targetRole || currentCvState?.header?.title || 'Target Job Alignment'}
+                    </span>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      <strong>Requested Operation:</strong> Tailor the complete existing CV to this target JD without dropping unrelated factual experience.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-1 bg-slate-950/80 p-3 rounded-lg border border-slate-800 font-mono text-[10.5px]">
+                    <span className="font-bold text-slate-400 uppercase tracking-wide font-sans text-[10.5px]">The System Will Review (100%):</span>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-emerald-400/90 mt-0.5">
+                      <span>✓ Header / Target Title</span>
+                      <span>✓ Professional Summary</span>
+                      <span>✓ Core Skills Inventory</span>
+                      <span>✓ Every Experience Bullet</span>
+                      <span>✓ Education Credentials</span>
+                      <span>✓ Certifications & IT Skills</span>
+                      <span>✓ Languages & ATS Structure</span>
+                      <span>✓ Grammar & Readability</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-slate-300">
+                    <FileText className="w-3.5 h-3.5 text-sky-400" />
+                    <span><strong>Template:</strong> Preserves original CV template/layout unless a new template is explicitly selected.</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-amber-300">
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                    <span><strong>Safety:</strong> Strict zero-invention lock on skills, metrics, employers, and dates.</span>
+                  </div>
+                </div>
+              </div>
+
               {/* P1.5: 5-Signal Multi-Dimensional Job Fit Card */}
               {jdAnalysisResult.decisionIntelligence?.jobFit && (
                 <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col gap-3 shadow-lg">

@@ -12,6 +12,9 @@ import { detectRecruiterRisks, RISK_CODES, RISK_SEVERITY } from './recruiterRisk
 import { simulateDecisionImpact } from './decisionSimulator.js';
 import { calculateMultiSignalJobFit, generateDecisionIntelligence } from './decisionIntelligence.js';
 
+import { classifyUserIntent, USER_INTENTS } from './intentClassifier.js';
+import { generateFullDocumentOptimization, optimizeBulletPoint, SECTION_ACTIONS } from './fullDocumentOptimizer.js';
+
 export {
   CANONICAL_SYNONYMS,
   PARTIAL_RELATIONSHIPS,
@@ -39,7 +42,12 @@ export {
   RISK_SEVERITY,
   simulateDecisionImpact,
   calculateMultiSignalJobFit,
-  generateDecisionIntelligence
+  generateDecisionIntelligence,
+  classifyUserIntent,
+  USER_INTENTS,
+  generateFullDocumentOptimization,
+  optimizeBulletPoint,
+  SECTION_ACTIONS
 };
 
 /**
@@ -161,10 +169,14 @@ export function analyzeJobDescriptionMatch(rawJd, currentCvState) {
   // Simulation
   const simulation = simulateScoreImprovement(currentCvState, extractedRequirements.map(r => r.name), safeSuggestions);
 
+  // Full Document 100% Section-by-Section Optimization Plan
+  const fullOptimization = generateFullDocumentOptimization(rawJd, currentCvState);
+
   return {
     matchScore,
     requirements: extractedRequirements,
     safeSuggestions,
+    fullOptimization,
     summary: {
       total,
       evidencedCount: exactCount + strongCount,

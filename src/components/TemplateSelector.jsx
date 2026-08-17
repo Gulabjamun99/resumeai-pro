@@ -1,7 +1,14 @@
 import React from 'react';
-import { Layout, AlignJustify, Sparkles, Check } from 'lucide-react';
+import { Layout, AlignJustify, Sparkles, Check, FileText } from 'lucide-react';
 
 export const RESUME_TEMPLATES = [
+  {
+    id: 'source-template',
+    name: 'Original Source Template',
+    tag: 'Preserved Design',
+    description: 'Preserves the authentic visual layout, section ordering, and typography of your uploaded CV.',
+    icon: FileText
+  },
   {
     id: 'dual-column',
     name: 'Classic Dual-Column',
@@ -25,7 +32,7 @@ export const RESUME_TEMPLATES = [
   }
 ];
 
-export default function TemplateSelector({ selectedTemplateId = 'dual-column', onSelectTemplate }) {
+export default function TemplateSelector({ selectedTemplateId = 'source-template', onSelectTemplate }) {
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col gap-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
@@ -38,7 +45,7 @@ export default function TemplateSelector({ selectedTemplateId = 'dual-column', o
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {RESUME_TEMPLATES.map((tmpl) => {
           const isSelected = selectedTemplateId === tmpl.id;
           const IconComponent = tmpl.icon;
