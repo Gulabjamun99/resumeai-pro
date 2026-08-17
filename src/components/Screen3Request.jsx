@@ -667,7 +667,7 @@ export default function Screen3Request({
                   </div>
 
                   <div className="grid gap-2">
-                    {jdAnalysisResult.decisionIntelligence.blockedActions.slice(0, 4).map((blk, idx) => (
+                    {jdAnalysisResult.decisionIntelligence.blockedActions.map((blk, idx) => (
                       <div key={idx} className="p-2.5 bg-red-950/20 border border-red-800/30 rounded-lg flex flex-col gap-1 text-xs">
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-red-300 flex items-center gap-1.5">

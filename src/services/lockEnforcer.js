@@ -58,24 +58,32 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
   // 5. EXISTING WORK EXPERIENCE LOCKS
   // Ensure that all existing job roles, original dates, and companies from sourceMaster remain immutable
   // (unless explicitly authorized by the user)
-  if (master.experiences && output.experiences) {
-    master.experiences.forEach(sourceExp => {
-      const targetExp = output.experiences.find(e => e.id === sourceExp.id);
+  if (Array.isArray(master.experiences) && Array.isArray(output.experiences)) {
+    master.experiences.forEach((sourceExp, expIdx) => {
+      const targetExp = output.experiences.find(e => (sourceExp.id && e.id === sourceExp.id) || (e.role && e.role === sourceExp.role)) || output.experiences[expIdx];
       if (targetExp) {
-        // Enforce exact company, dates, and locations from master
-        targetExp.company = sourceExp.company;
-        targetExp.period = sourceExp.period;
-        targetExp.location = sourceExp.location;
+        // Enforce exact company, dates, and locations from master unless authorized
+        if (!authorizedFields.has(`experiences[${expIdx}].company`)) {
+          targetExp.company = sourceExp.company;
+        }
+        if (!authorizedFields.has(`experiences[${expIdx}].period`)) {
+          targetExp.period = sourceExp.period;
+        }
+        if (!authorizedFields.has(`experiences[${expIdx}].location`)) {
+          targetExp.location = sourceExp.location;
+        }
 
         // Ensure original source bullets are preserved line-by-line (unless authorized for replacement)
-        sourceExp.bullets.forEach((sourceBullet, idx) => {
-          const isAuthorizedReplacement = Array.from(authorizedFields).some(field => 
-            field.startsWith('experiences[') && field.endsWith(`.bullets[${idx}]`)
-          );
-          if (!targetExp.bullets.includes(sourceBullet) && !isAuthorizedReplacement) {
-            targetExp.bullets.splice(idx, 0, sourceBullet);
-          }
-        });
+        if (Array.isArray(sourceExp.bullets)) {
+          sourceExp.bullets.forEach((sourceBullet, idx) => {
+            const isAuthorizedReplacement = Array.from(authorizedFields).some(field => 
+              field.startsWith('experiences[') && field.endsWith(`.bullets[${idx}]`)
+            );
+            if (Array.isArray(targetExp.bullets) && !targetExp.bullets.includes(sourceBullet) && !isAuthorizedReplacement) {
+              targetExp.bullets.splice(idx, 0, sourceBullet);
+            }
+          });
+        }
       }
     });
   }

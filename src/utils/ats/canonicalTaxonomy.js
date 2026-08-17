@@ -18,6 +18,7 @@ export const CANONICAL_SYNONYMS = {
   "aws": { canonical: "aws", aliases: ["amazon web services"], confidence: "STRONG" },
   "ci/cd": { canonical: "ci/cd", aliases: ["ci-cd", "continuous integration", "continuous deployment"], confidence: "STRONG" },
   "continuous integration": { canonical: "ci/cd", aliases: ["ci/cd", "ci-cd"], confidence: "STRONG" },
+  "continuous deployment": { canonical: "ci/cd", aliases: ["ci/cd", "ci-cd"], confidence: "STRONG" },
 
   // Languages & Frameworks
   "postgresql": { canonical: "postgresql", aliases: ["postgres"], confidence: "STRONG" },
@@ -28,6 +29,20 @@ export const CANONICAL_SYNONYMS = {
   "js": { canonical: "javascript", aliases: ["javascript"], confidence: "STRONG" },
   "golang": { canonical: "go", aliases: ["go"], confidence: "STRONG" },
   "go": { canonical: "go", aliases: ["golang"], confidence: "STRONG" },
+  "react": { canonical: "react", aliases: ["react.js", "reactjs"], confidence: "STRONG" },
+  "react.js": { canonical: "react", aliases: ["react", "reactjs"], confidence: "STRONG" },
+  "node.js": { canonical: "node.js", aliases: ["nodejs", "node"], confidence: "STRONG" },
+  "nodejs": { canonical: "node.js", aliases: ["node.js", "node"], confidence: "STRONG" },
+  "vue": { canonical: "vue.js", aliases: ["vue.js", "vuejs"], confidence: "STRONG" },
+  "vue.js": { canonical: "vue.js", aliases: ["vue", "vuejs"], confidence: "STRONG" },
+  "rest api": { canonical: "rest apis", aliases: ["rest apis", "restful api", "restful apis"], confidence: "STRONG" },
+  "rest apis": { canonical: "rest apis", aliases: ["rest api", "restful apis"], confidence: "STRONG" },
+
+  // Creative & Design
+  "adobe photoshop": { canonical: "photoshop", aliases: ["photoshop"], confidence: "STRONG" },
+  "photoshop": { canonical: "photoshop", aliases: ["adobe photoshop"], confidence: "STRONG" },
+  "3d sculpting": { canonical: "3d modeling", aliases: ["3d modeling", "3d animation"], confidence: "STRONG" },
+  "3d modeling": { canonical: "3d modeling", aliases: ["3d sculpting", "3d animation"], confidence: "STRONG" },
 
   // AI & Data
   "machine learning": { canonical: "machine learning", aliases: ["ml"], confidence: "STRONG" },
@@ -55,15 +70,15 @@ export const PARTIAL_RELATIONSHIPS = {
   "postgresql": ["sql", "relational database", "rdbms", "database"],
   "postgres": ["sql", "relational database", "rdbms", "database"],
   "mysql": ["sql", "relational database", "rdbms", "database"],
-  "sql": ["database", "data querying"],
-  "microservices": ["distributed systems", "service-oriented architecture", "soa", "rest api"],
+  "sql": ["database", "data querying", "relational database"],
+  "microservices": ["distributed systems", "service-oriented architecture", "soa", "rest api", "rest apis"],
   "distributed systems": ["microservices", "system architecture"],
   "talent acquisition": ["technical recruiting", "it recruitment", "sourcing", "headhunting", "hiring"],
   "technical recruiting": ["talent acquisition", "sourcing", "screening", "interviewing"],
   "kubernetes": ["docker", "containerization", "containers", "orchestration"],
   "docker": ["containers", "containerization"],
-  "react": ["frontend", "javascript", "ui development"],
-  "node.js": ["backend", "javascript", "server-side"]
+  "react": ["frontend", "javascript", "typescript", "ui development"],
+  "node.js": ["backend", "javascript", "typescript", "server-side"]
 };
 
 /**
@@ -71,7 +86,7 @@ export const PARTIAL_RELATIONSHIPS = {
  * Prevents false-positive substring matches like "AI" in "email/training", "AWS" in "laws", "Go" in "good", "C" in "react".
  */
 export const STANDALONE_SHORT_TOKENS = new Set([
-  "go", "c", "r", "ai", "ml", "ta", "ts", "js", "aws", "sql", "gcp", "k8s", "nlp", "llm", "llms", "ats", "ci", "cd"
+  "go", "c", "r", "ai", "ml", "ta", "ts", "js", "aws", "sql", "gcp", "k8s", "nlp", "llm", "llms", "ats", "ci", "cd", "php", "vue"
 ]);
 
 export const ATS_KEYWORD_TAXONOMY = [
@@ -79,5 +94,8 @@ export const ATS_KEYWORD_TAXONOMY = [
   "Sourcing", "Talent Acquisition", "Screening", "Interviews", "Python",
   "SQL", "Management", "Operations", "Compliance", "Strategy", "Execution",
   "Performance", "Stakeholders", "Reporting", "Cross-Functional", "Roadmap",
-  "Architecture", "Scalability"
+  "Architecture", "Scalability", "React", "Node.js", "TypeScript", "JavaScript",
+  "AWS", "Docker", "Kubernetes", "PostgreSQL", "REST APIs", "CI/CD", "Git",
+  "PHP", "Laravel", "Vue.js", "MySQL", "MongoDB", "Maya", "Photoshop",
+  "Graphic Design", "3D Sculpting", "3D Modeling", "Veterinary Surgery", "Pharmacology"
 ];

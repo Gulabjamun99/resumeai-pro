@@ -11,11 +11,17 @@ export function runCompleteValidationSuite(sourceMaster, outputResume, promptTex
   const authorizedOldBullets = [];
   if (changePlan?.operations) {
     changePlan.operations.forEach(op => {
-      if (op.section === 'experience' && op.operation === 'REPLACE' && op.field?.startsWith('experiences[')) {
-        const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
-        if (match) {
-          const expIdx = parseInt(match[1], 10);
-          const bulletIdx = parseInt(match[2], 10);
+      if (op.section === 'experience' && (op.operation === 'REPLACE' || op.operation === 'REVISE_BULLET')) {
+        let expIdx = op.expIndex;
+        let bulletIdx = op.bulletIndex;
+        if (expIdx === undefined && op.field?.startsWith('experiences[')) {
+          const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
+          if (match) {
+            expIdx = parseInt(match[1], 10);
+            bulletIdx = parseInt(match[2], 10);
+          }
+        }
+        if (expIdx !== undefined && bulletIdx !== undefined) {
           const oldBullet = sourceMaster.experiences?.[expIdx]?.bullets?.[bulletIdx];
           if (oldBullet) authorizedOldBullets.push(oldBullet);
         }

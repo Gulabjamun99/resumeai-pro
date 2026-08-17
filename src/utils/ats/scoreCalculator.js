@@ -26,11 +26,12 @@ export function calculateDetailedAtsScore(resume, targetKeywords = []) {
     };
   }
 
-  const allBullets = (resume.experiences || []).flatMap((e, expIdx) => 
-    (e.bullets || []).map((b, bIdx) => ({
+  const cvExperiences = Array.isArray(resume.experiences) ? resume.experiences : [];
+  const allBullets = cvExperiences.flatMap((e, expIdx) => 
+    (Array.isArray(e?.bullets) ? e.bullets : []).map((b, bIdx) => ({
       text: (b || '').trim(),
-      company: e.company || e.location || 'Company',
-      role: e.role || 'Role',
+      company: e?.company || e?.location || 'Company',
+      role: e?.role || 'Role',
       expIndex: expIdx,
       bulletIndex: bIdx
     }))
@@ -138,17 +139,17 @@ export function calculateDetailedAtsScore(resume, targetKeywords = []) {
   if (hasSummary) structurePoints++;
 
   // Experience
-  const hasExp = Boolean(resume.experiences && resume.experiences.length > 0 && resume.experiences.every(e => e.role && (e.company || e.dates)));
+  const hasExp = Boolean(Array.isArray(resume.experiences) && resume.experiences.length > 0 && resume.experiences.every(e => e?.role && (e?.company || e?.period || e?.dates)));
   structureChecks.push({ name: 'Chronological Work Experience', passed: hasExp, points: hasExp ? 4 : 0 });
   if (hasExp) structurePoints++;
 
   // Education / Certs
-  const hasEdu = Boolean((resume.education && resume.education.length > 0) || (resume.certifications && resume.certifications.length > 0));
+  const hasEdu = Boolean((Array.isArray(resume.education) && resume.education.length > 0) || (Array.isArray(resume.certifications) && resume.certifications.length > 0));
   structureChecks.push({ name: 'Education & Certifications', passed: hasEdu, points: hasEdu ? 4 : 0 });
   if (hasEdu) structurePoints++;
 
   // Skills
-  const hasSkills = Boolean(resume.skills && resume.skills.length >= 3);
+  const hasSkills = Boolean(Array.isArray(resume.skills) && resume.skills.length >= 3);
   structureChecks.push({ name: 'Skills & Technical Competencies', passed: hasSkills, points: hasSkills ? 4 : 0 });
   if (hasSkills) structurePoints++;
 

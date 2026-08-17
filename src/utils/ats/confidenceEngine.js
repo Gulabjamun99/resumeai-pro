@@ -25,11 +25,11 @@ export function evaluateEvidenceConfidence(targetTerm, resume) {
   const canonicalEntry = CANONICAL_SYNONYMS[normTarget];
   const canonicalName = canonicalEntry ? canonicalEntry.canonical : normTarget;
 
-  // Extract CV sections
-  const cvSkills = (resume.skills || []).map(s => (s || '').trim());
-  const cvBullets = (resume.experiences || []).flatMap(e => (e.bullets || []).map(b => (b || '').trim()));
-  const cvSummary = resume.header?.summary || "";
-  const cvTitle = resume.header?.title || "";
+  // Extract CV sections safely
+  const cvSkills = (Array.isArray(resume.skills) ? resume.skills : []).map(s => (s || '').trim());
+  const cvBullets = (Array.isArray(resume.experiences) ? resume.experiences : []).flatMap(e => (Array.isArray(e?.bullets) ? e.bullets : []).map(b => (b || '').trim()));
+  const cvSummary = typeof resume.header?.summary === 'string' ? resume.header.summary : "";
+  const cvTitle = typeof resume.header?.title === 'string' ? resume.header.title : "";
 
   // 1. Check EXACT Match (Direct literal match in skills, summary, title, or bullets)
   const isExactInSkills = cvSkills.some(s => matchesTermInText(normTarget, s));

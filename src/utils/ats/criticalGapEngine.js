@@ -124,15 +124,19 @@ export function analyzeCriticalGaps(rawJd, currentCvState) {
     return { requirements: [], criticalGapsCount: 0, totalEvidenced: 0 };
   }
 
-  const COMMON_SKILL_VOCABULARY = [
+  const vocabSet = new Set([
+    ...ATS_KEYWORD_TAXONOMY,
     "React", "Node.js", "Python", "Java", "AWS", "SQL", "TypeScript", "JavaScript",
     "Kubernetes", "Docker", "Go", "Golang", "C++", "C#", ".NET", "GCP", "Azure",
-    "GraphQL", "REST API", "Microservices", "CI/CD", "Git", "Agile", "Scrum",
+    "GraphQL", "REST API", "REST APIs", "Microservices", "CI/CD", "Git", "Agile", "Scrum",
     "Talent Acquisition", "Technical Recruiting", "Sourcing", "ATS Optimization",
     "Stakeholder Management", "Team Leadership", "Data Analytics", "System Architecture",
     "Product Management", "Performance Optimization", "Security & Compliance", "PostgreSQL",
-    "Machine Learning", "NLP", "LLMs", "Workday"
-  ];
+    "Machine Learning", "NLP", "LLMs", "Workday", "PHP", "Laravel", "Vue.js", "MySQL",
+    "MongoDB", "Maya", "Photoshop", "Graphic Design", "3D Sculpting", "3D Modeling",
+    "Veterinary Surgery", "Pharmacology"
+  ]);
+  const COMMON_SKILL_VOCABULARY = Array.from(vocabSet);
 
   const analyzedRequirements = [];
   let criticalGapsCount = 0;

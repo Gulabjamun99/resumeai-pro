@@ -83,7 +83,7 @@ export function traceEvidenceLineage(targetTerm, resume) {
   }
 
   // 2. Search in Skills Section
-  const cvSkills = resume.skills || [];
+  const cvSkills = Array.isArray(resume.skills) ? resume.skills : [];
   const matchingSkill = cvSkills.find(s => matchesTermInText(normTerm, s));
   if (matchingSkill) {
     return {
