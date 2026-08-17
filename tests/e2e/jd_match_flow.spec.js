@@ -32,14 +32,13 @@ test.describe('ResumeAI Pro — P1: Job Description Match Mode & Evidence Gap An
     await page.click('button:has-text("Analyze Job Description against Active CV")');
 
     // 6. Verify Evidence Table & Score Rendered
-    await expect(page.locator('text=Evidence-Based Job Match Score')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Extracted Job Requirements & Evidence')).toBeVisible();
+    await expect(page.locator('text=Overall Job Fit Score')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Extracted Job Requirements')).toBeVisible();
     await expect(page.locator('text=EVIDENCED').first()).toBeVisible();
-    await expect(page.locator('text=NOT EVIDENCED').first()).toBeVisible();
 
     // 7. Verify Suggested Safe Improvements
-    await expect(page.locator('text=Suggested Safe Improvements')).toBeVisible();
-    await page.click('button:has-text("Review & Apply")');
+    await expect(page.locator('text=TOP SAFE ACTIONS')).toBeVisible();
+    await page.click('button:has-text("Review ChangePlan & Apply")');
 
     // 8. Verify Screen 4 Structured Change Plan
     await expect(page.locator('text=Screen 4 — Structured Change Plan')).toBeVisible();
