@@ -121,14 +121,89 @@ export async function exportResumeToDocx(resume, version = 1, templateId = 'dual
             // Certifications Section
             ...(certifications.length > 0 ? [
               new Paragraph({
-                text: "CERTIFICATIONS",
+                text: "CERTIFICATIONS & CREDENTIALS",
                 heading: HeadingLevel.HEADING_2,
                 spacing: { before: 200, after: 100 }
               }),
               ...certifications.map(cert => new Paragraph({
-                text: `▪  ${cert}`,
+                text: `▪  ${typeof cert === 'string' ? cert : cert.name || ''}`,
                 spacing: { after: 50 }
               }))
+            ] : []),
+
+            // Projects Section
+            ...(Array.isArray(resume.projects) && resume.projects.length > 0 ? [
+              new Paragraph({
+                text: "KEY PROJECTS",
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 200, after: 100 }
+              }),
+              ...resume.projects.flatMap(proj => [
+                new Paragraph({
+                  children: [
+                    new TextRun({ text: proj.title || "Project", bold: true, size: 20 })
+                  ],
+                  spacing: { before: 100, after: 40 }
+                }),
+                ...(proj.bullets || (proj.description ? [proj.description] : [])).map(b => new Paragraph({
+                  text: `•  ${b}`,
+                  spacing: { after: 40 }
+                }))
+              ])
+            ] : []),
+
+            // Publications / Research
+            ...(Array.isArray(resume.publications) && resume.publications.length > 0 ? [
+              new Paragraph({
+                text: "PUBLICATIONS & RESEARCH",
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 200, after: 100 }
+              }),
+              ...resume.publications.map(pub => new Paragraph({
+                text: `▪  ${pub}`,
+                spacing: { after: 50 }
+              }))
+            ] : []),
+
+            // Awards & Honors
+            ...(Array.isArray(resume.awards) && resume.awards.length > 0 ? [
+              new Paragraph({
+                text: "AWARDS & HONORS",
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 200, after: 100 }
+              }),
+              ...resume.awards.map(aw => new Paragraph({
+                text: `▪  ${aw}`,
+                spacing: { after: 50 }
+              }))
+            ] : []),
+
+            // Languages
+            ...(Array.isArray(resume.languages) && resume.languages.length > 0 ? [
+              new Paragraph({
+                text: "LANGUAGES",
+                heading: HeadingLevel.HEADING_2,
+                spacing: { before: 200, after: 100 }
+              }),
+              new Paragraph({
+                text: resume.languages.map(l => typeof l === 'string' ? l : `${l.name} (${l.level || 'Proficient'})`).join(", "),
+                spacing: { after: 100 }
+              })
+            ] : []),
+
+            // Custom Domain Sections
+            ...(Array.isArray(resume.customSections) && resume.customSections.length > 0 ? [
+              ...resume.customSections.flatMap(sec => [
+                new Paragraph({
+                  text: (sec.title || "ADDITIONAL SECTION").toUpperCase(),
+                  heading: HeadingLevel.HEADING_2,
+                  spacing: { before: 200, after: 100 }
+                }),
+                ...(sec.items || (sec.rawContent ? [sec.rawContent] : [])).map(it => new Paragraph({
+                  text: `•  ${it}`,
+                  spacing: { after: 50 }
+                }))
+              ])
             ] : []),
 
             // Core Skills & IT Skills Section

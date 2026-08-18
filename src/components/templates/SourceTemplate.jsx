@@ -145,9 +145,36 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
         </section>
       )}
 
-      {/* 5. EDUCATION */}
+      {/* 5. PROJECTS */}
+      {Array.isArray(resume.projects) && resume.projects.length > 0 && (
+        <section className="mb-5" style={{ pageBreakInside: 'avoid' }}>
+          <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
+            <span>Key Projects</span>
+          </h2>
+          <div className="flex flex-col gap-2.5">
+            {resume.projects.map((proj, idx) => (
+              <div key={idx} className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-slate-900">
+                  {proj.title || "Project Title"}
+                </span>
+                {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
+                  <ul className="list-disc list-outside pl-4 space-y-0.5 text-xs text-slate-700">
+                    {proj.bullets.map((b, bIdx) => (
+                      <li key={bIdx}>{b}</li>
+                    ))}
+                  </ul>
+                ) : proj.description ? (
+                  <p className="text-xs text-slate-700">{proj.description}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 6. EDUCATION */}
       {education.length > 0 && (
-        <section className="mb-4">
+        <section className="mb-4" style={{ pageBreakInside: 'avoid' }}>
           <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
             <span>Education</span>
           </h2>
@@ -161,9 +188,9 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
         </section>
       )}
 
-      {/* 6. CERTIFICATIONS */}
+      {/* 7. CERTIFICATIONS */}
       {certifications.length > 0 && (
-        <section className="mb-3">
+        <section className="mb-4" style={{ pageBreakInside: 'avoid' }}>
           <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
             <span>Certifications & Credentials</span>
           </h2>
@@ -175,6 +202,70 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
             ))}
           </div>
         </section>
+      )}
+
+      {/* 8. PUBLICATIONS / RESEARCH */}
+      {Array.isArray(resume.publications) && resume.publications.length > 0 && (
+        <section className="mb-4" style={{ pageBreakInside: 'avoid' }}>
+          <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
+            <span>Publications & Research</span>
+          </h2>
+          <ul className="list-disc list-outside pl-4 space-y-1 text-xs text-slate-700">
+            {resume.publications.map((pub, idx) => (
+              <li key={idx}>{pub}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* 9. AWARDS & HONORS */}
+      {Array.isArray(resume.awards) && resume.awards.length > 0 && (
+        <section className="mb-4" style={{ pageBreakInside: 'avoid' }}>
+          <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
+            <span>Awards & Recognitions</span>
+          </h2>
+          <ul className="list-disc list-outside pl-4 space-y-1 text-xs text-slate-700">
+            {resume.awards.map((aw, idx) => (
+              <li key={idx}>{aw}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* 10. LANGUAGES */}
+      {Array.isArray(resume.languages) && resume.languages.length > 0 && (
+        <section className="mb-4" style={{ pageBreakInside: 'avoid' }}>
+          <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
+            <span>Languages</span>
+          </h2>
+          <div className="flex flex-wrap gap-2 text-xs text-slate-700">
+            {resume.languages.map((lang, idx) => (
+              <span key={idx} className="bg-slate-100 px-2 py-0.5 rounded text-[11px] font-medium text-slate-800">
+                {typeof lang === 'string' ? lang : `${lang.name || ''} ${lang.level ? `(${lang.level})` : ''}`}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 11. CUSTOM DOMAIN SECTIONS */}
+      {Array.isArray(resume.customSections) && resume.customSections.length > 0 && (
+        resume.customSections.map((sec, idx) => (
+          <section key={sec.id || idx} className="mb-4" style={{ pageBreakInside: 'avoid' }}>
+            <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
+              <span>{sec.title}</span>
+            </h2>
+            {Array.isArray(sec.items) && sec.items.length > 0 ? (
+              <ul className="list-disc list-outside pl-4 space-y-1 text-xs text-slate-700">
+                {sec.items.map((it, itIdx) => (
+                  <li key={itIdx}>{it}</li>
+                ))}
+              </ul>
+            ) : sec.rawContent ? (
+              <p className="text-xs text-slate-700 whitespace-pre-line">{sec.rawContent}</p>
+            ) : null}
+          </section>
+        ))
       )}
     </div>
   );

@@ -67,11 +67,21 @@ export async function exportResumeToPdf(elementId, candidateName = 'Candidate', 
     ]);
 
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 2.5,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
+      windowWidth: 1200,
       onclone: (clonedDoc, clonedElement) => {
+        // Enforce exact standard A4 proportions on the cloned DOM element
+        clonedElement.style.width = '794px';
+        clonedElement.style.maxWidth = '794px';
+        clonedElement.style.minWidth = '794px';
+        clonedElement.style.margin = '0 auto';
+        clonedElement.style.padding = '36px 44px';
+        clonedElement.style.boxSizing = 'border-box';
+        clonedElement.style.transform = 'none';
+
         const elementsToCheck = [clonedElement, ...Array.from(clonedElement.querySelectorAll('*'))];
         elementsToCheck.forEach((el) => {
           const computed = window.getComputedStyle(el);
@@ -108,7 +118,7 @@ export async function exportResumeToPdf(elementId, candidateName = 'Candidate', 
     let heightLeft = pdfHeight;
     let position = 0;
 
-    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
     heightLeft -= pageHeight;
 
     while (heightLeft > 0) {
