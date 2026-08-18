@@ -51,11 +51,19 @@ export default function Screen3Request({
   const testScenarios = [
     {
       label: "✨ Pura CV is JD ke hisab se bana do",
-      prompt: "Pura CV is JD ke hisab se bana do. Keep original template and factual baseline locked."
+      prompt: "JD dekhte hue mera pura CV bana do. Keep original template and factual baseline locked."
     },
     {
-      label: "🎯 Tailor Entire CV",
-      prompt: "Tailor my entire CV to match this Job Description while preserving all authentic employment dates and credentials."
+      label: "🎯 Make CV ATS Friendly & Professional",
+      prompt: "Make my CV ATS friendly and professional across all sections while preserving my factual history."
+    },
+    {
+      label: "👔 Rewrite for Target Role",
+      prompt: "Rewrite my CV for Talent Acquisition Manager with powerful action verbs."
+    },
+    {
+      label: "📝 Fix All Grammar Mistakes",
+      prompt: "Fix all grammar mistakes, passive phrases, and punctuation across all sections."
     },
     {
       label: "Headline Change",
@@ -80,10 +88,6 @@ export default function Screen3Request({
     {
       label: "📄 Keep Original Template",
       prompt: "Keep the original format and template unchanged while improving bullet points."
-    },
-    {
-      label: "Test E (Ambiguous)",
-      prompt: "CV thoda improve kar do."
     }
   ];
 

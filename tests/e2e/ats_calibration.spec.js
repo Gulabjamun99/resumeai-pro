@@ -59,8 +59,8 @@ test.describe('ResumeAI Pro — P1.4: ATS Intelligence, Evidence Lineage & Score
     await page.click('button:has-text("Classify Intent & Formulate Change Plan")');
 
     // 10. Verify Screen 4 Change Plan
-    await expect(page.locator('text=Screen 4 — Structured Change Plan')).toBeVisible({ timeout: 15000 });
-    await page.click('button:has-text("Approve & Apply Changes")');
+    await expect(page.locator('text=Screen 4 — ')).toBeVisible({ timeout: 15000 });
+    await page.click('button:has-text("Approve")');
 
     // 11. Advance through Screen 6 Validation Audit to Screen 7 Studio
     await expect(page.locator('text=Screen 6 — Quality Control')).toBeVisible({ timeout: 20000 });

@@ -13,7 +13,7 @@ import { simulateDecisionImpact } from './decisionSimulator.js';
 import { calculateMultiSignalJobFit, generateDecisionIntelligence } from './decisionIntelligence.js';
 
 import { classifyUserIntent, USER_INTENTS } from './intentClassifier.js';
-import { generateFullDocumentOptimization, optimizeBulletPoint, SECTION_ACTIONS } from './fullDocumentOptimizer.js';
+import { generateFullDocumentOptimization, generateFullCvGeneralOptimization, optimizeBulletPoint, SECTION_ACTIONS } from './fullDocumentOptimizer.js';
 
 export {
   CANONICAL_SYNONYMS,
@@ -46,6 +46,7 @@ export {
   classifyUserIntent,
   USER_INTENTS,
   generateFullDocumentOptimization,
+  generateFullCvGeneralOptimization,
   optimizeBulletPoint,
   SECTION_ACTIONS
 };

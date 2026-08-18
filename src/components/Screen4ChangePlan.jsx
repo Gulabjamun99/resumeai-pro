@@ -86,7 +86,7 @@ export default function Screen4ChangePlan({ changePlan, currentVersion, onApprov
           <Layers className="w-5 h-5 text-sky-400" />
           <div>
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
-              <span>Screen 4 — Full CV Optimization Plan & Approval Gate</span>
+              <span>Screen 4 — Structured Change Plan & Full Optimization Gate</span>
             </h2>
             <p className="text-[11px] text-slate-400">
               100% Document Inspection • Selective Partial Approval • Factual Locks Enforced
@@ -419,7 +419,7 @@ export default function Screen4ChangePlan({ changePlan, currentVersion, onApprov
                           </div>
                         )}
                         <div className="text-[11px] text-slate-100 font-mono bg-emerald-950/20 p-2 rounded border border-emerald-800/40">
-                          Proposed: "{op.requestedValue}"
+                          Proposed: "{op.requestedValue || op.suggestedBullet || op.afterValue}"
                         </div>
                         <p className="text-[10.5px] text-slate-400 italic">Reason: {op.reason}</p>
                       </div>
@@ -500,7 +500,7 @@ export default function Screen4ChangePlan({ changePlan, currentVersion, onApprov
             }`}
           >
             <Check className="w-4 h-4 stroke-[3]" />
-            <span>Approve {selectedOpIds.length} Selected Operation{selectedOpIds.length > 1 ? 's' : ''} & Generate CV</span>
+            <span>Approve & Apply Changes ({selectedOpIds.length} Operations)</span>
           </button>
         </div>
       </div>

@@ -58,6 +58,10 @@ export const CANONICAL_SYNONYMS = {
   // Recruitment & ATS
   "talent acquisition": { canonical: "talent acquisition", aliases: ["ta"], confidence: "STRONG" },
   "ta": { canonical: "talent acquisition", aliases: ["talent acquisition"], confidence: "STRONG" },
+  "technical recruitment": { canonical: "technical recruitment", aliases: ["technical recruiting", "tech recruitment", "tech recruiting"], confidence: "STRONG" },
+  "technical recruiting": { canonical: "technical recruitment", aliases: ["technical recruitment", "tech recruiting"], confidence: "STRONG" },
+  "stakeholder management": { canonical: "stakeholder management", aliases: ["stakeholders", "stakeholder engagement"], confidence: "STRONG" },
+  "hiring strategy": { canonical: "hiring strategy", aliases: ["recruitment strategy", "hiring"], confidence: "STRONG" },
   "applicant tracking system": { canonical: "ats", aliases: ["ats"], confidence: "STRONG" },
   "ats": { canonical: "ats", aliases: ["applicant tracking system"], confidence: "STRONG" }
 };
@@ -73,8 +77,9 @@ export const PARTIAL_RELATIONSHIPS = {
   "sql": ["database", "data querying", "relational database"],
   "microservices": ["distributed systems", "service-oriented architecture", "soa", "rest api", "rest apis"],
   "distributed systems": ["microservices", "system architecture"],
-  "talent acquisition": ["technical recruiting", "it recruitment", "sourcing", "headhunting", "hiring"],
-  "technical recruiting": ["talent acquisition", "sourcing", "screening", "interviewing"],
+  "talent acquisition": ["technical recruiting", "technical recruitment", "it recruitment", "sourcing", "headhunting", "hiring"],
+  "technical recruiting": ["talent acquisition", "technical recruitment", "sourcing", "screening", "interviewing"],
+  "technical recruitment": ["talent acquisition", "technical recruiting", "sourcing", "screening", "interviewing"],
   "kubernetes": ["docker", "containerization", "containers", "orchestration"],
   "docker": ["containers", "containerization"],
   "react": ["frontend", "javascript", "typescript", "ui development"],
@@ -91,7 +96,8 @@ export const STANDALONE_SHORT_TOKENS = new Set([
 
 export const ATS_KEYWORD_TAXONOMY = [
   "ATS", "Recruitment", "AI", "Leadership", "Analytics", "Optimization",
-  "Sourcing", "Talent Acquisition", "Screening", "Interviews", "Python",
+  "Sourcing", "Talent Acquisition", "Technical Recruitment", "Technical Recruiting",
+  "Stakeholder Management", "Hiring Strategy", "Screening", "Interviews", "Python",
   "SQL", "Management", "Operations", "Compliance", "Strategy", "Execution",
   "Performance", "Stakeholders", "Reporting", "Cross-Functional", "Roadmap",
   "Architecture", "Scalability", "React", "Node.js", "TypeScript", "JavaScript",

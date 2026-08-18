@@ -24,6 +24,7 @@ import {
   classifyUserIntent,
   USER_INTENTS,
   generateFullDocumentOptimization,
+  generateFullCvGeneralOptimization,
   optimizeBulletPoint,
   SECTION_ACTIONS
 } from './ats/index.js';
@@ -54,6 +55,7 @@ export {
   classifyUserIntent,
   USER_INTENTS,
   generateFullDocumentOptimization,
+  generateFullCvGeneralOptimization,
   optimizeBulletPoint,
   SECTION_ACTIONS
 };
@@ -69,9 +71,21 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
   // Classify intent deterministically
   const intentClass = classifyUserIntent(rawText, Boolean(rawJd));
 
-  // If Full JD Alignment intent detected and JD is present, generate Full Document Plan
-  if (intentClass.intent === USER_INTENTS.FULL_JD_ALIGNMENT && rawJd) {
+  // 1. WORKFLOW B: Full JD Alignment intent detected and JD is present -> Full Document JD Plan
+  if ((intentClass.intent === USER_INTENTS.FULL_CV_JD_TAILORING || intentClass.intent === USER_INTENTS.FULL_JD_ALIGNMENT) && rawJd) {
     return generateFullDocumentOptimization(rawJd, currentCvState);
+  }
+
+  // 2. WORKFLOW A: Full CV General Optimization (No JD required)
+  if (
+    intentClass.intent === USER_INTENTS.FULL_CV_IMPROVEMENT ||
+    intentClass.intent === USER_INTENTS.CV_OPTIMIZATION ||
+    intentClass.intent === USER_INTENTS.CV_ATS_OPTIMIZATION ||
+    intentClass.intent === USER_INTENTS.CV_PROFESSIONAL_REWRITE ||
+    intentClass.intent === USER_INTENTS.CV_GRAMMAR_CORRECTION ||
+    intentClass.intent === USER_INTENTS.TARGET_ROLE_OPTIMIZATION
+  ) {
+    return generateFullCvGeneralOptimization(rawText, currentCvState);
   }
 
   const operations = [];
@@ -449,17 +463,27 @@ export function executeChangePlan(currentCvState, changePlan) {
       }
 
       case 'FORMAT': {
-        if (op.section === 'skills' && Array.isArray(op.requestedValue)) {
-          proposedCv.skills = [...op.requestedValue];
+        if (op.section === 'skills' && Array.isArray(op.requestedValue || op.value)) {
+          proposedCv.skills = [...(op.requestedValue || op.value)];
         }
         appliedOperations.push(op);
         requestedFacts.push(op.description || 'Visual spacing and ATS layout alignment refreshed');
         break;
       }
 
+      case 'REORDER': {
+        if (op.section === 'skills' && Array.isArray(op.requestedValue || op.value)) {
+          proposedCv.skills = [...(op.requestedValue || op.value)];
+          appliedOperations.push(op);
+          requestedFacts.push(op.description || 'Reordered and standardized core skills');
+        }
+        break;
+      }
+
       case 'REVISE_BULLET': {
-        if (op.expIndex !== undefined && op.bulletIndex !== undefined && proposedCv.experiences?.[op.expIndex]?.bullets?.[op.bulletIndex] !== undefined) {
-          proposedCv.experiences[op.expIndex].bullets[op.bulletIndex] = op.requestedValue;
+        const expArray = proposedCv.experiences || proposedCv.experience;
+        if (op.expIndex !== undefined && op.bulletIndex !== undefined && expArray?.[op.expIndex]?.bullets?.[op.bulletIndex] !== undefined) {
+          expArray[op.expIndex].bullets[op.bulletIndex] = op.requestedValue || op.suggestedBullet;
           appliedOperations.push(op);
           requestedFacts.push(op.description || `Refined bullet with active STAR verb`);
         }
@@ -511,18 +535,28 @@ export function verifyRequestedChange(baseCv, proposedCv, changePlan) {
       if (op.field === 'contact.phone' && proposedCv.contact?.phone === baseCv.contact?.phone) {
         return { verified: false, reason: `Phone number update was not reflected.` };
       }
-      if (op.section === 'experience' && op.field?.startsWith('experiences[')) {
-        const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
+      if (op.section === 'experience' && (op.field?.startsWith('experiences[') || op.field?.startsWith('experience['))) {
+        const match = op.field.match(/experience[s]?\[(\d+)\]\.bullets\[(\d+)\]/);
         if (match) {
           const expIdx = parseInt(match[1], 10);
           const bulletIdx = parseInt(match[2], 10);
-          if (proposedCv.experiences?.[expIdx]?.bullets?.[bulletIdx] !== op.requestedValue) {
+          const expArray = proposedCv.experiences || proposedCv.experience;
+          if (expArray?.[expIdx]?.bullets?.[bulletIdx] !== (op.requestedValue || op.suggestedBullet)) {
             return { verified: false, reason: `Bullet refinement was not reflected in proposed state.` };
           }
         }
       }
+    } else if (op.operation === 'REVISE_BULLET') {
+      const expArray = proposedCv.experiences || proposedCv.experience;
+      if (op.expIndex !== undefined && op.bulletIndex !== undefined) {
+        if (expArray?.[op.expIndex]?.bullets?.[op.bulletIndex] !== (op.requestedValue || op.suggestedBullet)) {
+          return { verified: false, reason: `Bullet refinement was not reflected in proposed state.` };
+        }
+      }
     } else if (op.operation === 'ADD' && op.section === 'experience') {
-      if (proposedCv.experiences?.length <= baseCv.experiences?.length) {
+      const propLen = (proposedCv.experiences || proposedCv.experience || []).length;
+      const baseLen = (baseCv.experiences || baseCv.experience || []).length;
+      if (propLen <= baseLen) {
         return { verified: false, reason: `New experience entry was not added to the document.` };
       }
     } else if (op.operation === 'ADD' && op.section === 'skills') {

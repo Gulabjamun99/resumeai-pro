@@ -15,7 +15,11 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
   const header = resume.header || {};
   const contact = resume.contact || {};
   const skills = Array.isArray(resume.skills) ? resume.skills : [];
-  const experiences = Array.isArray(resume.experiences) ? resume.experiences : [];
+  const experiences = Array.isArray(resume.experiences) 
+    ? resume.experiences 
+    : Array.isArray(resume.experience) 
+      ? resume.experience 
+      : [];
   const education = Array.isArray(resume.education) ? resume.education : [];
   const certifications = Array.isArray(resume.certifications) ? resume.certifications : [];
 

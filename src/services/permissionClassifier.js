@@ -6,13 +6,11 @@
 export function classifyPermissionScope(promptText) {
   const text = (promptText || '').toLowerCase().trim();
 
-  // 1. Ambiguous Request Detection (Rule #6)
+  // 1. Ambiguous Request Detection (Rule #6) - Only genuinely underspecified 1-2 word prompts
   const ambiguousPatterns = [
-    'cv thoda improve kar do', 'make my cv better', 'improve my cv', 
-    'make it nice', 'update cv', 'make it better', 'cv achha kar do',
-    'improve it', 'thoda theek kar do'
+    'thoda theek kar do', 'cv thoda change karo', 'kuch badlo', 'thoda improve'
   ];
-  if (ambiguousPatterns.some(p => text === p || text.startsWith(p))) {
+  if (ambiguousPatterns.some(p => text === p || (text.startsWith(p) && text.length < 25))) {
     return {
       scope: 'AMBIGUOUS',
       label: 'Ambiguous Instruction',
@@ -25,7 +23,28 @@ export function classifyPermissionScope(promptText) {
     };
   }
 
-  // 2. Formatting Only
+  // 2. Full CV Overhaul & Optimization (Workflow A & Workflow B)
+  if (
+    text.includes('poora cv') || text.includes('pura cv') || text.includes('complete cv') || 
+    text.includes('entire cv') || text.includes('whole cv') || text.includes('all sections') ||
+    text.includes('ats friendly') || text.includes('professional') || text.includes('improve my cv') ||
+    text.includes('optimize my cv') || text.includes('make my cv') || text.includes('tailor my cv') ||
+    text.includes('is jd ke hisab') || text.includes('jd dekhte hue') || text.includes('grammar')
+  ) {
+    return {
+      scope: 'REWRITE_FULL',
+      label: 'Full CV ATS Overhaul',
+      description: 'Stylistic rephrasing across all sections authorized. Factual integrity, employment dates, company names, and contact details remain 100% IMMUTABLE.',
+      requires_clarification: false,
+      allowed_actions: ['REWRITE_ALL_SECTIONS'],
+      target_sections: ['summary', 'experience', 'skills', 'education', 'headline'],
+      locked_sections: ['contact', 'employment_dates', 'company_names', 'institutions'],
+      allow_rephrasing: true,
+      allow_fabrication: false
+    };
+  }
+
+  // 3. Formatting Only
   if (text.includes('formatting only') || text.includes('sirf formatting') || text.includes('content same') || text.includes('layout only')) {
     return {
       scope: 'FORMATTING_ONLY',

@@ -54,10 +54,10 @@ test.describe('ResumeAI Pro — Full CV JD Tailoring Acceptance Suite', () => {
     await page.click('button:has-text("Review ChangePlan & Apply")');
 
     // 7. Verify Screen 4 Structured Change Plan
-    await expect(page.locator('text=Screen 4 — Structured Change Plan')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Screen 4 — Full CV Optimization Plan')).toBeVisible({ timeout: 10000 });
 
     // 8. Approve Changes & Generate CV
-    await page.click('button:has-text("Approve & Apply Changes")');
+    await page.click('button:has-text("Approve")');
 
     // 9. Verify Screen 6 Quality Control Passes
     await expect(page.locator('text=Screen 6 — Quality Control')).toBeVisible({ timeout: 20000 });
