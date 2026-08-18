@@ -35,10 +35,10 @@ export default function Header({ onResetPreset }) {
           <button
             onClick={onResetPreset}
             className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium px-3 py-2 rounded-lg border border-slate-700 transition"
-            title="Load Rohit Kumar Preset PDF CV & Prompt"
+            title="Load Sample Demo CV & Prompt"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Load Rohit CV Preset</span>
+            <span>Load Sample Demo CV</span>
           </button>
         </div>
       </div>
