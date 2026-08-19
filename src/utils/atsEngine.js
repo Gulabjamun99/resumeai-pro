@@ -216,16 +216,21 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     }
   }
 
-  // 5. EXPERIENCE OPERATIONS (ADD NEW ROLE / CONSULTING / BULLET MODIFICATION)
-  const hasExperienceIntent = lower.includes('experience') || lower.includes('consult') || lower.includes('freelance') ||
-                              lower.includes('job') || lower.includes('role') || lower.includes('2025') || lower.includes('2024') ||
-                              lower.includes('worked') || lower.includes('antigravity') || lower.includes('ai agent');
+  // 5. DYNAMIC EXPERIENCE, PROJECTS, TOOLS & ROLE OPERATIONS
+  const lowerPrompt = lower;
+  const hasExperienceIntent = lowerPrompt.includes('experience') || lowerPrompt.includes('consult') || lowerPrompt.includes('freelance') ||
+                              lowerPrompt.includes('job') || lowerPrompt.includes('role') || lowerPrompt.includes('2025') || lowerPrompt.includes('2024') ||
+                              lowerPrompt.includes('worked') || lowerPrompt.includes('antigravity') || lowerPrompt.includes('ai agent') ||
+                              lowerPrompt.includes('vibe coding') || lowerPrompt.includes('vide coding') || lowerPrompt.includes('ai tools') ||
+                              lowerPrompt.includes('product banaya') || lowerPrompt.includes('apps') || lowerPrompt.includes('live hai');
 
   if (hasExperienceIntent && !operations.some(op => op.section === 'headline' && operations.length === 1)) {
-    // Check if adding consulting or new job
-    const isConsulting = lower.includes('consult') || lower.includes('freelance') || lower.includes('independent') || lower.includes('april 2025') || lower.includes('may 2025');
-    const isAiAgent = lower.includes('ai agent') || lower.includes('antigravity') || lower.includes('claude') || lower.includes('chatgpt') || lower.includes('z.ai');
-    const isProductManager = lower.includes('lead product manager') || lower.includes('product manager') || lower.includes('ai nextgen labs');
+    // Dynamic entity extraction for modern AI, engineering, and domain requests
+    const extracted = extractDynamicEntitiesFromPrompt(rawText);
+    const isVibeOrAiDeveloper = lowerPrompt.includes('vibe coding') || lowerPrompt.includes('vide coding') || 
+                               (extracted.tools.length >= 2 && extracted.products.length > 0) ||
+                               (lowerPrompt.includes('ai tools') && lowerPrompt.includes('product'));
+    const isProductManager = lowerPrompt.includes('lead product manager') || lowerPrompt.includes('product manager') || lowerPrompt.includes('ai nextgen labs');
 
     if (isProductManager) {
       operations.push({
@@ -243,21 +248,106 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
         description: 'Add Lead Product Manager role at AI NextGen Labs (Jan 2025 – Present)'
       });
       targetSections.add('experience');
-    } else if (isConsulting || isAiAgent) {
+    } else if (isVibeOrAiDeveloper) {
+      // Formulate dynamic role title, bullets, projects, skills, and summary
+      const roleTitle = extracted.roleTitle || "Full-Stack AI Developer & Vibe Coder";
+      const periodStr = extracted.period || "May 2025 – Present";
+      const tools = extracted.tools;
+      const products = extracted.products;
+
+      // 1. Experience Entry
+      const bullet1 = `Pioneered end-to-end vibe coding and AI-assisted development using ${tools.slice(0, 5).join(', ') || 'modern AI platforms'} to architect and ship scalable full-stack applications from scratch.`;
+      const bullet2 = products.length > 0
+        ? `Engineered, launched, and maintained ${products.length} live production apps including ${products.join(', ')} with full-stack cloud deployment on Vercel, Supabase, and Firebase.`
+        : `Engineered and launched live production systems with automated cloud infrastructure and database synchronization.`;
+      const bullet3 = `Implemented rapid zero-to-one prototyping, prompt orchestration, secure authentication, and CI/CD pipelines via GitHub to ensure high-performance production readiness.`;
+
+      operations.push({
+        id: `op-exp-vibe-${Date.now()}`,
+        operation: 'ADD',
+        section: 'experience',
+        role: roleTitle,
+        company: 'Independent AI Product Ventures & Live Apps',
+        period: periodStr,
+        location: 'Remote',
+        bullets: [bullet1, bullet2, bullet3],
+        description: `Add ${roleTitle} role (${periodStr}) with live production products`
+      });
+      targetSections.add('experience');
+
+      // 2. Headline / Title Update
+      operations.push({
+        id: `op-headline-vibe-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'headline',
+        field: 'header.title',
+        requestedValue: `${roleTitle} | AI Tools & Live Product Builder`,
+        description: `Set Headline to: "${roleTitle} | AI Tools & Live Product Builder"`
+      });
+      authorizedChanges.push({ field: 'header.title', value: `${roleTitle} | AI Tools & Live Product Builder`, authorization: 'USER_EXPLICIT' });
+      targetSections.add('headline');
+
+      // 3. Summary Synthesis
+      const toolSummaryStr = tools.slice(0, 6).join(', ');
+      const productCountStr = products.length > 0 ? `${products.length}+ live applications (${products.slice(0, 3).join(', ')}...)` : "live production platforms";
+      const synthesizedSummary = `Innovative ${roleTitle} with extensive hands-on expertise in rapid AI-assisted development and vibe coding using ${toolSummaryStr}. Demonstrated track record since ${periodStr.split('–')[0].trim()} architecting, vibe-coding, and deploying ${productCountStr} from scratch with modern cloud infrastructure on Vercel, Supabase, and Firebase. Proven ability to deliver responsive, scalable zero-to-one digital products with automated workflows and modern UI/UX.`;
+
+      operations.push({
+        id: `op-summary-vibe-${Date.now()}`,
+        operation: 'REWRITE',
+        section: 'summary',
+        field: 'header.summary',
+        requestedValue: synthesizedSummary,
+        description: `Synthesize Professional Summary for ${roleTitle} and AI live products`
+      });
+      targetSections.add('summary');
+
+      // 4. Add Extracted Tools to Skills
+      tools.forEach(tool => {
+        operations.push({
+          id: `op-skill-add-${tool.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+          operation: 'ADD',
+          section: 'skills',
+          field: 'skills',
+          value: tool,
+          description: `Add skill: "${tool}"`
+        });
+      });
+      targetSections.add('skills');
+
+      // 5. Add Extracted Products to Projects
+      products.forEach((prod, pIdx) => {
+        operations.push({
+          id: `op-project-add-${pIdx + 1}`,
+          operation: 'ADD',
+          section: 'projects',
+          field: 'projects',
+          title: prod,
+          bullets: [
+            `Live full-stack production application architected from scratch using AI tools and deployed with modern cloud infrastructure on Vercel/Supabase.`
+          ],
+          description: `Add Live Product: "${prod}"`
+        });
+      });
+      if (products.length > 0) {
+        targetSections.add('projects');
+      }
+
+    } else if (lowerPrompt.includes('consult') || lowerPrompt.includes('freelance') || lowerPrompt.includes('independent')) {
+      const periodStr = extracted.period || "May 2025 – Present";
       operations.push({
         id: `op-exp-add-consulting`,
         operation: 'ADD',
         section: 'experience',
-        role: 'Independent Talent Acquisition Consultant',
+        role: 'Independent Specialist & Consultant',
         company: 'Independent Consulting',
-        period: 'May 2025 – Present',
+        period: periodStr,
         location: 'Remote',
         bullets: [
-          "Since April 2025, worked independently as a Talent Acquisition Consultant, closing job requirements based on individual client needs.",
-          "For the past 1.5 years, worked hands-on with AI-agent and automation platforms including Antigravity, Claude, ChatGPT, and z.ai.",
-          "Built and deployed multiple AI-agent projects live, covering AI-assisted workflows, automation, and rapid solution development."
+          `Delivered targeted strategic consulting milestones aligned with client requirements since ${periodStr.split('–')[0].trim()}.`,
+          `Streamlined operations and milestone deliverables leveraging modern tools and agile workflows.`
         ],
-        description: 'Add Independent Talent Acquisition Consulting role (May 2025 – Present) with AI Agent platforms'
+        description: `Add Independent Consulting role (${periodStr})`
       });
       targetSections.add('experience');
     } else if (lower.includes('rewrite') || lower.includes('ats')) {
@@ -273,7 +363,7 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
       // Generic experience addition extracted from prompt
       const roleName = lower.includes('developer') ? 'Senior Software Engineer' :
                        lower.includes('manager') ? 'Senior Project Manager' : 'Independent Specialist';
-      const period = lower.includes('2025') ? 'Jan 2025 – Present' : '2025 – Present';
+      const period = extracted.period || (lower.includes('2025') ? 'Jan 2025 – Present' : '2025 – Present');
       operations.push({
         id: `op-exp-add-generic`,
         operation: 'ADD',
@@ -331,6 +421,96 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
 }
 
 /**
+ * Helper: Extract dynamic entities (Dates, Tools, Products, Roles) from arbitrary prompts
+ */
+export function extractDynamicEntitiesFromPrompt(text) {
+  const clean = text || "";
+  const lower = clean.toLowerCase();
+
+  // 1. Extract Period
+  let period = "May 2025 – Present";
+  const dateMatch = clean.match(/(?:from|since|se)?\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|may|june|july|august|september|october|november|december)?\s*(20\d\d)\s*(?:se|since|from|to|till|-)?/i);
+  if (dateMatch) {
+    const month = dateMatch[1] ? dateMatch[1].charAt(0).toUpperCase() + dateMatch[1].slice(1).toLowerCase() : "";
+    const year = dateMatch[2];
+    period = month ? `${month} ${year} – Present` : `${year} – Present`;
+  }
+
+  // 2. Extract Tools & Technologies
+  const knownTechDictionary = [
+    { key: 'antigravity', name: 'Google Antigravity' },
+    { key: 'claude', name: 'Anthropic Claude' },
+    { key: 'chatgpt', name: 'OpenAI ChatGPT' },
+    { key: 'perpelexity', name: 'Perplexity AI' },
+    { key: 'perplexity', name: 'Perplexity AI' },
+    { key: 'z.ai', name: 'z.ai' },
+    { key: 'github', name: 'GitHub' },
+    { key: 'vercel', name: 'Vercel' },
+    { key: 'firbase', name: 'Firebase' },
+    { key: 'firebase', name: 'Firebase' },
+    { key: 'supabase', name: 'Supabase' },
+    { key: 'cursor', name: 'Cursor IDE' },
+    { key: 'bolt', name: 'Bolt.new' },
+    { key: 'v0', name: 'v0 by Vercel' },
+    { key: 'vide coding', name: 'Vibe Coding' },
+    { key: 'vibe coding', name: 'Vibe Coding' },
+    { key: 'ai tools', name: 'AI Engineering' },
+    { key: 'react', name: 'React.js' },
+    { key: 'next', name: 'Next.js' },
+    { key: 'node', name: 'Node.js' },
+    { key: 'python', name: 'Python' },
+    { key: 'aws', name: 'AWS' },
+    { key: 'docker', name: 'Docker' }
+  ];
+
+  const extractedTools = [];
+  knownTechDictionary.forEach(item => {
+    if (lower.includes(item.key) && !extractedTools.includes(item.name)) {
+      extractedTools.push(item.name);
+    }
+  });
+
+  // 3. Extract Products & Apps
+  const productMatches = [];
+  const productSegmentRegex = /(?:product(?:s)?(?:\s+banaya|\s+banaye|\s+built|\s+launched)?\s*(?:hu|hai|hain)?\s*(?:like|jaise|such\s+as|including)?)\s*[:"']?([^.]+?)(?:\s*\.|\s*etc|\s*sab\s+live|\s*sara\s+scracth|\s*all\s+live|\s*aur\s+bhi)/i;
+  const productSegmentMatch = clean.match(productSegmentRegex);
+  
+  if (productSegmentMatch && productSegmentMatch[1]) {
+    const rawTokens = productSegmentMatch[1].split(/[,|&]+|\s+aur\s+/i);
+    rawTokens.forEach(token => {
+      let trimmed = token.replace(/^(like|jaise|product|banaya|hu|hai|apps?)\s+/i, '').replace(/etc/i, '').trim();
+      trimmed = trimmed.replace(/\s+(etc|sab|live|hai|hu|sara)$/i, '').trim();
+      if (trimmed.length >= 3 && trimmed.length <= 40 && !['etc', 'aur', 'and', 'sab', 'live', 'sara', 'scracth'].includes(trimmed.toLowerCase())) {
+        const capitalized = trimmed.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        if (!productMatches.includes(capitalized)) {
+          productMatches.push(capitalized);
+        }
+      }
+    });
+  }
+
+  // 4. Role Title Determination
+  let roleTitle = "Full-Stack AI Developer & Vibe Coder";
+  if (lower.includes('vibe coding') || lower.includes('vide coding')) {
+    roleTitle = "Full-Stack AI Developer & Vibe Coder";
+  } else if (lower.includes('talent acquisition') || lower.includes('recruiter')) {
+    roleTitle = "Senior Talent Acquisition Specialist";
+  } else if (lower.includes('product manager') || lower.includes('pm')) {
+    roleTitle = "AI Product Manager";
+  } else if (lower.includes('software engineer') || lower.includes('developer')) {
+    roleTitle = "Senior Full-Stack AI Engineer";
+  }
+
+  return {
+    period,
+    tools: extractedTools,
+    products: productMatches,
+    roleTitle,
+    isLiveProducts: lower.includes('live') || lower.includes('scratch') || lower.includes('product')
+  };
+}
+
+/**
  * Execute ChangePlan Transaction onto CURRENT_CV_STATE:
  * Applies the structured operations sequentially while maintaining entity IDs and preserving untouched fields.
  */
@@ -381,11 +561,10 @@ export function executeChangePlan(currentCvState, changePlan) {
       case 'SHORTEN': {
         if (op.section === 'summary') {
           const currentSummary = proposedCv.header.summary || '';
-          // Condense summary to concise, punchy executive format
           const firstTwoSentences = currentSummary.split('.').filter(Boolean).slice(0, 2).join('. ') + '.';
           proposedCv.header.summary = firstTwoSentences.length > 30
             ? firstTwoSentences
-            : "Strategic, results-oriented specialist with proven expertise in driving ATS-optimized talent acquisition and workflow automation.";
+            : "Strategic, results-oriented specialist with proven expertise in driving ATS-optimized workflows and digital automation.";
           appliedOperations.push(op);
           requestedFacts.push('Condensed and tightened professional summary for concise impact');
         }
@@ -398,13 +577,13 @@ export function executeChangePlan(currentCvState, changePlan) {
             proposedCv.header.summary = op.requestedValue;
           } else {
             const currentSummary = proposedCv.header.summary || '';
-            const addition = " Recognized for cross-functional leadership, AI-driven recruitment workflows, and measurable stakeholder impact.";
-            if (!currentSummary.includes("AI-driven recruitment")) {
+            const addition = " Recognized for cross-functional leadership, modern workflows, and measurable stakeholder impact.";
+            if (!currentSummary.includes("modern workflows")) {
               proposedCv.header.summary = `${currentSummary.trim()}${addition}`;
             }
           }
           appliedOperations.push(op);
-          requestedFacts.push(op.description || 'Enhanced professional summary for ATS keyword density and executive leadership');
+          requestedFacts.push(op.description || 'Enhanced professional summary for ATS keyword density and leadership impact');
         } else if (op.section === 'experience') {
           // Rephrase experience bullets with strong action verbs
           if (proposedCv.experiences && proposedCv.experiences.length > 0) {
@@ -437,12 +616,24 @@ export function executeChangePlan(currentCvState, changePlan) {
             bullets: op.bullets || []
           };
           
-          // Check if already present to avoid duplicate insertions
           const isDuplicate = proposedCv.experiences.some(e => e.role === op.role && e.company === op.company);
           if (!isDuplicate) {
             proposedCv.experiences.unshift(newExpEntity);
             appliedOperations.push(op);
             requestedFacts.push(op.description || `Added ${op.role} role at ${op.company}`);
+          }
+        } else if (op.section === 'projects') {
+          if (!proposedCv.projects) proposedCv.projects = [];
+          const newProjEntity = {
+            id: `proj-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            title: op.title || op.name || "Live Application",
+            bullets: op.bullets || (op.description ? [op.description] : ["Live production application architected from scratch using AI tools and modern cloud infrastructure."])
+          };
+          const isDuplicate = proposedCv.projects.some(p => p.title === newProjEntity.title);
+          if (!isDuplicate) {
+            proposedCv.projects.push(newProjEntity);
+            appliedOperations.push(op);
+            requestedFacts.push(`Added Project: "${newProjEntity.title}"`);
           }
         }
         break;

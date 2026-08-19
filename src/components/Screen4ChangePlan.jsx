@@ -77,6 +77,7 @@ export default function Screen4ChangePlan({ changePlan, currentVersion, onApprov
   const summaryOps = operations.filter(o => o.section === 'summary');
   const skillsOps = operations.filter(o => o.section === 'skills');
   const expOps = operations.filter(o => o.section === 'experience');
+  const projectOps = operations.filter(o => o.section === 'projects');
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl flex flex-col gap-4">
@@ -434,6 +435,57 @@ export default function Screen4ChangePlan({ changePlan, currentVersion, onApprov
             </div>
           )}
         </div>
+
+        {/* SECTION E: PROJECTS & LIVE APPLICATIONS */}
+        {projectOps.length > 0 && (
+          <div className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden">
+            <div 
+              onClick={() => toggleSection('projects')}
+              className="p-3 bg-slate-900/80 flex items-center justify-between cursor-pointer border-b border-slate-800"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wide">
+                  5. Projects & Live Applications
+                </span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+                  {projectOps.length} Live Apps Proposed
+                </span>
+              </div>
+              {expandedSections.projects !== false ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            </div>
+
+            {expandedSections.projects !== false && (
+              <div className="p-3.5 flex flex-col gap-2.5 text-xs">
+                {projectOps.map((op, idx) => {
+                  const isChecked = selectedOpIds.includes(op.id);
+                  return (
+                    <div key={op.id || idx} className="flex items-start gap-2.5 bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                      <input 
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleOperation(op.id)}
+                        className="mt-1 cursor-pointer accent-sky-500"
+                      />
+                      <div className="flex flex-col gap-1 w-full">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sky-300">{op.title || op.description}</span>
+                          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">
+                            Live Production App
+                          </span>
+                        </div>
+                        {Array.isArray(op.bullets) && (
+                          <div className="text-[11px] text-slate-300 font-mono bg-slate-950/80 p-2 rounded border border-slate-850">
+                            {op.bullets[0]}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* SECTION E: 🛡 BLOCKED ACTIONS PANEL */}
         {changePlan.blockedActions && changePlan.blockedActions.length > 0 && (
