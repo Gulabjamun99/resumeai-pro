@@ -37,7 +37,7 @@ export default function App() {
   const [currentVersion, setCurrentVersion] = useState(1);
   
   // Presentation State (P1.2 Multi-Template Engine)
-  const [selectedTemplateId, setSelectedTemplateId] = useState('dual-column');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('source-template');
 
   // In-Flight Transaction Management (Rule #4 & #5)
   const [promptText, setPromptText] = useState("");
@@ -76,7 +76,7 @@ export default function App() {
           setCurrentCvState(parsed.currentCvState);
           setVersionHistory(parsed.versionHistory);
           setCurrentVersion(parsed.currentVersion || 1);
-          setSelectedTemplateId(parsed.selectedTemplateId || 'dual-column');
+          setSelectedTemplateId(parsed.selectedTemplateId || 'source-template');
           setScreen(7); // Automatically resume at Studio Preview
         } else {
           console.warn("Storage data failed schema validation. Clearing invalid session.");
