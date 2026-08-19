@@ -21,6 +21,8 @@ test.describe('ResumeAI Pro — Full CV JD Tailoring Acceptance Suite', () => {
   const FIXTURE_PATH = path.resolve('tests/fixtures/e2e_test_candidate.txt');
 
   test.beforeEach(async ({ page }) => {
+    page.on('console', msg => console.log('PAGE LOG:', msg.type(), msg.text()));
+    page.on('pageerror', err => console.log('PAGE ERROR STACK:', err.stack || err.message));
     await page.goto('/');
     await page.evaluate(() => localStorage.clear());
     await page.reload();

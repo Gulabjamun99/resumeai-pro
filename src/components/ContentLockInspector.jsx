@@ -4,17 +4,39 @@ import { Lock, CheckCircle2, ShieldAlert, FileText, Database } from 'lucide-reac
 export default function ContentLockInspector({ sourceResume }) {
   if (!sourceResume) return null;
 
-  const totalBullets = sourceResume.experiences.flatMap(e => e.bullets).length;
+  const experiences = Array.isArray(sourceResume.experiences) 
+    ? sourceResume.experiences 
+    : Array.isArray(sourceResume.experience) 
+      ? sourceResume.experience 
+      : [];
+
+  const totalBullets = experiences.flatMap(e => Array.isArray(e?.bullets) ? e.bullets : []).length;
+  const skills = Array.isArray(sourceResume.skills) ? sourceResume.skills : [];
+  const education = Array.isArray(sourceResume.education) ? sourceResume.education : [];
+  const certifications = Array.isArray(sourceResume.certifications) ? sourceResume.certifications : [];
+  const projects = Array.isArray(sourceResume.projects) ? sourceResume.projects : [];
+  const publications = Array.isArray(sourceResume.publications) ? sourceResume.publications : [];
+  const awards = Array.isArray(sourceResume.awards) ? sourceResume.awards : [];
+  const languages = Array.isArray(sourceResume.languages) ? sourceResume.languages : [];
+  const customSections = Array.isArray(sourceResume.customSections) ? sourceResume.customSections : [];
 
   const detectedSections = [
-    { name: "Contact Information", count: "4 fields (Email, Phone, Address, LinkedIn)", status: "LOCKED" },
-    { name: "Professional Summary", count: "1 paragraph (100% extracted)", status: "LOCKED" },
-    { name: "Work Experiences", count: `${sourceResume.experiences.length} roles (${totalBullets} bullets)`, status: "LOCKED" },
-    { name: "Education Entries", count: `${sourceResume.education.length} degrees (LPU, BIT Mesra)`, status: "LOCKED" },
-    { name: "Certifications", count: `${sourceResume.certifications.length} certifications`, status: "LOCKED" },
-    { name: "IT & Core Skills", count: `${sourceResume.skills.length} competencies`, status: "LOCKED font-mono" },
-    { name: "Positions Hired For", count: `${sourceResume.positionsHiredFor.length} job titles`, status: "LOCKED" }
+    { name: "Contact Information", count: "Verified (Email, Phone, Location, Links)", status: "LOCKED" },
+    { name: "Professional Summary", count: sourceResume.header?.summary ? "1 statement (100% extracted)" : "Extracted headline", status: "LOCKED" },
+    { name: "Work Experiences", count: `${experiences.length} roles (${totalBullets} bullets)`, status: "LOCKED" },
+    { name: "Education Entries", count: `${education.length} credentials`, status: "LOCKED" },
+    ...(skills.length > 0 ? [{ name: "Core Skills", count: `${skills.length} competencies`, status: "LOCKED font-mono" }] : []),
+    ...(certifications.length > 0 ? [{ name: "Certifications", count: `${certifications.length} credentials`, status: "LOCKED" }] : []),
+    ...(projects.length > 0 ? [{ name: "Key Projects", count: `${projects.length} projects`, status: "LOCKED" }] : []),
+    ...(publications.length > 0 ? [{ name: "Publications", count: `${publications.length} publications`, status: "LOCKED" }] : []),
+    ...(awards.length > 0 ? [{ name: "Awards & Honors", count: `${awards.length} awards`, status: "LOCKED" }] : []),
+    ...(languages.length > 0 ? [{ name: "Languages", count: `${languages.length} languages`, status: "LOCKED" }] : []),
+    ...(customSections.map(c => ({ name: c.title || "Custom Section", count: `${c.items?.length || 1} items`, status: "LOCKED" })))
   ];
+
+  const firstBulletSample = experiences[0]?.bullets?.[0] || "Led high-impact initiatives delivering verifiable results.";
+  const firstCompany = experiences[0]?.company || "Verified Organization";
+  const firstPeriod = experiences[0]?.period || "Career Period";
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl text-slate-100 flex flex-col gap-4">
@@ -32,7 +54,7 @@ export default function ContentLockInspector({ sourceResume }) {
       </div>
 
       <p className="text-xs text-slate-400">
-        Every extracted element from your uploaded CV has been assigned an immutable ID and set to <code className="bg-slate-800 text-sky-300 px-1 py-0.5 rounded font-mono">locked = true</code>. The AI is strictly prohibited from modifying locked content unless explicitly requested.
+        Every extracted element from <strong className="text-slate-200">{sourceResume.header?.name || "your uploaded CV"}</strong> has been assigned an immutable baseline ID and set to <code className="bg-slate-800 text-sky-300 px-1 py-0.5 rounded font-mono">locked = true</code>. The AI is strictly prohibited from modifying locked factual content unless explicitly requested.
       </p>
 
       {/* Detected Sections Grid */}
@@ -62,14 +84,14 @@ export default function ContentLockInspector({ sourceResume }) {
           <span className="text-[10px] text-slate-500 font-mono">0 Unintended Deletions Enforced</span>
         </div>
         <pre className="text-[10.5px] text-emerald-400 font-mono bg-slate-900/60 p-2.5 rounded border border-slate-850 overflow-x-auto">
-{`{
-  "id": "exp_01_bullet_04",
-  "source": true,
-  "locked": true,
-  "text": "Closed 55+ roles annually including niche LegalTech & leadership positions.",
-  "company": "Execo (Cacti Global)",
-  "period": "Oct -2023 – Apr 2025"
-}`}
+{JSON.stringify({
+  id: "exp_01_bullet_01",
+  source: true,
+  locked: true,
+  text: firstBulletSample,
+  company: firstCompany,
+  period: firstPeriod
+}, null, 2)}
         </pre>
       </div>
     </div>

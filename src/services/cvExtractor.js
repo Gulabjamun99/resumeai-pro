@@ -61,13 +61,13 @@ function matchSectionType(cleanLine) {
   if (norm.length < 2 || norm.length > 50) return null;
   
   for (const [type, keywords] of Object.entries(SECTION_KEYWORDS)) {
-    if (keywords.some(k => norm === k || norm.includes(k) || k.includes(norm))) {
+    if (keywords.some(k => norm === k || norm === k + 's' || norm.startsWith(k + ' ') || norm.endsWith(' ' + k))) {
       return type;
     }
   }
-  // Generic Heading Check: Short uppercase or Title Case line
-  if (cleanLine.length >= 3 && cleanLine.length <= 40 && !cleanLine.includes('@') && !cleanLine.includes('http')) {
-    if (/^[A-Z\s&/\-]+$/.test(cleanLine) || /^[A-Z][a-zA-Z\s&/\-]+:?$/.test(cleanLine)) {
+  // Generic Heading Check: Only ALL UPPERCASE lines or lines ending with a colon ':'
+  if (cleanLine.length >= 3 && cleanLine.length <= 40 && !cleanLine.includes('@') && !cleanLine.includes('http') && !cleanLine.includes('.com') && !cleanLine.includes('|')) {
+    if (/^[A-Z\s&/\-]{3,40}$/.test(cleanLine) || /^[A-Z][a-zA-Z\s&/\-]{2,40}:$/.test(cleanLine)) {
       return 'custom';
     }
   }
@@ -99,16 +99,17 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
   const github = githubMatch ? githubMatch[0] : "";
   const website = websiteMatch ? websiteMatch[0] : "";
 
-  // 2. Identify Top Header Block (Candidate Name, Headline, Location)
+  // 2. Identify Top Header Block (Candidate Name, Headline, Location, Summary)
   let name = "";
   let title = "";
   let location = "";
-  let headerEndIdx = 0;
+  let headerSummaryLines = [];
+  let headerEndIdx = rawLines.length;
 
-  for (let i = 0; i < Math.min(rawLines.length, 6); i++) {
+  for (let i = 0; i < rawLines.length; i++) {
     const line = rawLines[i];
     const isSection = matchSectionType(line);
-    if (isSection) {
+    if (isSection && i >= 1) {
       headerEndIdx = i;
       break;
     }
@@ -118,13 +119,20 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
       continue;
     }
 
-    if (!title && name && line.length < 80 && !line.includes('@') && !line.includes('linkedin.com')) {
+    if (!title && name && line.length < 80 && !line.includes('@') && !line.includes('linkedin.com') && !line.includes('http')) {
       title = line.replace(/^[#*\-•\s]+/, '').trim();
       continue;
     }
 
-    if (!location && (line.includes(',') || /city|state|country|india|usa|uk|canada|remote/i.test(line))) {
-      location = line.trim();
+    const isContactLine = line.includes('@') || line.includes('linkedin.com') || line.includes('http') || line.match(/(\+?\d{1,4}[-.\s]?)?\(?\d{3,5}\)?/);
+    if (isContactLine) {
+      if (!location) {
+        const locParts = line.split(/[|•,·]+/).map(p => p.trim());
+        const foundLoc = locParts.find(p => /remote|hybrid|india|usa|delhi|mumbai|bangalore|york|london/i.test(p) && !p.includes('@') && !p.includes('http'));
+        if (foundLoc) location = foundLoc;
+      }
+    } else {
+      headerSummaryLines.push(line);
     }
   }
 
@@ -157,7 +165,7 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
   }
 
   // 4. Parse Sections Dynamically
-  let summary = "";
+  let summary = headerSummaryLines.join(' ').trim();
   const skills = [];
   const experiences = [];
   const education = [];
@@ -177,7 +185,8 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
 
     switch (type) {
       case 'summary': {
-        summary = lines.join(' ').trim();
+        const chunkSummary = lines.join(' ').trim();
+        if (chunkSummary) summary = chunkSummary;
         break;
       }
 
@@ -196,31 +205,68 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
 
       case 'experience': {
         let currentExp = null;
+        let pendingHeaders = [];
+
         lines.forEach(line => {
           const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('▪') || line.startsWith('*');
-          const isHeader = !isBullet && (line.includes(' – ') || line.includes(' - ') || line.includes('|') || /\b(20\d\d|19\d\d)\b/.test(line));
-
-          if (isHeader || (!currentExp && !isBullet)) {
-            if (currentExp) experiences.push(currentExp);
-            
-            // Extract components: Role, Company, Period
-            const parts = line.split(/[|–—\-]+/).map(p => p.trim());
-            currentExp = {
-              id: `exp-${experiences.length + 1}`,
-              role: parts[0] || "Specialist",
-              company: parts[1] || parts[0] || "Organization",
-              period: parts.find(p => /\b(20\d\d|19\d\d|present|current)\b/i.test(p)) || "Period",
-              location: parts.find(p => /remote|hybrid|city|bangalore|delhi|mumbai|york|london/i.test(p)) || "",
-              bullets: []
-            };
-          } else if (currentExp) {
+          
+          if (isBullet) {
+            if (!currentExp) {
+              // Create experience from pending header lines
+              const companyName = pendingHeaders[0] || "Company Organization";
+              const roleName = pendingHeaders[1] || pendingHeaders[0] || "Specialist";
+              const periodName = pendingHeaders.find(h => /\b(20\d\d|19\d\d|present|current)\b/i.test(h)) || "Period";
+              currentExp = {
+                id: `exp-${experiences.length + 1}`,
+                role: roleName,
+                company: companyName,
+                period: periodName,
+                location: "",
+                bullets: []
+              };
+              pendingHeaders = [];
+            }
             const cleanBullet = line.replace(/^[•▪*\-]\s*/, '').trim();
-            if (cleanBullet.length > 5) {
+            if (cleanBullet.length > 3) {
               currentExp.bullets.push(cleanBullet);
+            }
+          } else {
+            // Non-bullet header or sub-header line
+            const hasDates = /\b(20\d\d|19\d\d|present|current)\b/i.test(line);
+            if (currentExp && currentExp.bullets.length > 0) {
+              experiences.push(currentExp);
+              currentExp = null;
+              pendingHeaders = [line];
+            } else if (hasDates && pendingHeaders.length > 0) {
+              // Date line completes current experience metadata
+              const roleName = pendingHeaders[1] || pendingHeaders[0] || "Role";
+              const companyName = pendingHeaders[0] || "Company";
+              currentExp = {
+                id: `exp-${experiences.length + 1}`,
+                role: roleName,
+                company: companyName,
+                period: line,
+                location: "",
+                bullets: []
+              };
+              pendingHeaders = [];
+            } else {
+              pendingHeaders.push(line);
             }
           }
         });
-        if (currentExp) experiences.push(currentExp);
+
+        if (currentExp) {
+          experiences.push(currentExp);
+        } else if (pendingHeaders.length > 0) {
+          experiences.push({
+            id: `exp-${experiences.length + 1}`,
+            role: pendingHeaders[1] || pendingHeaders[0] || "Role",
+            company: pendingHeaders[0] || "Company",
+            period: pendingHeaders.find(h => /\b(20\d\d|19\d\d)\b/.test(h)) || "Period",
+            bullets: []
+          });
+        }
         break;
       }
 

@@ -144,7 +144,7 @@ export default function DualColumnTemplate({ resume, id = "resume-document" }) {
                 </div>
 
                 <ul className="list-disc pl-4 text-[10px] text-slate-700 flex flex-col gap-1 mt-1 leading-snug">
-                  {exp.bullets.map((bullet, idx) => (
+                  {(exp.bullets || []).map((bullet, idx) => (
                     <li key={idx} className="marker:text-sky-600 text-justify">
                       {bullet}
                     </li>

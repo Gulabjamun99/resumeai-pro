@@ -11,11 +11,17 @@ export default defineConfig({
     ['list']
   ],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://resumeai-pro-silk.vercel.app',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:4173',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     viewport: { width: 1280, height: 800 },
+  },
+  webServer: {
+    command: 'npm run preview -- --port 4173',
+    port: 4173,
+    reuseExistingServer: !process.env.CI,
+    timeout: 30000,
   },
   projects: [
     {

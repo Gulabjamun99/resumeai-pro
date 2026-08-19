@@ -14,6 +14,7 @@ import AtsScorecardPanel from './components/AtsScorecardPanel';
 import VersionHistory from './components/VersionHistory';
 import { ROHIT_ORIGINAL_RESUME, DEFAULT_USER_PROMPT } from './data/rohitData';
 import { parseGenericCvText } from './services/cvExtractor';
+import { parseUploadedDocument } from './services/documentParser';
 import { classifyPermissionScope } from './services/permissionClassifier';
 import { enforceContentLocks } from './services/lockEnforcer';
 import { parseUserIntentToChangePlan, executeChangePlan, verifyRequestedChange, runCheckA, runCheckB, runAtsAudit } from './utils/atsEngine';
@@ -124,34 +125,48 @@ export default function App() {
   };
 
   // Production Upload Handler - Parses ANY uploaded user CV dynamically
-  const handleProductionFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target.result;
-        const dynamicMaster = parseGenericCvText(text, file.name);
-        
-        // Initialize Version 1
-        const v1Snapshot = {
-          version: 1,
-          id: 'v1',
-          title: 'Version 1 (Original Upload)',
-          summary: `Master baseline copy extracted from ${file.name}`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          cvState: JSON.parse(JSON.stringify(dynamicMaster)),
-          bulletsCount: dynamicMaster.experiences?.flatMap(e => e.bullets)?.length || 0
-        };
+  const handleProductionFileUpload = async (e) => {
+    const inputElement = e.currentTarget || e.target;
+    const file = inputElement?.files?.[0];
+    if (!file) return;
 
-        setSourceResume(dynamicMaster);
-        setCurrentCvState(JSON.parse(JSON.stringify(dynamicMaster)));
-        setVersionHistory([v1Snapshot]);
-        setCurrentVersion(1);
-        setSelectedTemplateId('dual-column');
-        setPromptText("2025 ke April ke baad se independent consulting kar raha hoon. AI agents platforms par kaam kiya hai. Ye sab new job mein add karo.");
-        setScreen(2);
+    try {
+      setErrorMessage(null);
+      const dynamicMaster = await parseUploadedDocument(file);
+      
+      const experiences = Array.isArray(dynamicMaster.experiences) 
+        ? dynamicMaster.experiences 
+        : Array.isArray(dynamicMaster.experience) 
+          ? dynamicMaster.experience 
+          : [];
+
+      const totalBullets = experiences.flatMap(exp => Array.isArray(exp?.bullets) ? exp.bullets : []).length;
+
+      // Initialize Version 1
+      const v1Snapshot = {
+        version: 1,
+        id: 'v1',
+        title: 'Version 1 (Original Upload)',
+        summary: `Master baseline copy extracted from ${file.name}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        cvState: JSON.parse(JSON.stringify(dynamicMaster)),
+        bulletsCount: totalBullets
       };
-      reader.readAsText(file);
+
+      setSourceResume(dynamicMaster);
+      setCurrentCvState(JSON.parse(JSON.stringify(dynamicMaster)));
+      setVersionHistory([v1Snapshot]);
+      setCurrentVersion(1);
+      setSelectedTemplateId('source-template');
+      setPromptText("Is CV ko ATS-friendly banayein, passive verbs ko strong action verbs mein upgrade karein aur formatting polish karein.");
+      setScreen(2);
+    } catch (err) {
+      console.error("CV Upload/Parsing Error:", err);
+      setErrorMessage(err.message || "Failed to process uploaded CV document. Please ensure the file is readable.");
+    } finally {
+      if (inputElement) {
+        try { inputElement.value = ''; } catch (_) {}
+      }
     }
   };
 
