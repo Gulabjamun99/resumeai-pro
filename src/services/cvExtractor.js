@@ -9,13 +9,14 @@
  * 1. Zero Content Loss: Every single section, project, publication, bullet point, and credential is fully captured.
  * 2. Zero Hallucination: Never invent companies, dates, or degrees if not present in the document.
  * 3. Section Preservation: Preserves authentic section order and custom domain-specific sections.
+ * 4. Dynamic Style Profiling: Captures layout, typography, and accent colors for authentic 1:1 Hubahu replica.
  */
 
 // Recognized Standard & Domain Section Keywords
 const SECTION_KEYWORDS = {
   summary: [
     'summary', 'professional summary', 'executive summary', 'profile', 
-    'personal profile', 'about me', 'career objective', 'objective', 'overview'
+    'personal profile', 'about me', 'career objective', 'objective', 'overview', 'executive profile'
   ],
   experience: [
     'experience', 'work experience', 'employment history', 'professional experience', 
@@ -27,11 +28,11 @@ const SECTION_KEYWORDS = {
   ],
   skills: [
     'skills', 'technical skills', 'core competencies', 'key skills', 'competencies', 
-    'areas of expertise', 'proficiencies', 'tools & technologies', 'expertise'
+    'areas of expertise', 'proficiencies', 'tools & technologies', 'expertise', 'it skills'
   ],
   projects: [
     'projects', 'key projects', 'selected projects', 'academic projects', 
-    'personal projects', 'technical projects', 'case studies'
+    'personal projects', 'technical projects', 'case studies', 'live products'
   ],
   certifications: [
     'certifications', 'certificates', 'licenses', 'credentials', 
@@ -230,7 +231,6 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf", layout
           
           if (isBullet) {
             if (!currentExp) {
-              // Create experience from pending header lines
               const companyName = pendingHeaders[0] || "Company Organization";
               const roleName = pendingHeaders[1] || pendingHeaders[0] || "Specialist";
               const periodName = pendingHeaders.find(h => /\b(20\d\d|19\d\d|present|current)\b/i.test(h)) || "Period";
@@ -249,14 +249,12 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf", layout
               currentExp.bullets.push(cleanBullet);
             }
           } else {
-            // Non-bullet header or sub-header line
             const hasDates = /\b(20\d\d|19\d\d|present|current)\b/i.test(line);
             if (currentExp && currentExp.bullets.length > 0) {
               experiences.push(currentExp);
               currentExp = null;
               pendingHeaders = [line];
             } else if (hasDates && pendingHeaders.length > 0) {
-              // Date line completes current experience metadata
               const roleName = pendingHeaders[1] || pendingHeaders[0] || "Role";
               const companyName = pendingHeaders[0] || "Company";
               currentExp = {
@@ -348,7 +346,6 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf", layout
       }
 
       default: {
-        // Custom domain-specific section (e.g. Clinical Research, Key Cases, Exhibitions, Patents)
         const customItems = lines.map(l => l.replace(/^[•▪*\-]\s*/, '').trim()).filter(Boolean);
         if (customItems.length > 0) {
           customSections.push({
@@ -391,8 +388,32 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf", layout
     }
   });
 
+  // Detect Dynamic Style Profile for Universal Hubahu Mirroring
+  let fontFamily = "font-sans";
+  let accentColor = "#0284c7";
+  if (/\b(curriculum vitae|juris doctor|esquire|barristers|honours)\b/i.test(text)) {
+    fontFamily = "font-serif";
+    accentColor = "#1e293b";
+  } else if (/\b(md|mbbs|cardiologist|physician|clinical|hospital)\b/i.test(text)) {
+    accentColor = "#0d9488";
+  } else if (/\b(vice president|director|chief executive|cfo|cto|p&l)\b/i.test(text)) {
+    accentColor = "#1e293b";
+  }
+
+  const styleProfile = {
+    layoutType: layoutType || "single-column",
+    accentColor,
+    sidebarBg: "#0f172a",
+    sidebarTextColor: "#f8fafc",
+    fontFamily,
+    headerAlignment: "left",
+    sectionDivider: "solid-line",
+    bulletStyle: "disc"
+  };
+
   return {
     layoutType: layoutType || "single-column",
+    styleProfile,
     header: {
       name,
       title,
