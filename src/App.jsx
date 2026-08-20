@@ -172,6 +172,9 @@ export default function App() {
 
   // Demo Test Fixture Launcher - Isolated test fixture
   const handleLoadRohitDemoFixture = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (_) {}
     const master = JSON.parse(JSON.stringify(ROHIT_ORIGINAL_RESUME));
     const v1Snapshot = {
       version: 1,
@@ -187,7 +190,7 @@ export default function App() {
     setCurrentCvState(JSON.parse(JSON.stringify(master)));
     setVersionHistory([v1Snapshot]);
     setCurrentVersion(1);
-    setSelectedTemplateId('dual-column');
+    setSelectedTemplateId('source-template');
     setPromptText(DEFAULT_USER_PROMPT);
     setScreen(2);
   };

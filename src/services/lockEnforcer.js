@@ -60,7 +60,11 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
   // (unless explicitly authorized by the user)
   if (Array.isArray(master.experiences) && Array.isArray(output.experiences)) {
     master.experiences.forEach((sourceExp, expIdx) => {
-      const targetExp = output.experiences.find(e => (sourceExp.id && e.id === sourceExp.id) || (e.role && e.role === sourceExp.role)) || output.experiences[expIdx];
+      const targetExp = output.experiences.find(e => 
+        (sourceExp.id && e.id === sourceExp.id) || 
+        (e.role === sourceExp.role && e.company === sourceExp.company) ||
+        (sourceExp.company && e.company === sourceExp.company)
+      ) || (output.experiences.length === master.experiences.length ? output.experiences[expIdx] : null);
       if (targetExp) {
         // Enforce exact company, dates, and locations from master unless authorized
         if (!authorizedFields.has(`experiences[${expIdx}].company`)) {
