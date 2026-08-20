@@ -25,6 +25,53 @@ async function readTextSafe(file) {
 }
 
 /**
+ * Group PDF.js text items into clean layout lines using Y coordinates
+ */
+export function extractLinesFromPdfItems(items) {
+  if (!items || items.length === 0) return "";
+
+  const lineTolerance = 4;
+  const lines = [];
+  let currentLine = [];
+  let currentY = null;
+
+  const sortedItems = [...items].sort((a, b) => {
+    const yA = a.transform ? a.transform[5] : 0;
+    const yB = b.transform ? b.transform[5] : 0;
+    if (Math.abs(yA - yB) > lineTolerance) {
+      return yB - yA; // top to bottom
+    }
+    const xA = a.transform ? a.transform[4] : 0;
+    const xB = b.transform ? b.transform[4] : 0;
+    return xA - xB; // left to right
+  });
+
+  for (const item of sortedItems) {
+    const text = (item.str || "").trim();
+    if (!text) continue;
+
+    const y = item.transform ? item.transform[5] : 0;
+
+    if (currentY === null || Math.abs(y - currentY) <= lineTolerance) {
+      currentLine.push(text);
+      if (currentY === null) currentY = y;
+    } else {
+      if (currentLine.length > 0) {
+        lines.push(currentLine.join(' '));
+      }
+      currentLine = [text];
+      currentY = y;
+    }
+  }
+
+  if (currentLine.length > 0) {
+    lines.push(currentLine.join(' '));
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Extract text from a File object (.pdf, .docx, .txt)
  */
 export async function extractTextFromFile(file) {
@@ -71,10 +118,8 @@ export async function extractTextFromFile(file) {
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           const page = await pdf.getPage(pageNum);
           const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map(item => item.str)
-            .join(' ');
-          fullText += pageText + "\n";
+          const pageLines = extractLinesFromPdfItems(textContent.items);
+          fullText += pageLines + "\n\n";
         }
 
         if (fullText.trim().length > 10) {

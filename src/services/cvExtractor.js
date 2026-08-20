@@ -139,6 +139,24 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
   if (!name) name = rawLines[0] || "Candidate";
   if (!title) title = rawLines[1] && rawLines[1].length < 70 ? rawLines[1] : "Professional Specialist";
 
+  // Defensive Sanitize: ensure name is not contaminated with role title or section headers
+  const splitKeywordsRegex = /(?:\s+)(AI-Driven|Senior|Lead|Junior|Associate|Chief|Director|Head|VP|Manager|Specialist|Engineer|Developer|Consultant|Architect|Officer|Executive|Analyst|Intern|Doctor|Advocate|EDUCATION|CERTIFICATIONS|SKILLS|EXPERIENCE|SUMMARY)\b/i;
+  const match = name.match(splitKeywordsRegex);
+  if (match && match.index >= 2) {
+    const extractedName = name.substring(0, match.index).trim();
+    const extractedTitle = name.substring(match.index).trim();
+    name = extractedName.length <= 40 ? extractedName : extractedName.split(' ').slice(0, 3).join(' ');
+    if (!title || title === "Professional Specialist") {
+      title = extractedTitle;
+    }
+  } else if (name.split(/\s+/).length > 4) {
+    const words = name.split(/\s+/);
+    name = words.slice(0, 2).join(' ');
+    if (!title || title === "Professional Specialist") {
+      title = words.slice(2).join(' ');
+    }
+  }
+
   // 3. Partition Raw Lines into Distinct Section Chunks
   const sectionChunks = [];
   let currentSection = { type: 'summary', rawTitle: 'Summary', lines: [] };
