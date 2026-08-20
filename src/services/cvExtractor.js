@@ -77,7 +77,7 @@ function matchSectionType(cleanLine) {
 /**
  * Universal Dynamic CV Parser
  */
-export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
+export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf", layoutType = "single-column") {
   const text = (rawText || '').trim();
 
   if (text.length < 20) {
@@ -276,14 +276,6 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
 
         if (currentExp) {
           experiences.push(currentExp);
-        } else if (pendingHeaders.length > 0) {
-          experiences.push({
-            id: `exp-${experiences.length + 1}`,
-            role: pendingHeaders[1] || pendingHeaders[0] || "Role",
-            company: pendingHeaders[0] || "Company",
-            period: pendingHeaders.find(h => /\b(20\d\d|19\d\d)\b/.test(h)) || "Period",
-            bullets: []
-          });
         }
         break;
       }
@@ -291,7 +283,7 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
       case 'education': {
         lines.forEach(line => {
           const clean = line.replace(/^[•▪*\-]\s*/, '').trim();
-          if (clean.length > 3) {
+          if (clean.length > 3 && !education.includes(clean)) {
             education.push(clean);
           }
         });
@@ -302,17 +294,14 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
         let currentProj = null;
         lines.forEach(line => {
           const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('▪') || line.startsWith('*');
-          if (!isBullet && line.length < 80) {
+          if (isBullet && currentProj) {
+            currentProj.bullets.push(line.replace(/^[•▪*\-]\s*/, '').trim());
+          } else {
             if (currentProj) projects.push(currentProj);
             currentProj = {
-              title: line.replace(/^[•▪*\-]\s*/, '').trim(),
+              title: line.replace(/^[•▪*\-:]\s*/, '').trim(),
               bullets: []
             };
-          } else if (currentProj) {
-            const clean = line.replace(/^[•▪*\-]\s*/, '').trim();
-            if (clean) currentProj.bullets.push(clean);
-          } else {
-            projects.push({ title: "Key Project", bullets: [line.replace(/^[•▪*\-]\s*/, '').trim()] });
           }
         });
         if (currentProj) projects.push(currentProj);
@@ -322,7 +311,7 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
       case 'certifications': {
         lines.forEach(line => {
           const clean = line.replace(/^[•▪*\-]\s*/, '').trim();
-          if (clean.length > 3 && !certifications.includes(clean)) {
+          if (clean.length > 3 && !certifications.some(c => (typeof c === 'string' ? c : c.name) === clean)) {
             certifications.push(clean);
           }
         });
@@ -388,7 +377,22 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf") {
     }
   }
 
+  // Strict Bullet Purification: Purge accidental contact info or section titles from work experience bullets
+  experiences.forEach(exp => {
+    if (Array.isArray(exp.bullets)) {
+      exp.bullets = exp.bullets.filter(b => {
+        const cleanB = (b || "").trim();
+        if (cleanB.length < 5) return false;
+        if (cleanB.includes('@') && cleanB.includes('.com')) return false;
+        if (cleanB.match(/(?:\+?\d{1,4}[-.\s]?)?\d{10}/)) return false;
+        if (/^(CONTACT|SKILLS|EDUCATION|CERTIFICATIONS|EXPERIENCE|LANGUAGES|IT SKILLS)$/i.test(cleanB)) return false;
+        return true;
+      });
+    }
+  });
+
   return {
+    layoutType: layoutType || "single-column",
     header: {
       name,
       title,

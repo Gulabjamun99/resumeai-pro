@@ -27,48 +27,77 @@ async function readTextSafe(file) {
 /**
  * Group PDF.js text items into clean layout lines using Y coordinates
  */
+/**
+ * Group PDF.js text items into clean layout lines using spatial column decomposition
+ */
 export function extractLinesFromPdfItems(items) {
-  if (!items || items.length === 0) return "";
+  if (!items || items.length === 0) return { text: "", layoutType: "single-column" };
 
-  const lineTolerance = 4;
-  const lines = [];
-  let currentLine = [];
-  let currentY = null;
+  const validItems = items.filter(it => (it.str || "").trim().length > 0);
+  if (validItems.length === 0) return { text: "", layoutType: "single-column" };
 
-  const sortedItems = [...items].sort((a, b) => {
-    const yA = a.transform ? a.transform[5] : 0;
-    const yB = b.transform ? b.transform[5] : 0;
-    if (Math.abs(yA - yB) > lineTolerance) {
-      return yB - yA; // top to bottom
-    }
-    const xA = a.transform ? a.transform[4] : 0;
-    const xB = b.transform ? b.transform[4] : 0;
-    return xA - xB; // left to right
+  // Analyze X-coordinates to detect column boundary
+  let leftCount = 0;
+  let rightCount = 0;
+  validItems.forEach(it => {
+    const x = it.transform ? it.transform[4] : 0;
+    if (x < 210) leftCount++;
+    else rightCount++;
   });
 
-  for (const item of sortedItems) {
-    const text = (item.str || "").trim();
-    if (!text) continue;
+  const total = validItems.length;
+  const isTwoColumn = leftCount >= 3 && rightCount >= 3 && (leftCount / total) >= 0.15 && (rightCount / total) >= 0.15;
+  const splitX = 210;
+  const lineTolerance = 4;
 
-    const y = item.transform ? item.transform[5] : 0;
+  const extractColumnLines = (colItems) => {
+    const sorted = [...colItems].sort((a, b) => {
+      const yA = a.transform ? a.transform[5] : 0;
+      const yB = b.transform ? b.transform[5] : 0;
+      if (Math.abs(yA - yB) > lineTolerance) return yB - yA;
+      const xA = a.transform ? a.transform[4] : 0;
+      const xB = b.transform ? b.transform[4] : 0;
+      return xA - xB;
+    });
 
-    if (currentY === null || Math.abs(y - currentY) <= lineTolerance) {
-      currentLine.push(text);
-      if (currentY === null) currentY = y;
-    } else {
-      if (currentLine.length > 0) {
-        lines.push(currentLine.join(' '));
+    const lines = [];
+    let curLine = [];
+    let curY = null;
+
+    for (const it of sorted) {
+      const text = (it.str || "").trim();
+      if (!text) continue;
+      const y = it.transform ? it.transform[5] : 0;
+      if (curY === null || Math.abs(y - curY) <= lineTolerance) {
+        curLine.push(text);
+        if (curY === null) curY = y;
+      } else {
+        if (curLine.length > 0) lines.push(curLine.join(' '));
+        curLine = [text];
+        curY = y;
       }
-      currentLine = [text];
-      currentY = y;
     }
+    if (curLine.length > 0) lines.push(curLine.join(' '));
+    return lines.join('\n');
+  };
+
+  if (isTwoColumn) {
+    const leftItems = validItems.filter(it => (it.transform ? it.transform[4] : 0) < splitX);
+    const rightItems = validItems.filter(it => (it.transform ? it.transform[4] : 0) >= splitX);
+
+    const sidebarLines = extractColumnLines(leftItems);
+    const mainLines = extractColumnLines(rightItems);
+
+    return {
+      text: `${mainLines}\n\nCONTACT_SIDEBAR\n${sidebarLines}`,
+      layoutType: "two-column-left-sidebar"
+    };
   }
 
-  if (currentLine.length > 0) {
-    lines.push(currentLine.join(' '));
-  }
-
-  return lines.join('\n');
+  return {
+    text: extractColumnLines(validItems),
+    layoutType: "single-column"
+  };
 }
 
 /**
@@ -83,7 +112,8 @@ export async function extractTextFromFile(file) {
   const extension = fileName.split('.').pop().toLowerCase();
 
   if (extension === 'txt') {
-    return await readTextSafe(file);
+    const raw = await readTextSafe(file);
+    return { text: raw, layoutType: "single-column" };
   }
 
   if (extension === 'docx') {
@@ -93,13 +123,14 @@ export async function extractTextFromFile(file) {
       if (arrayBuffer) {
         const result = await mammoth.extractRawText({ arrayBuffer });
         if (result.value && result.value.trim().length > 10) {
-          return result.value;
+          return { text: result.value, layoutType: "single-column" };
         }
       }
     } catch (err) {
       console.warn("DOCX extraction error, falling back to text stream:", err);
     }
-    return await readTextSafe(file);
+    const raw = await readTextSafe(file);
+    return { text: raw, layoutType: "single-column" };
   }
 
   if (extension === 'pdf') {
@@ -115,32 +146,38 @@ export async function extractTextFromFile(file) {
         const pdf = await loadingTask.promise;
         
         let fullText = "";
+        let detectedLayout = "single-column";
+
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           const page = await pdf.getPage(pageNum);
           const textContent = await page.getTextContent();
-          const pageLines = extractLinesFromPdfItems(textContent.items);
-          fullText += pageLines + "\n\n";
+          const extracted = extractLinesFromPdfItems(textContent.items);
+          if (extracted.layoutType === "two-column-left-sidebar") {
+            detectedLayout = "two-column-left-sidebar";
+          }
+          fullText += extracted.text + "\n\n";
         }
 
         if (fullText.trim().length > 10) {
-          return fullText;
+          return { text: fullText, layoutType: detectedLayout };
         }
       }
     } catch (err) {
       console.warn("PDF.js extraction failed, falling back:", err);
     }
     
-    return await readTextSafe(file);
+    const raw = await readTextSafe(file);
+    return { text: raw, layoutType: "single-column" };
   }
 
-  // Default fallback for any other format
-  return await readTextSafe(file);
+  const raw = await readTextSafe(file);
+  return { text: raw, layoutType: "single-column" };
 }
 
 /**
  * Universal document to SOURCE_CV_MASTER parser
  */
 export async function parseUploadedDocument(file) {
-  const rawText = await extractTextFromFile(file);
-  return parseGenericCvText(rawText, file.name);
+  const { text, layoutType } = await extractTextFromFile(file);
+  return parseGenericCvText(text, file.name, layoutType);
 }
