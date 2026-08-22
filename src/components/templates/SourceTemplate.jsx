@@ -26,6 +26,8 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
   const projects = Array.isArray(resume.projects) ? resume.projects : [];
   const languages = Array.isArray(resume.languages) ? resume.languages : [];
   const publications = Array.isArray(resume.publications) ? resume.publications : [];
+  const positionsHiredFor = Array.isArray(resume.positionsHiredFor) ? resume.positionsHiredFor : [];
+  const itSkills = Array.isArray(resume.itSkills) ? resume.itSkills : [];
 
   const isDualColumn = resume.layoutType === 'two-column-left-sidebar' || 
                        (contact.email && skills.length > 5 && experiences.length > 0 && !resume.layoutType);
@@ -43,17 +45,19 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
         }}
       >
         {/* LEFT SIDEBAR COLUMN */}
-        <aside className="w-full md:w-[32%] bg-slate-900 text-slate-100 p-6 flex flex-col gap-5 print:bg-slate-900 print:text-white">
+        <aside className="w-full md:w-[32%] bg-[#0f172a] text-slate-100 p-5 sm:p-6 flex flex-col gap-4.5 print:bg-[#0f172a] print:text-white shrink-0">
           {/* Contact Section */}
           <section>
-            <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700 pb-1 mb-2.5">
+            <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700/80 pb-1 mb-2.5">
               Contact
             </h2>
             <div className="flex flex-col gap-2 text-xs text-slate-300 font-medium">
               {contact.email && (
                 <div className="flex items-center gap-2 break-all">
                   <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span>{contact.email}</span>
+                  <a href={`mailto:${contact.email}`} className="text-slate-200 hover:text-sky-300 transition-colors">
+                    {contact.email}
+                  </a>
                 </div>
               )}
               {contact.phone && (
@@ -62,38 +66,34 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
                   <span>{contact.phone}</span>
                 </div>
               )}
-              {contact.address && (
+              {(contact.address || contact.location) && (
                 <div className="flex items-center gap-2">
                   <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span>{contact.address}</span>
-                </div>
-              )}
-              {contact.location && !contact.address && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span>{contact.location}</span>
+                  <span>{contact.address || contact.location}</span>
                 </div>
               )}
               {contact.linkedin && (
                 <div className="flex items-center gap-2 break-all">
                   <Globe className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span>{contact.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, 'in/')}</span>
+                  <a href={contact.linkedin} target="_blank" rel="noreferrer" className="text-sky-300 hover:underline">
+                    {contact.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, 'in/')}
+                  </a>
                 </div>
               )}
             </div>
           </section>
 
-          {/* Skills Section */}
+          {/* Skills & Proficiencies */}
           {skills.length > 0 && (
             <section>
-              <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700 pb-1 mb-2.5">
+              <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700/80 pb-1 mb-2">
                 Skills & Proficiencies
               </h2>
               <div className="flex flex-wrap gap-1.5">
                 {skills.map((skill, idx) => (
                   <span
                     key={idx}
-                    className="bg-slate-800 text-slate-200 border border-slate-700 text-[10.5px] font-medium px-2 py-0.5 rounded"
+                    className="bg-slate-800/90 text-slate-200 border border-slate-700/80 text-[10px] font-medium px-2 py-0.5 rounded shadow-sm"
                   >
                     {skill}
                   </span>
@@ -105,34 +105,38 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
           {/* Languages Section */}
           {languages.length > 0 && (
             <section>
-              <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700 pb-1 mb-2.5">
+              <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700/80 pb-1 mb-2">
                 Languages
               </h2>
               <div className="flex flex-col gap-1 text-xs text-slate-300">
                 {languages.map((lang, idx) => (
-                  <div key={idx} className="flex justify-between">
-                    <span>{typeof lang === 'string' ? lang : lang.name}</span>
-                    <span className="text-slate-400 text-[10.5px]">{typeof lang === 'object' && lang.level ? lang.level : ''}</span>
+                  <div key={idx} className="flex justify-between items-center text-[11px]">
+                    <span className="font-medium text-slate-200">{typeof lang === 'string' ? lang : lang.name}</span>
+                    <span className="text-sky-400/90 text-[10px] font-medium bg-slate-800 px-1.5 py-0.2 rounded border border-slate-700/60">
+                      {typeof lang === 'object' && lang.level ? lang.level : 'Proficient'}
+                    </span>
                   </div>
                 ))}
               </div>
             </section>
           )}
 
-          {/* Education in Sidebar */}
+          {/* Education in Sidebar (Right below Languages) */}
           {education.length > 0 && (
-            <section className="mt-auto">
-              <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700 pb-1 mb-2.5">
+            <section>
+              <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700/80 pb-1 mb-2">
                 Education
               </h2>
-              <div className="flex flex-col gap-1.5 text-xs text-slate-300">
+              <div className="flex flex-col gap-2 text-xs text-slate-300">
                 {education.map((edu, idx) => (
-                  <div key={idx} className="leading-snug">
-                    <span className="font-semibold text-slate-100 block">
+                  <div key={idx} className="leading-tight bg-slate-800/40 p-2 rounded border border-slate-800">
+                    <span className="font-bold text-slate-100 text-[11px] block">
                       {typeof edu === 'string' ? edu : edu.degree || ''}
                     </span>
                     {typeof edu === 'object' && edu.school && (
-                      <span className="text-slate-400 text-[10.5px] block">{edu.school} {edu.year ? `(${edu.year})` : ''}</span>
+                      <span className="text-slate-400 text-[10px] block mt-0.5">
+                        {edu.school} {edu.year ? `(${edu.year})` : ''}
+                      </span>
                     )}
                   </div>
                 ))}
@@ -140,32 +144,64 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
             </section>
           )}
 
-          {/* Certifications in Sidebar */}
+          {/* Certifications in Sidebar (Right below Education) */}
           {certifications.length > 0 && (
             <section>
-              <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700 pb-1 mb-2.5">
+              <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700/80 pb-1 mb-2">
                 Certifications
               </h2>
-              <div className="flex flex-col gap-1 text-xs text-slate-300">
+              <ul className="flex flex-col gap-1.5 text-xs text-slate-300">
                 {certifications.map((cert, idx) => (
-                  <div key={idx} className="text-[10.5px]">
-                    • {typeof cert === 'string' ? cert : cert.name || ''}
-                  </div>
+                  <li key={idx} className="text-[10.5px] leading-snug flex items-start gap-1.5 text-slate-300">
+                    <span className="text-sky-400 font-bold">•</span>
+                    <span>{typeof cert === 'string' ? cert : cert.name || ''}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* Positions / Domains Hired For */}
+          {positionsHiredFor.length > 0 && (
+            <section>
+              <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700/80 pb-1 mb-2">
+                Skills / Positions Hired For
+              </h2>
+              <div className="flex flex-wrap gap-1">
+                {(Array.isArray(positionsHiredFor) ? positionsHiredFor : [positionsHiredFor]).map((pos, idx) => (
+                  <span
+                    key={idx}
+                    className="text-[9.5px] bg-slate-800/60 text-slate-300 border border-slate-700/50 px-1.5 py-0.5 rounded leading-tight"
+                  >
+                    {pos}
+                  </span>
                 ))}
               </div>
+            </section>
+          )}
+
+          {/* IT & Tooling Skills */}
+          {itSkills.length > 0 && (
+            <section>
+              <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700/80 pb-1 mb-2">
+                IT & Analytics Tools
+              </h2>
+              <p className="text-[10px] text-slate-300 leading-relaxed">
+                {itSkills.join(' • ')}
+              </p>
             </section>
           )}
         </aside>
 
         {/* RIGHT MAIN CONTENT AREA */}
-        <main className="w-full md:w-[68%] p-6 sm:p-8 flex flex-col gap-5 bg-white">
+        <main className="w-full md:w-[68%] p-6 sm:p-7 flex flex-col gap-4.5 bg-white">
           {/* Header */}
-          <header className="border-b border-slate-200 pb-3">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 uppercase">
+          <header className="border-b border-slate-200 pb-2.5">
+            <h1 className="text-2xl sm:text-[26px] font-black tracking-tight text-slate-950 uppercase leading-none">
               {header.name || "Candidate Name"}
             </h1>
             {header.title && (
-              <p className="text-sm font-semibold text-sky-700 mt-0.5 tracking-wide">
+              <p className="text-xs sm:text-[13px] font-bold text-sky-700 mt-1 tracking-wide">
                 {header.title}
               </p>
             )}
@@ -174,30 +210,45 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
           {/* Executive Summary */}
           {header.summary && (
             <section>
-              <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-1.5">
+              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2 flex items-center gap-1.5">
+                <span className="w-1.5 h-3 bg-sky-600 rounded-xs inline-block"></span>
                 Executive Profile
               </h2>
-              <p className="text-xs text-slate-700 leading-relaxed text-justify">
+              <div className="border-l-2 border-sky-600 bg-sky-50/30 pl-3 py-1 text-xs text-slate-700 leading-relaxed text-justify rounded-r">
                 {header.summary}
-              </p>
+              </div>
             </section>
           )}
 
-          {/* Projects & Live Apps */}
+          {/* Projects & Live Apps (Modern Sleek Grid Design) */}
           {projects.length > 0 && (
             <section>
-              <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2">
+              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2.5 flex items-center gap-1.5">
+                <span className="w-1.5 h-3 bg-sky-600 rounded-xs inline-block"></span>
                 Key Projects & Live Applications
               </h2>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {projects.map((proj, idx) => (
-                  <div key={idx} className="p-2 bg-slate-50 border border-slate-200 rounded-lg">
-                    <span className="text-xs font-bold text-slate-900 block">{proj.title || "Project"}</span>
-                    {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
-                      <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">{proj.bullets[0]}</p>
-                    ) : proj.description ? (
-                      <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">{proj.description}</p>
-                    ) : null}
+                  <div 
+                    key={idx} 
+                    className="p-2.5 bg-white border border-slate-200/90 rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:border-sky-300 transition-colors flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[11.5px] font-bold text-slate-900 flex items-center gap-1">
+                          <span className="text-sky-600 text-xs">⚡</span>
+                          {proj.title || "Project"}
+                        </span>
+                        <span className="text-[9px] font-semibold bg-sky-50 text-sky-700 border border-sky-200 px-1.5 py-0.2 rounded">
+                          Live App
+                        </span>
+                      </div>
+                      {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
+                        <p className="text-[10.5px] text-slate-600 leading-snug">{proj.bullets[0]}</p>
+                      ) : proj.description ? (
+                        <p className="text-[10.5px] text-slate-600 leading-snug">{proj.description}</p>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -207,30 +258,36 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
           {/* Work Experience */}
           {experiences.length > 0 && (
             <section>
-              <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-3">
+              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1 mb-3 flex items-center gap-1.5">
+                <span className="w-1.5 h-3 bg-sky-600 rounded-xs inline-block"></span>
                 Work Experience
               </h2>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3.5">
                 {experiences.map((exp, expIdx) => (
-                  <div key={exp.id || expIdx} className="flex flex-col gap-1">
+                  <div key={exp.id || expIdx} className="flex flex-col gap-1 page-break-inside-avoid">
                     <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-0.5">
                       <div className="flex flex-wrap items-baseline gap-1.5">
-                        <span className="text-xs font-bold text-slate-900">
+                        <span className="text-[12px] font-bold text-slate-900">
                           {exp.role || "Role"}
                         </span>
-                        <span className="text-xs text-slate-600 font-semibold">
+                        {exp.subtitle && (
+                          <span className="text-xs text-slate-500 font-normal">
+                            | {exp.subtitle}
+                          </span>
+                        )}
+                        <span className="text-xs text-sky-800 font-semibold">
                           • {exp.company || exp.location || "Company"}
                         </span>
                       </div>
-                      <span className="text-[11px] font-mono text-slate-500 font-medium whitespace-nowrap">
+                      <span className="text-[10px] font-mono font-medium text-slate-600 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-full whitespace-nowrap">
                         {exp.period || exp.dates || ""}
                       </span>
                     </div>
 
                     {Array.isArray(exp.bullets) && exp.bullets.length > 0 && (
-                      <ul className="list-disc list-outside pl-4 space-y-1 text-xs text-slate-700 leading-relaxed">
+                      <ul className="list-disc list-outside pl-4 space-y-1 text-[11px] text-slate-700 leading-relaxed mt-0.5">
                         {exp.bullets.map((b, bIdx) => (
-                          <li key={bIdx} className="pl-0.5">{b}</li>
+                          <li key={bIdx} className="pl-0.5 marker:text-sky-600">{b}</li>
                         ))}
                       </ul>
                     )}
@@ -243,12 +300,13 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
           {/* Publications */}
           {publications.length > 0 && (
             <section>
-              <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2">
+              <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2 flex items-center gap-1.5">
+                <span className="w-1.5 h-3 bg-sky-600 rounded-xs inline-block"></span>
                 Publications & Research
               </h2>
               <div className="flex flex-col gap-1 text-xs text-slate-700">
                 {publications.map((pub, idx) => (
-                  <div key={idx}>• {typeof pub === 'string' ? pub : pub.title || ''}</div>
+                  <div key={idx} className="text-[11px]">• {typeof pub === 'string' ? pub : pub.title || ''}</div>
                 ))}
               </div>
             </section>
