@@ -28,26 +28,51 @@ async function readTextSafe(file) {
  * Group PDF.js text items into clean layout lines using Y coordinates
  */
 /**
- * Group PDF.js text items into clean layout lines using spatial column decomposition
+ * Group PDF.js text items into clean layout lines using dynamic spatial column decomposition
  */
-export function extractLinesFromPdfItems(items) {
+export function extractLinesFromPdfItems(items, pageWidth = 595.32) {
   if (!items || items.length === 0) return { text: "", layoutType: "single-column" };
 
-  const validItems = items.filter(it => (it.str || "").trim().length > 0);
+  const validItems = items.filter(it => (it.str || "").trim().length > 0 && it.transform);
   if (validItems.length === 0) return { text: "", layoutType: "single-column" };
 
-  // Analyze X-coordinates to detect column boundary
-  let leftCount = 0;
-  let rightCount = 0;
-  validItems.forEach(it => {
-    const x = it.transform ? it.transform[4] : 0;
-    if (x < 210) leftCount++;
-    else rightCount++;
-  });
+  // Only consider items with at least 3 characters to find column gutters (ignores isolated punctuation)
+  const wordItems = validItems.filter(it => (it.str || "").trim().length >= 3);
+  const xList = wordItems.map(it => it.transform[4]).sort((a, b) => a - b);
 
+  // Search for the primary column gutter between 8% and 40% of page width
+  const minGutter = 0.08 * pageWidth; // ~47px
+  const maxGutter = 0.40 * pageWidth; // ~238px
+
+  let bestSplitX = 0;
+  let maxGap = 0;
+
+  for (let i = 0; i < xList.length - 1; i++) {
+    const x1 = xList[i];
+    const x2 = xList[i + 1];
+    if (x1 >= minGutter && x2 <= maxGutter) {
+      const gap = x2 - x1;
+      if (gap > maxGap && gap >= 25) {
+        maxGap = gap;
+        bestSplitX = (x1 + x2) / 2;
+      }
+    }
+  }
+
+  // Fallback if no wide gap is found in word items
+  if (bestSplitX === 0) {
+    const leftCluster = wordItems.filter(it => it.transform[4] < 110).length;
+    const rightCluster = wordItems.filter(it => it.transform[4] >= 110).length;
+    if (leftCluster >= 4 && rightCluster >= 10) {
+      bestSplitX = 110;
+    }
+  }
+
+  const leftCount = bestSplitX > 0 ? validItems.filter(it => it.transform[4] < bestSplitX).length : 0;
+  const rightCount = bestSplitX > 0 ? validItems.filter(it => it.transform[4] >= bestSplitX).length : 0;
   const total = validItems.length;
-  const isTwoColumn = leftCount >= 3 && rightCount >= 3 && (leftCount / total) >= 0.15 && (rightCount / total) >= 0.15;
-  const splitX = 210;
+
+  const isTwoColumn = bestSplitX > 0 && leftCount >= 4 && rightCount >= 10 && (leftCount / total) >= 0.08;
   const lineTolerance = 4;
 
   const extractColumnLines = (colItems) => {
@@ -82,8 +107,8 @@ export function extractLinesFromPdfItems(items) {
   };
 
   if (isTwoColumn) {
-    const leftItems = validItems.filter(it => (it.transform ? it.transform[4] : 0) < splitX);
-    const rightItems = validItems.filter(it => (it.transform ? it.transform[4] : 0) >= splitX);
+    const leftItems = validItems.filter(it => it.transform[4] < bestSplitX);
+    const rightItems = validItems.filter(it => it.transform[4] >= bestSplitX);
 
     const sidebarLines = extractColumnLines(leftItems);
     const mainLines = extractColumnLines(rightItems);
@@ -150,8 +175,9 @@ export async function extractTextFromFile(file) {
 
         for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
           const page = await pdf.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 1.0 });
           const textContent = await page.getTextContent();
-          const extracted = extractLinesFromPdfItems(textContent.items);
+          const extracted = extractLinesFromPdfItems(textContent.items, viewport.width);
           if (extracted.layoutType === "two-column-left-sidebar") {
             detectedLayout = "two-column-left-sidebar";
           }
