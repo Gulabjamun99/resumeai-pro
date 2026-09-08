@@ -15,7 +15,7 @@ import HybridPortfolioTemplate from './templates/HybridPortfolioTemplate';
 import ModernChronologicalTemplate from './templates/ModernChronologicalTemplate';
 
 /**
- * RESUME DOCUMENT RENDERER (14-TEMPLATE ATS & SOURCE REPLICA ENGINE)
+ * RESUME DOCUMENT RENDERER (36-TEMPLATE ATS & SOURCE REPLICA ROUTER)
  * Declaratively delegates rendering to the active template while consuming
  * the identical, unmutated candidate data object.
  */
@@ -29,36 +29,79 @@ export default function ResumeDocument({
   if (!resume) return null;
 
   switch (templateId) {
+    // 1. Exact Source Replica
     case 'source-template':
       return <SourceTemplate resume={resume} id={id} />;
+
+    // 2. Tech, AI & Developer Series
     case 'tech-developer':
+    case 'terminal-dev':
+    case 'cloud-architect':
+    case 'stellar-ai':
+    case 'quantum-code':
       return <TechDeveloperTemplate resume={resume} id={id} />;
-    case 'creative-startup':
-      return <CreativeStartupTemplate resume={resume} id={id} />;
-    case 'academic-medical':
-      return <AcademicMedicalTemplate resume={resume} id={id} />;
-    case 'slate-elite':
-      return <SlateEliteTemplate resume={resume} id={id} />;
-    case 'nordic-sharp':
-      return <NordicSharpTemplate resume={resume} id={id} />;
-    case 'indigo-pro':
-      return <IndigoProTemplate resume={resume} id={id} />;
-    case 'compact-one-page':
-      return <CompactOnePageTemplate resume={resume} id={id} />;
-    case 'executive-charter':
-      return <ExecutiveCharterTemplate resume={resume} id={id} />;
+
     case 'hybrid-portfolio':
+    case 'product-lead':
       return <HybridPortfolioTemplate resume={resume} id={id} />;
-    case 'modern-chronological':
-      return <ModernChronologicalTemplate resume={resume} id={id} />;
+
+    // 3. Creative & Growth Series
+    case 'creative-startup':
+    case 'growth-marketer':
+    case 'aurora-modern':
+      return <CreativeStartupTemplate resume={resume} id={id} />;
+
+    // 4. Academic, Medical & Research Series
+    case 'academic-medical':
+    case 'phd-fellowship':
+      return <AcademicMedicalTemplate resume={resume} id={id} />;
+
+    // 5. Executive & Leadership Series
+    case 'slate-elite':
+    case 'fortune-csuite':
+      return <SlateEliteTemplate resume={resume} id={id} />;
+
+    case 'executive-charter':
+    case 'pinnacle-global':
+      return <ExecutiveCharterTemplate resume={resume} id={id} />;
+
     case 'single-column':
+    case 'wall-street-quant':
+    case 'legal-counsel':
+    case 'monolith-pro':
       return <SingleColumnTemplate resume={resume} id={id} />;
+
+    // 6. Modern Minimalist Series
+    case 'nordic-sharp':
+    case 'zenith-light':
+      return <NordicSharpTemplate resume={resume} id={id} />;
+
     case 'modern-minimal':
+    case 'metro-clean':
       return <ModernMinimalTemplate resume={resume} id={id} />;
+
+    case 'compact-one-page':
+    case 'apex-compact':
+      return <CompactOnePageTemplate resume={resume} id={id} />;
+
+    // 7. Dual-Column & Sidebar Series
+    case 'indigo-pro':
+    case 'amethyst-split':
+    case 'horizon-blue':
+      return <IndigoProTemplate resume={resume} id={id} />;
+
     case 'dual-column':
+    case 'emerald-compact':
       return <DualColumnTemplate resume={resume} id={id} />;
+
+    // 8. Chronological & Consulting Series
+    case 'modern-chronological':
+    case 'mckinsey-consultant':
+    case 'vanguard-slate':
+    case 'signature-prime':
+      return <ModernChronologicalTemplate resume={resume} id={id} />;
+
     default:
       return <SourceTemplate resume={resume} id={id} />;
   }
 }
-

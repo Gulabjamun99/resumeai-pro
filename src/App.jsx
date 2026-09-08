@@ -21,13 +21,17 @@ import { parseUserIntentToChangePlan, executeChangePlan, verifyRequestedChange, 
 import { runCompleteValidationSuite } from './services/validationSuite';
 import { exportResumeToPdf, printResume, sanitizeCandidateFilename } from './utils/pdfExporter';
 import { exportResumeToDocx } from './utils/docxExporter';
-import { Download, Printer, FileText, Sparkles, Columns, RefreshCw, Upload, Edit3, RotateCcw, AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
+import InteractiveLiveStudio from './components/InteractiveLiveStudio';
+import FreshCvBuilder from './components/FreshCvBuilder';
+import JdOptimizer from './components/JdOptimizer';
+import { Download, Printer, FileText, Sparkles, Columns, RefreshCw, Upload, Edit3, RotateCcw, AlertTriangle, CheckCircle2, Trash2, Target, Wand2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const STORAGE_KEY = 'resumeai_pro_session_v1';
 
 export default function App() {
   const [currentScreen, setScreen] = useState(1); // Production Flow starts on Screen 1 Upload
+  const [homeMode, setHomeMode] = useState('upload'); // 'upload' | 'fresh' | 'jd'
   
   // Core State Architecture (Rule #1, #2, #3)
   const [sourceResume, setSourceResume] = useState(null); // Immutable SOURCE_CV_MASTER
@@ -48,7 +52,7 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState(null);
   
   // UI Preview & Quality Control States
-  const [activeTab, setActiveTab] = useState('split');
+  const [activeTab, setActiveTab] = useState('interactive');
   const [validationReport, setValidationReport] = useState(null);
   const [requestedFacts, setRequestedFacts] = useState([]);
 
@@ -334,6 +338,71 @@ export default function App() {
     setScreen(4);
   };
 
+  // Persona 1: Handle Live Refinement from Split-Screen Studio
+  const handleApplyLiveRefinement = async (instruction) => {
+    if (!currentCvState) return { success: false };
+
+    const plan = parseUserIntentToChangePlan(instruction, currentCvState, sourceResume);
+    const updated = executeChangePlan(currentCvState, plan);
+    const locked = enforceContentLocks(sourceResume || currentCvState, updated, plan);
+
+    const nextVer = versionHistory.length + 1;
+    const newVersionSnapshot = {
+      version: nextVer,
+      id: `v${nextVer}`,
+      title: `Version ${nextVer} (Live Refinement)`,
+      summary: instruction,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      cvState: JSON.parse(JSON.stringify(locked)),
+      bulletsCount: locked.experiences?.flatMap(e => e.bullets)?.length || 0
+    };
+
+    setVersionHistory(prev => [...prev, newVersionSnapshot]);
+    setCurrentCvState(JSON.parse(JSON.stringify(locked)));
+    setCurrentVersion(nextVer);
+
+    return { success: true, section: plan?.operations?.[0]?.targetSection || 'general' };
+  };
+
+  // Persona 2: Handle Fresh CV Completion
+  const handleFreshCvCompleted = (freshResume) => {
+    setSourceResume(freshResume);
+    setCurrentCvState(freshResume);
+    const initialSnapshot = {
+      version: 1,
+      id: 'v1',
+      title: 'Version 1 (AI Assembled Fresh CV)',
+      summary: 'Initial fresh candidate profile generated via AI Guided Builder',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      cvState: JSON.parse(JSON.stringify(freshResume)),
+      bulletsCount: freshResume.experiences?.flatMap(e => e.bullets)?.length || 0
+    };
+    setVersionHistory([initialSnapshot]);
+    setCurrentVersion(1);
+    setSelectedTemplateId('tech-developer');
+    setHomeMode('upload');
+    setScreen(7); // Jump directly to Studio
+  };
+
+  // Persona 3: Handle JD Tailoring Completion
+  const handleJdTailoringCompleted = (tailoredResume) => {
+    const nextVer = versionHistory.length + 1;
+    const newSnapshot = {
+      version: nextVer,
+      id: `v${nextVer}`,
+      title: `Version ${nextVer} (JD Tailored)`,
+      summary: 'Optimized for Target Job Description with high-impact ATS keywords',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      cvState: JSON.parse(JSON.stringify(tailoredResume)),
+      bulletsCount: tailoredResume.experiences?.flatMap(e => e.bullets)?.length || 0
+    };
+    setVersionHistory(prev => [...prev, newSnapshot]);
+    setCurrentCvState(JSON.parse(JSON.stringify(tailoredResume)));
+    setCurrentVersion(nextVer);
+    setHomeMode('upload');
+    setScreen(7);
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
       {/* Top Navbar */}
@@ -390,57 +459,120 @@ export default function App() {
           </div>
         )}
 
-        {/* SCREEN 1: UPLOAD CANDIDATE CV */}
-        {currentScreen === 1 && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 md:p-12 shadow-2xl flex flex-col items-center justify-center text-center gap-6 max-w-2xl mx-auto my-8">
-            <div className="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 mb-2">
-              <Upload className="w-8 h-8" />
-            </div>
+        {/* SCREEN 1: TRI-MODE ENTERPRISE HUB (HUBAHU UPLOAD, FRESH BUILDER, JD TAILOR) */}
+        {currentScreen === 1 && homeMode === 'fresh' && (
+          <FreshCvBuilder 
+            onComplete={handleFreshCvCompleted}
+            onCancel={() => setHomeMode('upload')}
+          />
+        )}
 
-            <div>
-              <h2 className="text-xl font-bold text-white mb-2">Screen 1 — Upload Your Existing CV</h2>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Supports PDF, DOCX, PNG, or JPG formats up to 25 MB. Any candidate CV will be dynamically parsed into immutable <code>SOURCE_CV_MASTER</code>.
-              </p>
-            </div>
+        {currentScreen === 1 && homeMode === 'jd' && (
+          <JdOptimizer 
+            currentResume={currentCvState || sourceResume || ROHIT_ORIGINAL_RESUME}
+            onApplyOptimization={handleJdTailoringCompleted}
+            onCancel={() => setHomeMode('upload')}
+          />
+        )}
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <label className="cursor-pointer bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-6 py-3 rounded-xl shadow-lg shadow-sky-500/25 flex items-center gap-2 transition">
-                <Upload className="w-4 h-4" />
-                <span>Upload Candidate CV (PDF / DOCX / TXT)</span>
-                <input type="file" accept=".pdf,.docx,.txt,.png,.jpg" onChange={handleProductionFileUpload} className="hidden" />
-              </label>
-
-              <button
-                onClick={handleLoadRohitDemoFixture}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-6 py-3 rounded-xl border border-slate-700 flex items-center gap-2 transition cursor-pointer"
+        {currentScreen === 1 && homeMode === 'upload' && (
+          <div className="flex flex-col gap-6 max-w-4xl mx-auto my-4">
+            {/* 3-Persona Mode Switcher Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div 
+                onClick={() => setHomeMode('upload')}
+                className="bg-sky-950/40 border-2 border-sky-500 rounded-xl p-4 shadow-lg flex flex-col gap-1.5 cursor-pointer"
               >
-                <RefreshCw className="w-4 h-4 text-sky-400" />
-                <span>Load Demo Test Fixture</span>
-              </button>
+                <div className="flex items-center gap-2 text-sky-400">
+                  <Upload className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Persona 1</span>
+                </div>
+                <h3 className="text-sm font-bold text-white">Update Existing CV (Hubahu)</h3>
+                <p className="text-[11px] text-slate-400">
+                  Exact layout, sidebar & color preserve karke in-place edits karein.
+                </p>
+              </div>
+
+              <div 
+                onClick={() => setHomeMode('fresh')}
+                className="bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-xl p-4 shadow transition flex flex-col gap-1.5 cursor-pointer"
+              >
+                <div className="flex items-center gap-2 text-purple-400">
+                  <Wand2 className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Persona 2</span>
+                </div>
+                <h3 className="text-sm font-bold text-white">Build Fresh CV with AI Guide</h3>
+                <p className="text-[11px] text-slate-400">
+                  Naye candidates ke liye 3-minute conversational assistant.
+                </p>
+              </div>
+
+              <div 
+                onClick={() => setHomeMode('jd')}
+                className="bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-xl p-4 shadow transition flex flex-col gap-1.5 cursor-pointer"
+              >
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <Target className="w-4 h-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Persona 3</span>
+                </div>
+                <h3 className="text-sm font-bold text-white">Tailor to Job Description (JD)</h3>
+                <p className="text-[11px] text-slate-400">
+                  Job Description paste karke 95%+ ATS keyword boost paayein.
+                </p>
+              </div>
             </div>
 
-            {/* 4-Step Concise User Guidance */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-2xl mt-2 text-left">
-              <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
-                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 1</span>
-                <span className="text-xs text-slate-200 font-semibold block">Upload CV</span>
-                <span className="text-[11px] text-slate-400">PDF, DOCX, or TXT</span>
+            {/* Persona 1 Upload Area */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 md:p-10 shadow-2xl flex flex-col items-center justify-center text-center gap-6">
+              <div className="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                <Upload className="w-8 h-8" />
               </div>
-              <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
-                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 2</span>
-                <span className="text-xs text-slate-200 font-semibold block">Describe Change</span>
-                <span className="text-[11px] text-slate-400">Plain English/Hinglish</span>
+
+              <div>
+                <h2 className="text-xl font-bold text-white mb-1.5">Upload Your Existing CV for 100% Hubahu Editing</h2>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  PDF, DOCX, TXT formats up to 25 MB. Dynamic spatial column decomposition guarantees zero layout disruption.
+                </p>
               </div>
-              <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
-                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 3</span>
-                <span className="text-xs text-slate-200 font-semibold block">Review Plan</span>
-                <span className="text-[11px] text-slate-400">Inspect & approve edits</span>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <label className="cursor-pointer bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-6 py-3 rounded-xl shadow-lg shadow-sky-500/25 flex items-center gap-2 transition">
+                  <Upload className="w-4 h-4" />
+                  <span>Upload Candidate CV (PDF / DOCX / TXT)</span>
+                  <input type="file" accept=".pdf,.docx,.txt,.png,.jpg" onChange={handleProductionFileUpload} className="hidden" />
+                </label>
+
+                <button
+                  onClick={handleLoadRohitDemoFixture}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-6 py-3 rounded-xl border border-slate-700 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4 text-sky-400" />
+                  <span>Load Demo Test Fixture</span>
+                </button>
               </div>
-              <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
-                <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 4</span>
-                <span className="text-xs text-slate-200 font-semibold block">Export CV</span>
-                <span className="text-[11px] text-slate-400">Download PDF/DOCX</span>
+
+              {/* 4-Step Concise User Guidance */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mt-2 text-left">
+                <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 1</span>
+                  <span className="text-xs text-slate-200 font-semibold block">Ditto Parsing</span>
+                  <span className="text-[11px] text-slate-400">Spatial multi-column</span>
+                </div>
+                <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 2</span>
+                  <span className="text-xs text-slate-200 font-semibold block">Describe Change</span>
+                  <span className="text-[11px] text-slate-400">Hinglish / English</span>
+                </div>
+                <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 3</span>
+                  <span className="text-xs text-slate-200 font-semibold block">Live Studio</span>
+                  <span className="text-[11px] text-slate-400">Split-screen refine</span>
+                </div>
+                <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 4</span>
+                  <span className="text-xs text-slate-200 font-semibold block">WYSIWYG Export</span>
+                  <span className="text-[11px] text-slate-400">Vector PDF & DOCX</span>
+                </div>
               </div>
             </div>
           </div>
@@ -526,8 +658,17 @@ export default function App() {
 
             {/* Studio Header Toolbar */}
             <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap justify-between items-center gap-4">
-              {/* Tab Selector: Split / Source / Updated */}
+              {/* Tab Selector: Interactive Studio / Split / Source / Updated */}
               <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <button
+                  onClick={() => setActiveTab('interactive')}
+                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
+                    activeTab === 'interactive' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Interactive Studio (Live AI)
+                </button>
                 <button
                   onClick={() => setActiveTab('split')}
                   className={`text-xs px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
@@ -593,7 +734,23 @@ export default function App() {
               </div>
             </div>
 
+            {/* Interactive Live Studio View */}
+            {activeTab === 'interactive' && (
+              <InteractiveLiveStudio 
+                resume={currentCvState}
+                sourceResume={sourceResume}
+                currentVersion={currentVersion}
+                selectedTemplateId={selectedTemplateId}
+                onSelectTemplate={setSelectedTemplateId}
+                onApplyRefinement={handleApplyLiveRefinement}
+                onRollback={handleRollbackVersion}
+                onStartNewCv={handleClearSession}
+                versionHistory={versionHistory}
+              />
+            )}
+
             {/* Resume Split Studio View */}
+            {activeTab !== 'interactive' && (
             <div className={`grid gap-6 ${activeTab === 'split' ? 'grid-cols-1 xl:grid-cols-2' : 'grid-cols-1'}`}>
               {(activeTab === 'split' || activeTab === 'source') && (
                 <div className="flex flex-col gap-2">
@@ -630,6 +787,7 @@ export default function App() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Bottom Stepper to Screen 8 */}
             <div className="flex justify-between items-center pt-4 border-t border-slate-850">
