@@ -24,6 +24,7 @@ import { exportResumeToDocx } from './utils/docxExporter';
 import InteractiveLiveStudio from './components/InteractiveLiveStudio';
 import FreshCvBuilder from './components/FreshCvBuilder';
 import JdOptimizer from './components/JdOptimizer';
+import { DEFAULT_DESIGN_THEME } from './data/themePresets';
 import { Download, Printer, FileText, Sparkles, Columns, RefreshCw, Upload, Edit3, RotateCcw, AlertTriangle, CheckCircle2, Trash2, Target, Wand2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -42,6 +43,7 @@ export default function App() {
   
   // Presentation State (P1.2 Multi-Template Engine)
   const [selectedTemplateId, setSelectedTemplateId] = useState('source-template');
+  const [designTheme, setDesignTheme] = useState(DEFAULT_DESIGN_THEME);
 
   // In-Flight Transaction Management (Rule #4 & #5)
   const [promptText, setPromptText] = useState("");
@@ -749,6 +751,8 @@ export default function App() {
                 onRollback={handleRollbackVersion}
                 onStartNewCv={handleClearSession}
                 versionHistory={versionHistory}
+                designTheme={designTheme}
+                onUpdateDesignTheme={setDesignTheme}
               />
             )}
 
@@ -767,7 +771,7 @@ export default function App() {
                     </span>
                   </div>
                   <div id="preview-resume-source" className="bg-white rounded-lg shadow-2xl overflow-hidden border border-slate-800 text-slate-900">
-                    <ResumeDocument resume={sourceResume} isUpdated={false} templateId={selectedTemplateId} />
+                    <ResumeDocument resume={sourceResume} isUpdated={false} templateId={selectedTemplateId} theme={designTheme} />
                   </div>
                 </div>
               )}
@@ -785,7 +789,7 @@ export default function App() {
                     </span>
                   </div>
                   <div id="preview-resume-updated" className="bg-white rounded-lg shadow-2xl overflow-hidden border-2 border-sky-500/50 shadow-sky-500/10 text-slate-900">
-                    <ResumeDocument resume={currentCvState} isUpdated={true} templateId={selectedTemplateId} />
+                    <ResumeDocument resume={currentCvState} isUpdated={true} templateId={selectedTemplateId} theme={designTheme} />
                   </div>
                 </div>
               )}
@@ -820,6 +824,7 @@ export default function App() {
             onStartNew={handleClearSession}
             selectedTemplateId={selectedTemplateId}
             onSelectTemplate={setSelectedTemplateId}
+            theme={designTheme}
           />
         )}
       </main>

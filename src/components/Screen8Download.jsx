@@ -10,7 +10,8 @@ export default function Screen8Download({
   currentVersion = 1, 
   onStartNew,
   selectedTemplateId = 'dual-column',
-  onSelectTemplate
+  onSelectTemplate,
+  theme = null
 }) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingDocx, setIsGeneratingDocx] = useState(false);
@@ -151,6 +152,7 @@ export default function Screen8Download({
             resume={updatedResume} 
             id="preview-resume-updated-screen8" 
             templateId={selectedTemplateId}
+            theme={theme}
           />
         </div>
       </div>

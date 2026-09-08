@@ -29,6 +29,38 @@ export const RESUME_TEMPLATES_CATALOG = [
     layout: 'dynamic'
   },
 
+  // 1.1 DESIGNED DUAL-COLUMN & MODERN CREATIVE (User Requested Designer Showcase)
+  {
+    id: 'designer-dual',
+    name: 'Modern Executive Dual-Column',
+    category: 'Dual-Column',
+    tags: ['All', 'ATS Friendly', 'Executive', 'Creative'],
+    badge: '★ Designed 2-Column',
+    description: 'Ultra-modern 2-column layout with executive monogram badge, colored sidebar, timeline experience, and live project cards.',
+    accent: '#0284c7',
+    layout: 'dual'
+  },
+  {
+    id: 'designer-sidebar-pro',
+    name: 'Creative Designer Split-Pro',
+    category: 'Creative',
+    tags: ['All', 'Creative', 'Tech & AI'],
+    badge: 'Creative Portfolio',
+    description: 'Designer aesthetics with custom color themes, skills matrix chips, and modern typography hierarchy.',
+    accent: '#7c3aed',
+    layout: 'dual'
+  },
+  {
+    id: 'aurora-executive',
+    name: 'Aurora Modern 2-Column',
+    category: 'Dual-Column',
+    tags: ['All', 'Executive', '1-Page Fit'],
+    badge: 'High-Conversion',
+    description: 'Sleek dark/light contrast with soft tint summary card, achievement highlights, and responsive column flow.',
+    accent: '#059669',
+    layout: 'dual'
+  },
+
   // 2. TECH & AI SPECIALISTS (Vibe Coding & Full Stack)
   {
     id: 'tech-developer',
