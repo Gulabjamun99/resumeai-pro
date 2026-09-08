@@ -145,8 +145,8 @@ export default function Screen8Download({
       </div>
 
       {/* Visible Vector Document Preview */}
-      <div className="w-full bg-slate-950/70 border border-slate-800 rounded-xl p-4 overflow-x-auto my-3 flex justify-center shadow-inner">
-        <div className="bg-white rounded shadow-2xl overflow-hidden text-slate-900 border border-slate-300">
+      <div className="w-full bg-slate-950/70 border border-slate-800 rounded-xl p-4 overflow-x-auto my-3 flex justify-center shadow-inner text-left">
+        <div className="bg-white rounded shadow-2xl overflow-hidden text-slate-900 border border-slate-300 text-left">
           <ResumeDocument 
             resume={updatedResume} 
             id="preview-resume-updated-screen8" 

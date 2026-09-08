@@ -57,9 +57,19 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
 
   // 5. EXISTING WORK EXPERIENCE LOCKS
   // Ensure that all existing job roles, original dates, and companies from sourceMaster remain immutable
-  // (unless explicitly authorized by the user)
+  // (unless explicitly authorized by the user or deleted)
+  const deletedCompanies = (changePlan?.authorizedChanges || [])
+    .filter(c => c.field === 'experiences.deleted')
+    .map(c => (c.value || '').toLowerCase());
+
   if (Array.isArray(master.experiences) && Array.isArray(output.experiences)) {
     master.experiences.forEach((sourceExp, expIdx) => {
+      const sourceCompLower = (sourceExp.company || '').toLowerCase();
+      // Skip if this company was explicitly deleted by the user
+      if (deletedCompanies.some(d => sourceCompLower.includes(d) || d.includes(sourceCompLower))) {
+        return;
+      }
+
       const targetExp = output.experiences.find(e => 
         (sourceExp.id && e.id === sourceExp.id) || 
         (e.role === sourceExp.role && e.company === sourceExp.company) ||
@@ -89,6 +99,18 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
           });
         }
       }
+    });
+  }
+
+  // 5.1 PROJECTS DELETION ENFORCEMENT
+  const deletedProjects = (changePlan?.authorizedChanges || [])
+    .filter(c => c.field === 'projects.deleted')
+    .map(c => (c.value || '').toLowerCase());
+
+  if (deletedProjects.length > 0 && Array.isArray(output.projects)) {
+    output.projects = output.projects.filter(p => {
+      const titleLower = (p.title || p.name || '').toLowerCase();
+      return !deletedProjects.some(d => titleLower.includes(d) || d.includes(titleLower));
     });
   }
 

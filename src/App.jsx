@@ -343,8 +343,9 @@ export default function App() {
     if (!currentCvState) return { success: false };
 
     const plan = parseUserIntentToChangePlan(instruction, currentCvState, sourceResume);
-    const updated = executeChangePlan(currentCvState, plan);
-    const locked = enforceContentLocks(sourceResume || currentCvState, updated, plan);
+    const { proposedCv } = executeChangePlan(currentCvState, plan);
+    const locked = enforceContentLocks(sourceResume || currentCvState, currentCvState, proposedCv, plan);
+    const finalCv = locked || proposedCv || currentCvState;
 
     const nextVer = versionHistory.length + 1;
     const newVersionSnapshot = {
@@ -353,12 +354,12 @@ export default function App() {
       title: `Version ${nextVer} (Live Refinement)`,
       summary: instruction,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      cvState: JSON.parse(JSON.stringify(locked)),
-      bulletsCount: locked.experiences?.flatMap(e => e.bullets)?.length || 0
+      cvState: JSON.parse(JSON.stringify(finalCv)),
+      bulletsCount: finalCv.experiences?.flatMap(e => e.bullets)?.length || 0
     };
 
     setVersionHistory(prev => [...prev, newVersionSnapshot]);
-    setCurrentCvState(JSON.parse(JSON.stringify(locked)));
+    setCurrentCvState(JSON.parse(JSON.stringify(finalCv)));
     setCurrentVersion(nextVer);
 
     return { success: true, section: plan?.operations?.[0]?.targetSection || 'general' };
@@ -647,14 +648,16 @@ export default function App() {
               onMakeChange={handleMakeAnotherChange}
             />
 
-            {/* Template Selector Card (P1.2 Multi-Template Engine) */}
-            <TemplateSelector 
-              selectedTemplateId={selectedTemplateId}
-              onSelectTemplate={setSelectedTemplateId}
-            />
-
-            {/* Granular ATS Health & Diagnostic Scorecard (P1.3 Directive) */}
-            <AtsScorecardPanel resume={currentCvState} />
+            {/* Show top Template Selector and Scorecard only in Side-by-Side comparison mode */}
+            {activeTab !== 'interactive' && (
+              <>
+                <TemplateSelector 
+                  selectedTemplateId={selectedTemplateId}
+                  onSelectTemplate={setSelectedTemplateId}
+                />
+                <AtsScorecardPanel resume={currentCvState} />
+              </>
+            )}
 
             {/* Studio Header Toolbar */}
             <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap justify-between items-center gap-4">

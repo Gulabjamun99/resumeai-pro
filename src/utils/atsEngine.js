@@ -178,6 +178,50 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     targetSections.add('summary');
   }
 
+  // 3.1 DELETE / REMOVE EXPERIENCE & PROJECTS (e.g. "delete nathcorp", "remove Pulse Solutions", "nathcorp wala experience delete karo")
+  const isDeleteIntent = lower.includes('delete') || lower.includes('remove') || lower.includes('hata');
+  let deletedAny = false;
+  if (isDeleteIntent) {
+    const dynamicCompanies = (currentCvState?.experiences || []).map(e => (e.company || '').toLowerCase()).filter(c => c.length > 2);
+    const knownCompanies = ['nathcorp', 'pulse solutions', 'pulse', 'execo', 'infogain', 'seewe', 'indigenous', 'independent', ...dynamicCompanies];
+    const uniqueCompanies = Array.from(new Set(knownCompanies));
+
+    for (const comp of uniqueCompanies) {
+      if (comp.length >= 3 && lower.includes(comp)) {
+        operations.push({
+          id: `op-del-exp-${comp.replace(/[^a-z0-9]/g, '-')}-${Date.now()}`,
+          operation: 'DELETE_EXPERIENCE',
+          section: 'experience',
+          targetCompany: comp,
+          description: `Delete experience entry for "${comp}"`
+        });
+        authorizedChanges.push({ field: 'experiences.deleted', value: comp, authorization: 'USER_EXPLICIT' });
+        targetSections.add('experience');
+        deletedAny = true;
+      }
+    }
+
+    // Check for project deletion (e.g. "delete jyotish connect", "turtleping hata do")
+    const dynamicProjects = (currentCvState?.projects || []).map(p => (p.title || p.name || '').toLowerCase()).filter(t => t.length > 2);
+    const knownProjects = ['jyotish connect', 'turtleping', 'mausam veda', 'kharcha book', 'gharmantra', 'smartscanner', ...dynamicProjects];
+    const uniqueProjects = Array.from(new Set(knownProjects));
+
+    for (const proj of uniqueProjects) {
+      if (proj.length >= 3 && lower.includes(proj)) {
+        operations.push({
+          id: `op-del-proj-${proj.replace(/[^a-z0-9]/g, '-')}-${Date.now()}`,
+          operation: 'DELETE_PROJECT',
+          section: 'projects',
+          targetProject: proj,
+          description: `Delete project card "${proj}"`
+        });
+        authorizedChanges.push({ field: 'projects.deleted', value: proj, authorization: 'USER_EXPLICIT' });
+        targetSections.add('projects');
+        deletedAny = true;
+      }
+    }
+  }
+
   // 4. SKILLS OPERATIONS (ADD / REMOVE / REPLACE)
   // e.g. "Add AWS and remove Java", "Skills me Python add karo", "Remove old skills"
   const addSkillMatch = rawText.match(/add\s+(?:skills?|technolog(?:y|ies))?\s*[:"']?([^,.]+?)(?:(?:\s+and\s+remove|\s+aur|\s+remove)|$)/i) ||
@@ -218,11 +262,13 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
 
   // 5. DYNAMIC EXPERIENCE, PROJECTS, TOOLS & ROLE OPERATIONS
   const lowerPrompt = lower;
-  const hasExperienceIntent = lowerPrompt.includes('experience') || lowerPrompt.includes('consult') || lowerPrompt.includes('freelance') ||
-                              lowerPrompt.includes('job') || lowerPrompt.includes('role') || lowerPrompt.includes('2025') || lowerPrompt.includes('2024') ||
-                              lowerPrompt.includes('worked') || lowerPrompt.includes('antigravity') || lowerPrompt.includes('ai agent') ||
-                              lowerPrompt.includes('vibe coding') || lowerPrompt.includes('vide coding') || lowerPrompt.includes('ai tools') ||
-                              lowerPrompt.includes('product banaya') || lowerPrompt.includes('apps') || lowerPrompt.includes('live hai');
+  const hasExperienceIntent = !deletedAny && !isDeleteIntent && (
+    lowerPrompt.includes('experience') || lowerPrompt.includes('consult') || lowerPrompt.includes('freelance') ||
+    lowerPrompt.includes('job') || lowerPrompt.includes('role') || lowerPrompt.includes('2025') || lowerPrompt.includes('2024') ||
+    lowerPrompt.includes('worked') || lowerPrompt.includes('antigravity') || lowerPrompt.includes('ai agent') ||
+    lowerPrompt.includes('vibe coding') || lowerPrompt.includes('vide coding') || lowerPrompt.includes('ai tools') ||
+    lowerPrompt.includes('product banaya') || lowerPrompt.includes('apps') || lowerPrompt.includes('live hai')
+  );
 
   if (hasExperienceIntent && !operations.some(op => op.section === 'headline' && operations.length === 1)) {
     // Dynamic entity extraction for modern AI, engineering, and domain requests
@@ -634,6 +680,39 @@ export function executeChangePlan(currentCvState, changePlan) {
             proposedCv.projects.push(newProjEntity);
             appliedOperations.push(op);
             requestedFacts.push(`Added Project: "${newProjEntity.title}"`);
+          }
+        }
+        break;
+      }
+
+      case 'DELETE_EXPERIENCE': {
+        if (proposedCv.experiences && op.targetCompany) {
+          const targetLower = op.targetCompany.toLowerCase();
+          const countBefore = proposedCv.experiences.length;
+          proposedCv.experiences = proposedCv.experiences.filter(exp => {
+            const comp = (exp.company || '').toLowerCase();
+            const role = (exp.role || '').toLowerCase();
+            return !comp.includes(targetLower) && !targetLower.includes(comp) && !role.includes(targetLower);
+          });
+          if (proposedCv.experiences.length < countBefore) {
+            appliedOperations.push(op);
+            requestedFacts.push(op.description || `Removed experience "${op.targetCompany}"`);
+          }
+        }
+        break;
+      }
+
+      case 'DELETE_PROJECT': {
+        if (proposedCv.projects && op.targetProject) {
+          const targetLower = op.targetProject.toLowerCase();
+          const countBefore = proposedCv.projects.length;
+          proposedCv.projects = proposedCv.projects.filter(p => {
+            const title = (p.title || p.name || '').toLowerCase();
+            return !title.includes(targetLower) && !targetLower.includes(title);
+          });
+          if (proposedCv.projects.length < countBefore) {
+            appliedOperations.push(op);
+            requestedFacts.push(op.description || `Removed project "${op.targetProject}"`);
           }
         }
         break;

@@ -78,7 +78,8 @@ export async function exportResumeToPdf(elementId, candidateName = 'Candidate', 
         clonedElement.style.maxWidth = '794px';
         clonedElement.style.minWidth = '794px';
         clonedElement.style.margin = '0 auto';
-        clonedElement.style.padding = '36px 44px';
+        clonedElement.style.padding = '0';
+        clonedElement.style.textAlign = 'left';
         clonedElement.style.boxSizing = 'border-box';
         clonedElement.style.transform = 'none';
 

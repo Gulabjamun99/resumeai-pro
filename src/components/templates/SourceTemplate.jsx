@@ -36,7 +36,7 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
     return (
       <div
         id={id}
-        className="bg-white text-slate-900 shadow-2xl mx-auto flex flex-col md:flex-row font-sans transition-all duration-300 print:shadow-none print:m-0"
+        className="bg-white text-slate-900 shadow-2xl mx-auto flex flex-row text-left font-sans transition-all duration-300 print:shadow-none print:m-0"
         style={{
           width: '100%',
           maxWidth: '820px',
@@ -45,7 +45,7 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
         }}
       >
         {/* LEFT SIDEBAR COLUMN */}
-        <aside className="w-full md:w-[32%] bg-[#0f172a] text-slate-100 p-5 sm:p-6 flex flex-col gap-4.5 print:bg-[#0f172a] print:text-white shrink-0">
+        <aside className="w-[32%] min-w-[230px] bg-[#0f172a] text-slate-100 p-5 sm:p-6 flex flex-col gap-4.5 print:bg-[#0f172a] print:text-white shrink-0 text-left">
           {/* Contact Section */}
           <section>
             <h2 className="text-[11px] font-bold tracking-widest text-sky-400 uppercase border-b border-slate-700/80 pb-1 mb-2.5">
@@ -194,7 +194,7 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
         </aside>
 
         {/* RIGHT MAIN CONTENT AREA */}
-        <main className="w-full md:w-[68%] p-6 sm:p-7 flex flex-col gap-4.5 bg-white">
+        <main className="flex-1 p-6 sm:p-7 flex flex-col gap-4.5 bg-white text-left">
           {/* Header */}
           <header className="border-b border-slate-200 pb-2.5">
             <h1 className="text-2xl sm:text-[26px] font-black tracking-tight text-slate-950 uppercase leading-none">
