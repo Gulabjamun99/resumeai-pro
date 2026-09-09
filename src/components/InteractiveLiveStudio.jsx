@@ -3,7 +3,7 @@ import {
   Sparkles, Send, RotateCcw, Download, FileText, CheckCircle2, 
   Eye, RefreshCw, ZoomIn, ZoomOut, Layout, MessageSquare, 
   ShieldCheck, Filter, Check, Trash2, Edit3, Palette, Sliders, 
-  Type, Columns, AlignLeft, ArrowRight, ArrowLeft, Maximize2, 
+  Type, Columns, AlignLeft, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Maximize2, 
   Minimize2, CheckCheck, AlertCircle, PlusCircle, MinusCircle, Flame 
 } from 'lucide-react';
 import ResumeDocument from './ResumeDocument';
@@ -66,6 +66,28 @@ export default function InteractiveLiveStudio({
   ]);
 
   const chatEndRef = useRef(null);
+  const step1ScrollRef = useRef(null);
+  const step2ScrollRef = useRef(null);
+
+  const scrollToBottom = (phase) => {
+    const targetRef = phase === 'content' ? step1ScrollRef : step2ScrollRef;
+    if (targetRef.current) {
+      targetRef.current.scrollTo({
+        top: targetRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const scrollToTop = (phase) => {
+    const targetRef = phase === 'content' ? step1ScrollRef : step2ScrollRef;
+    if (targetRef.current) {
+      targetRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -362,7 +384,7 @@ export default function InteractiveLiveStudio({
       {studioPhase === 'content' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           {/* Left Pane (Col 5 / 40%): AI Edit Assistant */}
-          <div className="lg:col-span-5 flex flex-col bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden h-[860px]">
+          <div className="lg:col-span-5 flex flex-col bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden h-[calc(100vh-230px)] min-h-[580px]">
             <div className="p-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2 text-sky-400">
                 <MessageSquare className="w-4 h-4" />
@@ -476,27 +498,53 @@ export default function InteractiveLiveStudio({
 
           {/* Right Pane (Col 7 / 60%): Complete CV Visual Preview */}
           <div className="lg:col-span-7 flex flex-col gap-2">
-            <div className="flex justify-between items-center px-1">
+            <div className="flex flex-wrap justify-between items-center px-1 gap-2">
               <span className="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Eye className="w-4 h-4 text-sky-400" />
                 Live CV Content Preview (Read & Verify Every Line)
               </span>
-              <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded-full flex items-center gap-1 font-mono">
-                <ShieldCheck className="w-3 h-3" />
-                Full Visible Parity
-              </span>
+
+              <div className="flex items-center gap-2">
+                {/* Scroll Jump Controls */}
+                <div className="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded-lg p-0.5 text-[10.5px]">
+                  <button
+                    onClick={() => scrollToTop('content')}
+                    className="px-2 py-0.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center gap-1 transition cursor-pointer"
+                    title="Scroll to Top"
+                  >
+                    <ArrowUp className="w-3 h-3 text-sky-400" />
+                    <span>Top</span>
+                  </button>
+                  <span className="text-slate-700">|</span>
+                  <button
+                    onClick={() => scrollToBottom('content')}
+                    className="px-2 py-0.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center gap-1 transition cursor-pointer"
+                    title="Scroll to Bottom"
+                  >
+                    <ArrowDown className="w-3 h-3 text-sky-400" />
+                    <span>Bottom</span>
+                  </button>
+                </div>
+
+                <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded-full flex items-center gap-1 font-mono">
+                  <ShieldCheck className="w-3 h-3" />
+                  Full Length Scrollable
+                </span>
+              </div>
             </div>
 
-            {/* Document Viewport - Auto-sized with no cutoff */}
-            <div className="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-3 sm:p-4 overflow-x-auto overflow-y-auto max-h-[860px] shadow-2xl flex justify-center text-left">
+            {/* Document Viewport - Auto-sized with no cutoff, full scrollability */}
+            <div 
+              ref={step1ScrollRef}
+              className="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-3 sm:p-4 overflow-x-auto overflow-y-auto max-h-[calc(100vh-230px)] min-h-[580px] shadow-2xl flex justify-center items-start text-left scroll-smooth"
+            >
               <div 
                 id="cockpit-preview-canvas"
                 style={{ 
-                  transform: `scale(${zoomLevel / 100})`, 
-                  transformOrigin: 'top center',
-                  transition: 'transform 0.2s ease-out' 
+                  zoom: zoomLevel / 100,
+                  transition: 'zoom 0.2s ease-out' 
                 }}
-                className="bg-white rounded shadow-2xl overflow-hidden text-slate-900 shrink-0 text-left"
+                className="bg-white rounded shadow-2xl text-slate-900 shrink-0 text-left h-auto min-h-fit"
               >
                 <ResumeDocument 
                   resume={resume} 
@@ -520,7 +568,7 @@ export default function InteractiveLiveStudio({
           {/* ========================================================
               LEFT PANE (Col 5 / 40%): 36 MODERN ATS TEMPLATES CATALOG
               ======================================================== */}
-          <div className="lg:col-span-5 flex flex-col bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden h-[860px]">
+          <div className="lg:col-span-5 flex flex-col bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden h-[calc(100vh-230px)] min-h-[580px]">
             {/* Sub-Tabs: Templates vs Styling */}
             <div className="p-2 bg-slate-950 border-b border-slate-800 flex items-center gap-1.5">
               <button
@@ -840,12 +888,33 @@ export default function InteractiveLiveStudio({
               USER DIRECTIVE: "cv right side left m change template dikhta rhega jo bhi select krega"
               ======================================================== */}
           <div className="lg:col-span-7 flex flex-col gap-2">
-            <div className="flex justify-between items-center px-1">
+            <div className="flex flex-wrap justify-between items-center px-1 gap-2">
               <span className="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Eye className="w-4 h-4 text-sky-400" />
                 Live Template Visual Preview (Updates Live on Selection)
               </span>
               <div className="flex items-center gap-2">
+                {/* Scroll Jump Controls */}
+                <div className="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded-lg p-0.5 text-[10.5px]">
+                  <button
+                    onClick={() => scrollToTop('templates')}
+                    className="px-2 py-0.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center gap-1 transition cursor-pointer"
+                    title="Scroll to Top"
+                  >
+                    <ArrowUp className="w-3 h-3 text-sky-400" />
+                    <span>Top</span>
+                  </button>
+                  <span className="text-slate-700">|</span>
+                  <button
+                    onClick={() => scrollToBottom('templates')}
+                    className="px-2 py-0.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center gap-1 transition cursor-pointer"
+                    title="Scroll to Bottom"
+                  >
+                    <ArrowDown className="w-3 h-3 text-sky-400" />
+                    <span>Bottom</span>
+                  </button>
+                </div>
+
                 <span className="text-[10px] text-purple-300 bg-purple-950/60 border border-purple-800/80 px-2 py-0.5 rounded-full font-mono">
                   Active: {RESUME_TEMPLATES_CATALOG.find(t => t.id === selectedTemplateId)?.name || selectedTemplateId}
                 </span>
@@ -856,16 +925,18 @@ export default function InteractiveLiveStudio({
               </div>
             </div>
 
-            {/* Document Viewport - Auto-sized with no cutoff */}
-            <div className="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-3 sm:p-4 overflow-x-auto overflow-y-auto max-h-[860px] shadow-2xl flex justify-center text-left">
+            {/* Document Viewport - Auto-sized with no cutoff, full scrollability */}
+            <div 
+              ref={step2ScrollRef}
+              className="w-full bg-slate-950/90 border border-slate-800 rounded-xl p-3 sm:p-4 overflow-x-auto overflow-y-auto max-h-[calc(100vh-230px)] min-h-[580px] shadow-2xl flex justify-center items-start text-left scroll-smooth"
+            >
               <div 
                 id="cockpit-preview-canvas"
                 style={{ 
-                  transform: `scale(${zoomLevel / 100})`, 
-                  transformOrigin: 'top center',
-                  transition: 'transform 0.2s ease-out' 
+                  zoom: zoomLevel / 100,
+                  transition: 'zoom 0.2s ease-out' 
                 }}
-                className="bg-white rounded shadow-2xl overflow-hidden text-slate-900 shrink-0 text-left"
+                className="bg-white rounded shadow-2xl text-slate-900 shrink-0 text-left h-auto min-h-fit"
               >
                 <ResumeDocument 
                   resume={resume} 
