@@ -350,11 +350,12 @@ export default function App() {
     const finalCv = locked || proposedCv || currentCvState;
 
     const nextVer = versionHistory.length + 1;
+    const summaryText = plan?.planSummary || instruction;
     const newVersionSnapshot = {
       version: nextVer,
       id: `v${nextVer}`,
       title: `Version ${nextVer} (Live Refinement)`,
-      summary: instruction,
+      summary: summaryText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       cvState: JSON.parse(JSON.stringify(finalCv)),
       bulletsCount: finalCv.experiences?.flatMap(e => e.bullets)?.length || 0
@@ -364,7 +365,11 @@ export default function App() {
     setCurrentCvState(JSON.parse(JSON.stringify(finalCv)));
     setCurrentVersion(nextVer);
 
-    return { success: true, section: plan?.operations?.[0]?.targetSection || 'general' };
+    return { 
+      success: true, 
+      section: plan?.operations?.[0]?.targetSection || 'general',
+      planSummary: plan?.planSummary 
+    };
   };
 
   // Persona 2: Handle Fresh CV Completion

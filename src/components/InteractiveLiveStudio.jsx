@@ -93,14 +93,6 @@ export default function InteractiveLiveStudio({
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatLog]);
 
-  const quickActionChips = [
-    { label: '🗑️ Nathcorp delete karo', prompt: 'Nathcorp wala experience delete kar do.' },
-    { label: '🗑️ Pulse Solutions delete karo', prompt: 'Pulse Solutions company ka experience remove kar do.' },
-    { label: '⚡ Summary 3 lines me concise karo', prompt: 'Executive summary ko 3 punchy, high-impact lines me concise kar do.' },
-    { label: '🚀 Projects me live apps highlight karo', prompt: 'Key projects me 6 live applications with Vercel and Supabase cloud stack highlight karo.' },
-    { label: '🛠️ Python & Antigravity skills me add karo', prompt: 'Skills me Python, Google Antigravity, aur Supabase add karo.' }
-  ];
-
   const handleSendPrompt = async (textToSend) => {
     const text = textToSend || promptInput;
     if (!text.trim() || isProcessing) return;
@@ -118,7 +110,8 @@ export default function InteractiveLiveStudio({
     try {
       if (onApplyRefinement) {
         const result = await onApplyRefinement(text.trim());
-        const aiResponseText = `Maine aapka instruction apply kar diya hai ("${text.trim()}"). Niche "Recent Changes" panel aur right side me CV preview check kijiye!`;
+        const summaryText = result?.planSummary || `Instruction "${text.trim()}" live apply ho gaya hai.`;
+        const aiResponseText = `✅ ${summaryText} Right side preview aur "Recent Changes" me update check kijiye!`;
         
         setTimeout(() => {
           setChatLog(prev => [
@@ -428,36 +421,23 @@ export default function InteractiveLiveStudio({
               <div ref={chatEndRef} />
             </div>
 
-            {/* Bottom Form & Command Chips */}
+            {/* Bottom Form & Undo Control */}
             <div className="p-3 bg-slate-950/80 border-t border-slate-800 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                  1-Click Command Chips:
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                  <span>AI Natural Language Live Editor</span>
                 </span>
-                {versionHistory.length > 1 && (
+                {versionHistory && versionHistory.length > 1 && (
                   <button
                     onClick={() => onRollback && onRollback(versionHistory.length - 1)}
-                    className="text-[10px] text-slate-400 hover:text-white flex items-center gap-1 transition cursor-pointer"
+                    className="text-[11px] text-amber-300 hover:text-amber-200 bg-amber-950/50 hover:bg-amber-900/60 px-2.5 py-1 rounded-lg border border-amber-600/40 flex items-center gap-1.5 transition cursor-pointer font-medium shadow-sm active:scale-95"
+                    title="Undo previous edit and revert to last version"
                   >
-                    <RotateCcw className="w-2.5 h-2.5" />
-                    <span>Undo Last Edit</span>
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Undo Last Edit (v{currentVersion})</span>
                   </button>
                 )}
-              </div>
-
-              {/* Chips */}
-              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                {quickActionChips.map((chip, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSendPrompt(chip.prompt)}
-                    disabled={isProcessing}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10.5px] px-2.5 py-1 rounded-lg border border-slate-700 transition flex items-center gap-1 cursor-pointer shrink-0 disabled:opacity-50"
-                  >
-                    <span>{chip.label}</span>
-                  </button>
-                ))}
               </div>
 
               {/* Input Form */}
@@ -466,13 +446,13 @@ export default function InteractiveLiveStudio({
                   e.preventDefault();
                   handleSendPrompt();
                 }}
-                className="relative mt-1"
+                className="relative mt-0.5"
               >
                 <input
                   type="text"
                   value={promptInput}
                   onChange={(e) => setPromptInput(e.target.value)}
-                  placeholder="e.g. 'Nathcorp delete karo' ya 'Python add karo'..."
+                  placeholder="Type any edit (e.g. 'Name change karke Rahul kar do', 'Skills me Docker add karo', 'Execo delete karo')..."
                   disabled={isProcessing}
                   className="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-500 rounded-xl pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition disabled:opacity-50"
                 />

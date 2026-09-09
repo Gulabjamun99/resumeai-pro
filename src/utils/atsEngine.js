@@ -102,10 +102,32 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     };
   }
 
+  // 0. CANDIDATE NAME DETECTION
+  // e.g. "Name change karke Rahul Kumar kar do", "mera naam Amit Sharma hai", "Change name to Rahul", "Rohit Kumar ki jagah Rahul Sharma likho"
+  const nameMatch = rawText.match(/(?:change\s*name\s*to|update\s*name\s*to|set\s*name\s*to)\s*[:"']?([A-Za-z\s.'-]{2,40})/i) ||
+                    rawText.match(/(?:name|naam)\s*(?:ko|to|change\s*karke|badal\s*ke|is|as|:)?\s*[:"']?([A-Za-z\s.'-]{2,40})(?:\s*kar\s*do|\s*likho|\s*rakho|\s*bana\s*do|$)/i) ||
+                    rawText.match(/mera\s*naam\s*([A-Za-z\s.'-]{2,40})\s*(?:hai|kar\s*do)/i);
+  if (nameMatch && nameMatch[1] && !lower.includes('company') && !lower.includes('experience') && !lower.includes('college') && !lower.includes('skill')) {
+    let nameVal = nameMatch[1].replace(/^(ko|to|karke|as|is|likho|rakho)\s+/i, '').trim();
+    nameVal = nameVal.replace(/\s+(kar\s*do|likho|rakho|bana\s*do|hai|aur|and)$/i, '').trim();
+    if (nameVal.length >= 2 && !['change', 'karo', 'do', 'update'].includes(nameVal.toLowerCase())) {
+      operations.push({
+        id: `op-name-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'header',
+        field: 'header.name',
+        requestedValue: nameVal,
+        description: `Update Candidate Name to: "${nameVal}"`
+      });
+      authorizedChanges.push({ field: 'header.name', value: nameVal, authorization: 'USER_EXPLICIT' });
+      targetSections.add('header');
+    }
+  }
+
   // 1. HEADLINE / TITLE DETECTION
   // e.g. "Headline ko AI-Driven Talent Acquisition Specialist kar do", "Change headline to Senior Product Manager", "Title change karo"
   const headlineMatch = rawText.match(/(?:headline|title|designation)\s*(?:ko|to|change\s*karke|as|is)?\s*[:"']?([^"',.\n]+?)(?:["']|\s*kar\s*do|\s*bana\s*do|\s*rakho|\s*aur|\s*and|$)/i);
-  if (headlineMatch && headlineMatch[1] && !lower.includes('experience') && !lower.includes('job')) {
+  if (headlineMatch && headlineMatch[1] && !lower.includes('experience') && !lower.includes('job') && !lower.includes('name')) {
     const val = headlineMatch[1].replace(/^(ko|to|karke|as|is)\s+/i, '').trim();
     if (val.length > 2) {
       operations.push({
@@ -118,6 +140,31 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
       });
       authorizedChanges.push({ field: 'header.title', value: val, authorization: 'USER_EXPLICIT' });
       targetSections.add('headline');
+    }
+  }
+
+  // 1.5 LOCATION / CITY / ADDRESS DETECTION
+  // e.g. "location Bangalore ko Mumbai kar do", "City change karke Pune kar do", "Location: Delhi NCR"
+  const locationMatch = rawText.match(/(?:location|city|address|shahar|shehar)\s*(?:ko|to|change\s*karke|badal\s*ke|is|as|:)?\s*[:"']?([A-Za-z0-9\s,.'-]{2,40})(?:\s*kar\s*do|\s*likho|\s*rakho|\s*bana\s*do|$)/i) ||
+                        rawText.match(/(?:change\s*location\s*to|move\s*to)\s*[:"']?([A-Za-z0-9\s,.'-]{2,40})/i);
+  if (locationMatch && locationMatch[1]) {
+    let locVal = locationMatch[1].replace(/^(ko|to|karke|as|is|from)\s+/i, '').trim();
+    if (locVal.includes(' ko ') || locVal.includes(' se ')) {
+      locVal = locVal.split(/\s+(?:ko|se)\s+/i).pop().trim();
+    }
+    locVal = locVal.replace(/\s+(kar\s*do|likho|rakho|bana\s*do|hai|aur|and)$/i, '').trim();
+    if (locVal.length >= 2 && !['change', 'karo', 'do', 'update'].includes(locVal.toLowerCase())) {
+      operations.push({
+        id: `op-location-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'contact',
+        field: 'contact.location',
+        requestedValue: locVal,
+        description: `Update Location to: "${locVal}"`
+      });
+      authorizedChanges.push({ field: 'contact.location', value: locVal, authorization: 'USER_EXPLICIT' });
+      authorizedChanges.push({ field: 'contact.address', value: locVal, authorization: 'USER_EXPLICIT' });
+      targetSections.add('contact');
     }
   }
 
@@ -178,18 +225,42 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     targetSections.add('summary');
   }
 
-  // 3.1 DELETE / REMOVE EXPERIENCE & PROJECTS (e.g. "delete nathcorp", "remove Pulse Solutions", "nathcorp wala experience delete karo")
-  const isDeleteIntent = lower.includes('delete') || lower.includes('remove') || lower.includes('hata');
+  // 3.1 DELETE / REMOVE EXPERIENCE & PROJECTS (Dynamic token-based matching across ALL candidate experiences)
+  const isDeleteIntent = lower.includes('delete') || lower.includes('remove') || lower.includes('hata') || lower.includes('nikal');
   let deletedAny = false;
   if (isDeleteIntent) {
-    const dynamicCompanies = (currentCvState?.experiences || []).map(e => (e.company || '').toLowerCase()).filter(c => c.length > 2);
-    const knownCompanies = ['nathcorp', 'pulse solutions', 'pulse', 'execo', 'infogain', 'seewe', 'indigenous', 'independent', ...dynamicCompanies];
-    const uniqueCompanies = Array.from(new Set(knownCompanies));
+    const currentExperiences = currentCvState?.experiences || sourceMaster?.experiences || [];
+    currentExperiences.forEach(exp => {
+      const fullComp = (exp.company || '').toLowerCase();
+      const fullRole = (exp.role || '').toLowerCase();
+      const compTokens = fullComp.split(/[\s,().-]+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'technologies'].includes(t));
 
-    for (const comp of uniqueCompanies) {
-      if (comp.length >= 3 && lower.includes(comp)) {
+      const isMatched = compTokens.some(tok => lower.includes(tok)) ||
+                        (fullComp.length >= 3 && lower.includes(fullComp)) ||
+                        (fullRole.length >= 4 && lower.includes(fullRole));
+
+      if (isMatched) {
         operations.push({
-          id: `op-del-exp-${comp.replace(/[^a-z0-9]/g, '-')}-${Date.now()}`,
+          id: `op-del-exp-${exp.id || exp.company}-${Date.now()}`,
+          operation: 'DELETE_EXPERIENCE',
+          section: 'experience',
+          targetCompany: exp.company,
+          description: `Delete experience entry for "${exp.company}"`
+        });
+        authorizedChanges.push({ field: 'experiences.deleted', value: exp.company, authorization: 'USER_EXPLICIT' });
+        compTokens.forEach(tok => {
+          authorizedChanges.push({ field: 'experiences.deleted', value: tok, authorization: 'USER_EXPLICIT' });
+        });
+        targetSections.add('experience');
+        deletedAny = true;
+      }
+    });
+
+    const knownFallbacks = ['nathcorp', 'pulse solutions', 'execo', 'infogain', 'seewe', 'indigenous'];
+    knownFallbacks.forEach(comp => {
+      if (lower.includes(comp) && !operations.some(op => op.targetCompany?.toLowerCase()?.includes(comp))) {
+        operations.push({
+          id: `op-del-exp-${comp}-${Date.now()}`,
           operation: 'DELETE_EXPERIENCE',
           section: 'experience',
           targetCompany: comp,
@@ -199,7 +270,7 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
         targetSections.add('experience');
         deletedAny = true;
       }
-    }
+    });
 
     // Check for project deletion (e.g. "delete jyotish connect", "turtleping hata do")
     const dynamicProjects = (currentCvState?.projects || []).map(p => (p.title || p.name || '').toLowerCase()).filter(t => t.length > 2);
@@ -222,41 +293,127 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     }
   }
 
-  // 4. SKILLS OPERATIONS (ADD / REMOVE / REPLACE)
-  // e.g. "Add AWS and remove Java", "Skills me Python add karo", "Remove old skills"
-  const addSkillMatch = rawText.match(/add\s+(?:skills?|technolog(?:y|ies))?\s*[:"']?([^,.]+?)(?:(?:\s+and\s+remove|\s+aur|\s+remove)|$)/i) ||
-                        rawText.match(/(?:skills?|me)\s*([a-zA-Z0-9#+.\s]+?)\s*add\s*karo/i);
-  const removeSkillMatch = rawText.match(/remove\s+(?:skills?|technolog(?:y|ies))?\s*[:"']?([^,.]+?)(?:$|\s+and|\s+aur)/i) ||
-                           rawText.match(/([a-zA-Z0-9#+.\s]+?)\s*(?:skill\s*)?remove\s*karo/i);
+  // 4. SKILLS OPERATIONS (ADD / REMOVE / REPLACE with flexible comma & Hinglish phrases)
+  const isSkillRemoveIntent = lower.includes('remove') || lower.includes('hata') || lower.includes('delete') || lower.includes('nikal');
+  const isSkillAddIntent = lower.includes('add') || lower.includes('daal') || lower.includes('include') || lower.includes('jodo') || (!isSkillRemoveIntent && (lower.includes('skills') || lower.includes('skill')));
 
-  if (addSkillMatch || removeSkillMatch || lower.includes('skills')) {
+  let addSkillMatch = null;
+  let removeSkillMatch = null;
+
+  if (isSkillAddIntent && !isSkillRemoveIntent) {
+    addSkillMatch = rawText.match(/(?:add\s+(?:skills?|technolog(?:y|ies))?|skills?\s*(?:me)?)\s*[:"']?([a-zA-Z0-9#+.\s,/-]+?)(?:\s*add\s*karo|\s*daal\s*do|\s*include\s*karo|$)/i) ||
+                    rawText.match(/^([a-zA-Z0-9#+.\s,/-]+?)\s*(?:add\s*karo|daal\s*do|add\s*kar\s*do)$/i);
+  } else if (isSkillRemoveIntent) {
+    removeSkillMatch = rawText.match(/(?:remove|delete|hata|nikal)\s*(?:skills?|technolog(?:y|ies))?\s*[:"']?([a-zA-Z0-9#+.\s,/-]+?)(?:\s*hata\s*do|\s*remove\s*karo|\s*delete\s*karo|$)/i) ||
+                       rawText.match(/(?:skills?\s*(?:se|me\s*se)?)\s*[:"']?([a-zA-Z0-9#+.\s,/-]+?)\s*(?:hata\s*do|remove\s*karo|delete\s*karo|nikalo)/i) ||
+                       rawText.match(/^([a-zA-Z0-9#+.\s,/-]+?)\s*(?:hata\s*do|remove\s*karo|delete\s*karo)$/i);
+  }
+
+  const parseSkillTokens = (str) => {
+    return str
+      .split(/[,/&]+|\s+and\s+|\s+aur\s+/i)
+      .map(s => s.trim().replace(/^(add|skills?|me|karo|do|hata|remove)\s+/i, '').replace(/\s+(karo|do|add|remove|hata)$/i, '').trim())
+      .filter(s => s.length >= 2 && !['karo', 'do', 'add', 'remove', 'skills', 'skill', 'me', 'aur', 'and'].includes(s.toLowerCase()));
+  };
+
+  if (addSkillMatch || removeSkillMatch || lower.includes('skills') || lower.includes('skill')) {
     if (addSkillMatch && addSkillMatch[1]) {
-      const skillsToAdd = addSkillMatch[1].split(/[,/&]+|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
+      const skillsToAdd = parseSkillTokens(addSkillMatch[1]);
       skillsToAdd.forEach(sk => {
         operations.push({
-          id: `op-skill-add-${sk}`,
+          id: `op-skill-add-${sk.replace(/[^a-z0-9]/gi, '-')}`,
           operation: 'ADD',
           section: 'skills',
           field: 'skills',
           value: sk,
           description: `Add skill: "${sk}"`
         });
+        authorizedChanges.push({ field: 'skills', value: sk, authorization: 'USER_EXPLICIT' });
       });
       targetSections.add('skills');
     }
     if (removeSkillMatch && removeSkillMatch[1]) {
-      const skillsToRemove = removeSkillMatch[1].split(/[,/&]+|\s+and\s+/i).map(s => s.trim()).filter(Boolean);
+      const skillsToRemove = parseSkillTokens(removeSkillMatch[1]);
       skillsToRemove.forEach(sk => {
         operations.push({
-          id: `op-skill-remove-${sk}`,
+          id: `op-skill-remove-${sk.replace(/[^a-z0-9]/gi, '-')}`,
           operation: 'REMOVE',
           section: 'skills',
           field: 'skills',
           value: sk,
           description: `Remove skill: "${sk}"`
         });
+        authorizedChanges.push({ field: 'skills.removed', value: sk, authorization: 'USER_EXPLICIT' });
       });
       targetSections.add('skills');
+    }
+  }
+
+  // 4.5 SMART UNIVERSAL "X KO Y KAR DO" / "X KI JAGAH Y LIKHO" VALUE SWITCHER
+  const koRegex = /["']?([^"'\n]+?)["']?\s*(?:ko|ki\s*jagah|se)\s*["']?([^"'\n]+?)["']?\s*(?:kar\s*do|likho|badal\s*do|bana\s*do|rakho)/i;
+  const koMatch = rawText.match(koRegex);
+  if (koMatch && koMatch[1] && koMatch[2] && operations.length === 0) {
+    const fromVal = koMatch[1].trim();
+    const toVal = koMatch[2].trim().replace(/\s+(kar\s*do|likho|rakho|bana\s*do)$/i, '').trim();
+
+    if (fromVal.length >= 2 && toVal.length >= 2) {
+      const fromLower = fromVal.toLowerCase();
+
+      // Check Candidate Name
+      if (currentCvState?.header?.name && (currentCvState.header.name.toLowerCase().includes(fromLower) || fromLower.includes('name') || fromLower.includes('naam'))) {
+        operations.push({
+          id: `op-name-${Date.now()}`,
+          operation: 'REPLACE',
+          section: 'header',
+          field: 'header.name',
+          requestedValue: toVal,
+          description: `Update Name from "${currentCvState.header.name}" to "${toVal}"`
+        });
+        authorizedChanges.push({ field: 'header.name', value: toVal, authorization: 'USER_EXPLICIT' });
+        targetSections.add('header');
+      }
+      // Check Location
+      else if (currentCvState?.contact?.location && (currentCvState.contact.location.toLowerCase().includes(fromLower) || fromLower.includes('location') || fromLower.includes('city'))) {
+        operations.push({
+          id: `op-loc-${Date.now()}`,
+          operation: 'REPLACE',
+          section: 'contact',
+          field: 'contact.location',
+          requestedValue: toVal,
+          description: `Update Location from "${currentCvState.contact.location}" to "${toVal}"`
+        });
+        authorizedChanges.push({ field: 'contact.location', value: toVal, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: 'contact.address', value: toVal, authorization: 'USER_EXPLICIT' });
+        targetSections.add('contact');
+      }
+      // Check Title
+      else if (currentCvState?.header?.title && (currentCvState.header.title.toLowerCase().includes(fromLower) || fromLower.includes('title') || fromLower.includes('role') || fromLower.includes('headline'))) {
+        operations.push({
+          id: `op-title-${Date.now()}`,
+          operation: 'REPLACE',
+          section: 'headline',
+          field: 'header.title',
+          requestedValue: toVal,
+          description: `Update Headline to "${toVal}"`
+        });
+        authorizedChanges.push({ field: 'header.title', value: toVal, authorization: 'USER_EXPLICIT' });
+        targetSections.add('headline');
+      }
+      // Check Skills
+      else if (currentCvState?.skills && currentCvState.skills.some(s => s.toLowerCase().includes(fromLower))) {
+        const oldSkill = currentCvState.skills.find(s => s.toLowerCase().includes(fromLower));
+        operations.push({
+          id: `op-skill-replace-${Date.now()}`,
+          operation: 'REPLACE_SKILL',
+          section: 'skills',
+          field: 'skills',
+          oldValue: oldSkill,
+          requestedValue: toVal,
+          description: `Replace Skill "${oldSkill}" with "${toVal}"`
+        });
+        authorizedChanges.push({ field: 'skills', value: toVal, authorization: 'USER_EXPLICIT' });
+        targetSections.add('skills');
+      }
     }
   }
 
@@ -575,10 +732,22 @@ export function executeChangePlan(currentCvState, changePlan) {
   changePlan.operations.forEach(op => {
     switch (op.operation) {
       case 'REPLACE': {
-        if (op.field === 'header.title') {
+        if (op.field === 'header.name') {
+          if (!proposedCv.header) proposedCv.header = {};
+          proposedCv.header.name = op.requestedValue;
+          appliedOperations.push(op);
+          requestedFacts.push(`Updated Candidate Name to: "${op.requestedValue}"`);
+        } else if (op.field === 'header.title') {
+          if (!proposedCv.header) proposedCv.header = {};
           proposedCv.header.title = op.requestedValue;
           appliedOperations.push(op);
           requestedFacts.push(`Updated Headline to: "${op.requestedValue}"`);
+        } else if (op.field === 'contact.location' || op.field === 'contact.address') {
+          if (!proposedCv.contact) proposedCv.contact = {};
+          proposedCv.contact.location = op.requestedValue;
+          proposedCv.contact.address = op.requestedValue;
+          appliedOperations.push(op);
+          requestedFacts.push(`Updated Location to: "${op.requestedValue}"`);
         } else if (op.field === 'contact.phone') {
           if (!proposedCv.contact) proposedCv.contact = {};
           proposedCv.contact.phone = op.requestedValue;
@@ -589,6 +758,11 @@ export function executeChangePlan(currentCvState, changePlan) {
           proposedCv.contact.email = op.requestedValue;
           appliedOperations.push(op);
           requestedFacts.push(`Updated Email to: "${op.requestedValue}"`);
+        } else if (op.field === 'contact.linkedin') {
+          if (!proposedCv.contact) proposedCv.contact = {};
+          proposedCv.contact.linkedin = op.requestedValue;
+          appliedOperations.push(op);
+          requestedFacts.push(`Updated LinkedIn to: "${op.requestedValue}"`);
         } else if (op.section === 'experience' && op.field?.startsWith('experiences[')) {
           const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
           if (match) {
@@ -600,6 +774,15 @@ export function executeChangePlan(currentCvState, changePlan) {
               requestedFacts.push(op.description || `Refined bullet #${bulletIdx + 1}`);
             }
           }
+        }
+        break;
+      }
+
+      case 'REPLACE_SKILL': {
+        if (proposedCv.skills && op.oldValue && op.requestedValue) {
+          proposedCv.skills = proposedCv.skills.map(s => s.toLowerCase() === op.oldValue.toLowerCase() ? op.requestedValue : s);
+          appliedOperations.push(op);
+          requestedFacts.push(`Replaced skill "${op.oldValue}" with "${op.requestedValue}"`);
         }
         break;
       }
@@ -687,12 +870,15 @@ export function executeChangePlan(currentCvState, changePlan) {
 
       case 'DELETE_EXPERIENCE': {
         if (proposedCv.experiences && op.targetCompany) {
-          const targetLower = op.targetCompany.toLowerCase();
+          const targetLower = op.targetCompany.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+          const targetTokens = targetLower.split(/\s+/).filter(t => t.length >= 3 && !['pvt', 'ltd', 'india', 'services', 'company'].includes(t));
           const countBefore = proposedCv.experiences.length;
           proposedCv.experiences = proposedCv.experiences.filter(exp => {
-            const comp = (exp.company || '').toLowerCase();
-            const role = (exp.role || '').toLowerCase();
-            return !comp.includes(targetLower) && !targetLower.includes(comp) && !role.includes(targetLower);
+            const comp = (exp.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+            const role = (exp.role || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+            const compMatches = targetTokens.some(t => comp.includes(t)) || comp.includes(targetLower) || targetLower.includes(comp);
+            const roleMatches = targetTokens.some(t => role.includes(t)) || role.includes(targetLower);
+            return !compMatches && !roleMatches;
           });
           if (proposedCv.experiences.length < countBefore) {
             appliedOperations.push(op);

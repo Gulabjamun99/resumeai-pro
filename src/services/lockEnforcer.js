@@ -21,7 +21,15 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
   const authorizedFields = new Set(changePlan?.authorizedChanges?.map(c => c.field) || []);
   const targetSections = new Set(changePlan?.targetSections || []);
 
-  // 1. CONTACT DETAILS LOCK
+  // 0. CANDIDATE NAME LOCK
+  // Allow user explicit name updates; otherwise preserve from base
+  if (!authorizedFields.has('header.name')) {
+    if (output.header && base.header) {
+      output.header.name = base.header.name || master.header?.name;
+    }
+  }
+
+  // 1. CONTACT DETAILS & LOCATION LOCK
   // If user explicitly authorized a contact change, allow it; otherwise restore from base version
   if (!authorizedFields.has('contact.phone')) {
     if (output.contact && base.contact) {
@@ -31,6 +39,17 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
   if (!authorizedFields.has('contact.email')) {
     if (output.contact && base.contact) {
       output.contact.email = base.contact.email || master.contact?.email;
+    }
+  }
+  if (!authorizedFields.has('contact.location') && !authorizedFields.has('contact.address')) {
+    if (output.contact && base.contact) {
+      output.contact.location = base.contact.location || master.contact?.location;
+      output.contact.address = base.contact.address || master.contact?.address;
+    }
+  }
+  if (!authorizedFields.has('contact.linkedin')) {
+    if (output.contact && base.contact) {
+      output.contact.linkedin = base.contact.linkedin || master.contact?.linkedin;
     }
   }
 
@@ -47,12 +66,19 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
   }
 
   // 4. EDUCATION & CERTIFICATIONS LOCK
-  // Protect education & certifications from unauthorized AI alterations
-  if (!targetSections.has('education')) {
+  // Protect education & certifications from unauthorized AI alterations unless targeted
+  if (!targetSections.has('education') && !authorizedFields.has('education')) {
     output.education = [...(base.education || master.education || [])];
   }
-  if (!targetSections.has('certifications')) {
+  if (!targetSections.has('certifications') && !authorizedFields.has('certifications')) {
     output.certifications = [...(base.certifications || master.certifications || [])];
+  }
+
+  // 4.1 SKILLS LOCK
+  // Protect skills unless targeted or explicitly authorized
+  if (!targetSections.has('skills') && !authorizedFields.has('skills')) {
+    output.skills = [...(base.skills || master.skills || [])];
+    if (base.itSkills) output.itSkills = [...(base.itSkills || master.itSkills || [])];
   }
 
   // 5. EXISTING WORK EXPERIENCE LOCKS
