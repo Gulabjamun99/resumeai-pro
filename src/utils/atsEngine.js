@@ -62,7 +62,7 @@ export {
 
 /**
  * Natural Language Bullet Matcher:
- * Finds all matching bullets in experiences or summary with company scoping.
+ * Finds all matching bullets in experiences or summary with company scoping and fuzzy keyword segmentation.
  */
 export function findAllTargetBulletsInCv(snippet, experiences = [], summary = '') {
   if (!snippet || typeof snippet !== 'string') return [];
@@ -71,12 +71,14 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
 
   // 1. Identify target company if mentioned in prompt
   let targetCompany = null;
+  let targetExp = null;
   if (Array.isArray(experiences)) {
     for (const exp of experiences) {
       const compName = (exp.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
       const tokens = compName.split(/\s+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'company', 'technologies', 'startup'].includes(t));
-      if (tokens.some(t => pLower.includes(t))) {
+      if (tokens.some(t => pLower.includes(t)) || (compName.length >= 4 && pLower.includes(compName))) {
         targetCompany = exp.company;
+        targetExp = exp;
         break;
       }
     }
@@ -92,56 +94,68 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
     }
   };
 
-  // Pass 1: Direct bullet substring check against whole prompt
-  if (Array.isArray(experiences)) {
-    experiences.forEach((exp, expIdx) => {
-      if (targetCompany && exp.company && !exp.company.toLowerCase().includes(targetCompany.toLowerCase()) && !targetCompany.toLowerCase().includes(exp.company.toLowerCase())) {
-        return;
+  const searchExps = targetExp ? [targetExp] : (Array.isArray(experiences) ? experiences : []);
+
+  // Pass 1: Direct bullet substring check
+  searchExps.forEach((exp, expIdx) => {
+    (exp.bullets || []).forEach((b, bulletIdx) => {
+      const bLower = b.toLowerCase().trim();
+      if (bLower.length >= 6 && pLower.includes(bLower)) {
+        addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
       }
-      (exp.bullets || []).forEach((b, bulletIdx) => {
-        const bLower = b.toLowerCase().trim();
-        if (bLower.length >= 6 && pLower.includes(bLower)) {
-          addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
-        }
-      });
+    });
+  });
+
+  // Pass 2: Clean prompt query to extract target keywords/segments
+  let clean = pLower;
+  if (targetCompany) {
+    const compTokens = targetCompany.toLowerCase().split(/[^a-z0-9]+/);
+    compTokens.forEach(tok => {
+      if (tok.length >= 3) {
+        clean = clean.replace(new RegExp(`\\b${tok}\\b`, 'gi'), ' ');
+      }
     });
   }
 
-  // Pass 2: Clean snippet check for individual targeted bullets
-  const cleanSnippet = pLower
-    .replace(/^(?:delete|remove|hata\s*do|hatao|hta\s*do|hta\s*de|htao|nikal\s*do|nikalo|point|bullet|line|isko|ye|se|karo)\s+/gi, '')
-    .replace(/\s+(?:ye\s*pointers?\s*hata\s*do|ye\s*pointers?\s*hta\s*de|ye\s*point\s*hata\s*do|point\s*delete\s*karo|delete\s*karo|hata\s*do|hta\s*do|hta\s*de|remove\s*karo|hatao|htao|nikal\s*do|delete|remove)$/gi, '')
+  // Remove common Hindi/Hinglish and English filler phrases and action words
+  clean = clean
+    .replace(/\b(?:se|me|ka|ke|ki|wale|wali|wala|employment|experience|job)\b/gi, ' ')
+    .replace(/\b(?:ye|yeh|woh|isko|unko|inhe|dono|sab|sabhi)\b/gi, ' ')
+    .replace(/\b(?:pointers?|points?|bullets?|lines?|statements?)\b/gi, ' ')
+    .replace(/\b(?:hata\s*do|hatao|hata|hta\s*de|hta\s*do|htao|delete\s*karo|delete|nikal\s*do|nikalo|remove\s*karo|remove|drop|chhod\s*do|omit)\b/gi, ' ')
+    .replace(/\b(?:karo|kar\s*do|karna|hai|tha|the|please|bhi)\b/gi, ' ')
     .trim();
 
-  if (Array.isArray(experiences)) {
-    experiences.forEach((exp, expIdx) => {
-      if (targetCompany && exp.company && !exp.company.toLowerCase().includes(targetCompany.toLowerCase()) && !targetCompany.toLowerCase().includes(exp.company.toLowerCase())) {
-        return;
-      }
-      (exp.bullets || []).forEach((b, bulletIdx) => {
-        if (matchedBulletsSet.has(b)) return;
-        const bLower = b.toLowerCase().trim();
-        if (cleanSnippet.length >= 6 && (bLower.includes(cleanSnippet) || cleanSnippet.includes(bLower))) {
-          addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
-        }
-      });
-    });
-  }
+  // If user query is valid after removing fillers
+  if (clean.length >= 2) {
+    // Split query into candidate search segments by 'aur', 'and', commas, '&'
+    const segments = clean
+      .split(/\s+(?:aur|and|&)\s+|,\s*/)
+      .map(s => s.trim())
+      .filter(s => s.length >= 2);
 
-  // Pass 3: Multi-phrase / Word cluster check
-  if (matches.length === 0 && Array.isArray(experiences)) {
-    experiences.forEach((exp, expIdx) => {
-      if (targetCompany && exp.company && !exp.company.toLowerCase().includes(targetCompany.toLowerCase()) && !targetCompany.toLowerCase().includes(exp.company.toLowerCase())) {
-        return;
-      }
+    searchExps.forEach((exp, expIdx) => {
       (exp.bullets || []).forEach((b, bulletIdx) => {
         if (matchedBulletsSet.has(b)) return;
         const bLower = b.toLowerCase().trim();
-        const bulletWords = bLower.split(/[\s,.'"-]+/).filter(w => w.length >= 3 && !['from', 'with', 'that', 'this', 'and', 'for', 'the'].includes(w));
-        const promptWords = pLower.split(/[\s,.'"-]+/).filter(w => w.length >= 3);
-        const matchCount = bulletWords.filter(w => promptWords.includes(w)).length;
-        if (bulletWords.length > 0 && matchCount >= Math.min(3, bulletWords.length)) {
-          addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
+
+        for (const seg of segments) {
+          const segTokens = seg.split(/\s+/).filter(t => t.length >= 2 && !['from', 'with', 'that', 'this', 'for', 'the'].includes(t));
+          
+          // Substring match
+          if (bLower.includes(seg) || (seg.length >= 8 && seg.includes(bLower))) {
+            addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
+            break;
+          }
+
+          // Token match
+          if (segTokens.length > 0) {
+            const matchCount = segTokens.filter(tok => bLower.includes(tok)).length;
+            if (matchCount === segTokens.length || (segTokens.length >= 3 && matchCount / segTokens.length >= 0.6)) {
+              addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
+              break;
+            }
+          }
         }
       });
     });
@@ -150,7 +164,7 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
   // Also check summary if requested
   if (summary) {
     const sumLower = summary.toLowerCase().trim();
-    if (sumLower.length >= 6 && (pLower.includes(sumLower) || sumLower.includes(cleanSnippet))) {
+    if (sumLower.length >= 6 && (pLower.includes(sumLower) || (clean.length >= 4 && sumLower.includes(clean)))) {
       addMatch({ section: 'summary', bulletText: summary });
     }
   }
@@ -380,7 +394,9 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   }
 
   // 3.0 BULLET / POINT DELETION (Point-by-point removal from experience or summary)
-  const matchedTargetBullets = hasDeleteWord ? findAllTargetBulletsInCv(rawText, currentCvState?.experiences || sourceMaster?.experiences, currentCvState?.header?.summary) : [];
+  const cvExperiences = currentCvState?.experiences || currentCvState?.experience || sourceMaster?.experiences || sourceMaster?.experience || [];
+  const cvSummary = currentCvState?.header?.summary || currentCvState?.summary || sourceMaster?.header?.summary || sourceMaster?.summary || '';
+  const matchedTargetBullets = hasDeleteWord ? findAllTargetBulletsInCv(rawText, cvExperiences, cvSummary) : [];
   if (hasDeleteWord && (hasBulletWord || matchedTargetBullets.length > 0)) {
     if (matchedTargetBullets.length > 0) {
       matchedTargetBullets.forEach((matched, idx) => {
@@ -570,27 +586,26 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     const isSkillRemoveIntent = hasDeleteWord;
     const isSkillAddIntent = hasAddWord || (!isSkillRemoveIntent && (lower.includes('skills') || lower.includes('skill')));
 
-    let addSkillMatch = null;
-    let removeSkillMatch = null;
-
-    if (isSkillAddIntent && !isSkillRemoveIntent) {
-      addSkillMatch = rawText.match(/(?:add\s+(?:skills?|technolog(?:y|ies))?|skills?\s*(?:me)?)\s*[:"']?([a-zA-Z0-9#+.\s,/-]+?)(?:\s*add\s*karo|\s*daal\s*do|\s*include\s*karo|$)/i) ||
-                      rawText.match(/^([a-zA-Z0-9#+.\s,/-]+?)\s*(?:add\s*karo|daal\s*do|add\s*kar\s*do)$/i);
-    } else if (isSkillRemoveIntent) {
-      removeSkillMatch = rawText.match(/(?:remove|delete|hata|nikal)\s*(?:skills?|technolog(?:y|ies))?\s*[:"']?([a-zA-Z0-9#+.\s,/-]+?)(?:\s*hata\s*do|\s*remove\s*karo|\s*delete\s*karo|$)/i) ||
-                         rawText.match(/(?:skills?\s*(?:se|me\s*se)?)\s*[:"']?([a-zA-Z0-9#+.\s,/-]+?)\s*(?:hata\s*do|remove\s*karo|delete\s*karo|nikalo)/i) ||
-                         rawText.match(/^([a-zA-Z0-9#+.\s,/-]+?)\s*(?:hata\s*do|remove\s*karo|delete\s*karo)$/i);
-    }
+    let cleanedSkillText = rawText
+      // Strip prefix like "add skills:", "skills me", "skills se"
+      .replace(/^(?:add\s+(?:skills?|technologies?)?|remove\s+(?:skills?|technologies?)?|delete\s+(?:skills?|technologies?)?)\s*[:\-]?\s*/i, '')
+      .replace(/^(?:skills?\s*(?:me|mein|se)?)\s*[:\-]?\s*/i, '')
+      // Strip postfix like "ko skills me add karo", "skills me add karo", "skill hata do", "skills se hata do", "add karo", "hata do"
+      .replace(/\s*(?:ko\s*)?(?:skills?|technologies?)\s*(?:me|mein|se)?\s*(?:add\s*karo|daal\s*do|add\s*kar\s*do|include\s*karo|jod\s*do|hata\s*do|remove\s*karo|delete\s*karo|nikalo)\s*$/i, '')
+      .replace(/\s*(?:ko\s*)?(?:skills?\s*(?:me|mein|se)?|skill)\s*(?:hata\s*do|remove\s*karo|delete\s*karo|nikalo)\s*$/i, '')
+      .replace(/\s*(?:skills?\s*(?:me|mein)?)\s*(?:add\s*karo|daal\s*do|add\s*kar\s*do|include\s*karo)\s*$/i, '')
+      .replace(/\s*(?:add\s*karo|daal\s*do|add\s*kar\s*do|include\s*karo|hata\s*do|remove\s*karo|delete\s*karo|nikalo)\s*$/i, '')
+      .trim();
 
     const parseSkillTokens = (str) => {
       return str
         .split(/[,/&]+|\s+and\s+|\s+aur\s+/i)
-        .map(s => s.trim().replace(/\b(?:add|skills?|me|se|karo|do|hata|remove|delete)\b/gi, '').trim())
-        .filter(s => s.length >= 2 && !['karo', 'do', 'add', 'remove', 'skills', 'skill', 'me', 'se', 'aur', 'and'].includes(s.toLowerCase()));
+        .map(s => s.trim().replace(/^[:"']+|[:"']+$/g, '').trim())
+        .filter(s => s.length >= 2 && !['karo', 'do', 'add', 'remove', 'skills', 'skill', 'me', 'mein', 'se', 'ko', 'aur', 'and', 'delete', 'hata'].includes(s.toLowerCase()));
     };
 
-    if (addSkillMatch && addSkillMatch[1]) {
-      const skillsToAdd = parseSkillTokens(addSkillMatch[1]);
+    if (isSkillAddIntent && !isSkillRemoveIntent) {
+      const skillsToAdd = parseSkillTokens(cleanedSkillText);
       skillsToAdd.forEach(sk => {
         operations.push({
           id: `op-skill-add-${sk.replace(/[^a-z0-9]/gi, '-')}`,
@@ -603,10 +618,9 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         authorizedChanges.push({ field: 'skills', value: sk, authorization: 'USER_EXPLICIT' });
         summaries.push(`Added skill: "${sk}"`);
       });
-      targetSections.add('skills');
-    }
-    if (removeSkillMatch && removeSkillMatch[1]) {
-      const skillsToRemove = parseSkillTokens(removeSkillMatch[1]);
+      if (skillsToAdd.length > 0) targetSections.add('skills');
+    } else if (isSkillRemoveIntent) {
+      const skillsToRemove = parseSkillTokens(cleanedSkillText);
       skillsToRemove.forEach(sk => {
         operations.push({
           id: `op-skill-remove-${sk.replace(/[^a-z0-9]/gi, '-')}`,
@@ -619,7 +633,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         authorizedChanges.push({ field: 'skills.removed', value: sk, authorization: 'USER_EXPLICIT' });
         summaries.push(`Removed skill: "${sk}"`);
       });
-      targetSections.add('skills');
+      if (skillsToRemove.length > 0) targetSections.add('skills');
     }
   }
 
@@ -1487,13 +1501,27 @@ export function executeChangePlan(currentCvState, changePlan) {
 
       case 'REMOVE': {
         if (op.section === 'skills') {
-          if (proposedCv.skills) {
+          const valLow = (op.value || '').toLowerCase().trim();
+          let removedCount = 0;
+          if (Array.isArray(proposedCv.skills)) {
             const initialCount = proposedCv.skills.length;
-            proposedCv.skills = proposedCv.skills.filter(s => s.toLowerCase() !== op.value.toLowerCase());
-            if (proposedCv.skills.length < initialCount) {
-              appliedOperations.push(op);
-              requestedFacts.push(`Removed skill: "${op.value}"`);
-            }
+            proposedCv.skills = proposedCv.skills.filter(s => {
+              const sLow = s.toLowerCase().trim();
+              return sLow !== valLow && !sLow.includes(valLow);
+            });
+            removedCount += (initialCount - proposedCv.skills.length);
+          }
+          if (Array.isArray(proposedCv.itSkills)) {
+            const initialCount = proposedCv.itSkills.length;
+            proposedCv.itSkills = proposedCv.itSkills.filter(s => {
+              const sLow = s.toLowerCase().trim();
+              return sLow !== valLow && !sLow.includes(valLow);
+            });
+            removedCount += (initialCount - proposedCv.itSkills.length);
+          }
+          if (removedCount > 0) {
+            appliedOperations.push(op);
+            requestedFacts.push(`Removed skill: "${op.value}"`);
           }
         }
         break;
