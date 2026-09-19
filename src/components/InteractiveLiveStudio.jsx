@@ -448,18 +448,27 @@ export default function InteractiveLiveStudio({
                 }}
                 className="relative mt-0.5"
               >
-                <input
-                  type="text"
+                <textarea
+                  rows={2}
                   value={promptInput}
                   onChange={(e) => setPromptInput(e.target.value)}
-                  placeholder="Type any edit (e.g. 'Name change karke Rahul kar do', 'Skills me Docker add karo', 'Execo delete karo')..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (promptInput.trim() && !isProcessing) {
+                        handleSendPrompt();
+                      }
+                    }
+                  }}
+                  placeholder="Type any edit (e.g. 'Delivered end-to-end... ye point hata do', 'ye naya point add karo: ...', 'Skills me Docker add karo', or paste multi-line points)..."
                   disabled={isProcessing}
-                  className="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-500 rounded-xl pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition disabled:opacity-50"
+                  className="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-500 rounded-xl pl-3 pr-10 py-2 text-xs text-white placeholder-slate-500 focus:outline-none transition resize-none disabled:opacity-50 shadow-inner"
                 />
                 <button
                   type="submit"
                   disabled={!promptInput.trim() || isProcessing}
-                  className="absolute right-1.5 top-1.5 p-1.5 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-lg transition cursor-pointer"
+                  className="absolute right-2 bottom-3 p-1.5 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-lg transition cursor-pointer shadow-sm"
+                  title="Send instruction (Enter)"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>

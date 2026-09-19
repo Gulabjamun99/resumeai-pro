@@ -88,6 +88,10 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
     .filter(c => c.field === 'experiences.deleted')
     .map(c => (c.value || '').toLowerCase());
 
+  const deletedBullets = (changePlan?.authorizedChanges || [])
+    .filter(c => c.field === 'experiences.deleted_bullet' || c.field === 'experiences.bullet.deleted')
+    .map(c => (c.value || '').toLowerCase().trim());
+
   if (Array.isArray(master.experiences) && Array.isArray(output.experiences)) {
     master.experiences.forEach((sourceExp, expIdx) => {
       const sourceCompLower = (sourceExp.company || '').toLowerCase();
@@ -113,13 +117,17 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
           targetExp.location = sourceExp.location;
         }
 
-        // Ensure original source bullets are preserved line-by-line (unless authorized for replacement)
+        // Ensure original source bullets are preserved line-by-line (unless authorized for replacement or deletion)
         if (Array.isArray(sourceExp.bullets)) {
           sourceExp.bullets.forEach((sourceBullet, idx) => {
+            const sourceBulletLower = sourceBullet.toLowerCase().trim();
+            const isExplicitlyDeleted = deletedBullets.some(d => 
+              d.length >= 5 && (sourceBulletLower.includes(d) || d.includes(sourceBulletLower))
+            );
             const isAuthorizedReplacement = Array.from(authorizedFields).some(field => 
               field.startsWith('experiences[') && field.endsWith(`.bullets[${idx}]`)
             );
-            if (Array.isArray(targetExp.bullets) && !targetExp.bullets.includes(sourceBullet) && !isAuthorizedReplacement) {
+            if (Array.isArray(targetExp.bullets) && !targetExp.bullets.includes(sourceBullet) && !isAuthorizedReplacement && !isExplicitlyDeleted) {
               targetExp.bullets.splice(idx, 0, sourceBullet);
             }
           });
