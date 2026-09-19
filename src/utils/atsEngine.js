@@ -424,7 +424,7 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     lowerPrompt.includes('job') || lowerPrompt.includes('role') || lowerPrompt.includes('2025') || lowerPrompt.includes('2024') ||
     lowerPrompt.includes('worked') || lowerPrompt.includes('antigravity') || lowerPrompt.includes('ai agent') ||
     lowerPrompt.includes('vibe coding') || lowerPrompt.includes('vide coding') || lowerPrompt.includes('ai tools') ||
-    lowerPrompt.includes('product banaya') || lowerPrompt.includes('apps') || lowerPrompt.includes('live hai')
+    lowerPrompt.includes('product banaya') || lowerPrompt.includes('project banaye') || lowerPrompt.includes('apps') || lowerPrompt.includes('live hai')
   );
 
   if (hasExperienceIntent && !operations.some(op => op.section === 'headline' && operations.length === 1)) {
@@ -432,8 +432,50 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     const extracted = extractDynamicEntitiesFromPrompt(rawText);
     const isVibeOrAiDeveloper = lowerPrompt.includes('vibe coding') || lowerPrompt.includes('vide coding') || 
                                (extracted.tools.length >= 2 && extracted.products.length > 0) ||
-                               (lowerPrompt.includes('ai tools') && lowerPrompt.includes('product'));
+                               (lowerPrompt.includes('ai tools') && (lowerPrompt.includes('product') || lowerPrompt.includes('project') || lowerPrompt.includes('app')));
     const isProductManager = lowerPrompt.includes('lead product manager') || lowerPrompt.includes('product manager') || lowerPrompt.includes('ai nextgen labs');
+
+    // Helper: Detect whether the prompt refers to augmenting an EXISTING experience
+    const findTargetExistingExperience = (promptText, experiences = []) => {
+      if (!experiences || experiences.length === 0) return null;
+      const pLower = promptText.toLowerCase();
+
+      const hasCoexistencePhrase = 
+        pLower.includes('iske sath') || pLower.includes('ke sath sath') || 
+        pLower.includes('sath me') || pLower.includes('sath hi') ||
+        pLower.includes('along with') || pLower.includes('in the same role') ||
+        pLower.includes('usi role') || pLower.includes('isi role') ||
+        pLower.includes('isi me') || pLower.includes('current role') ||
+        pLower.includes('present role') || pLower.includes('usi hisab se');
+
+      for (const exp of experiences) {
+        const compLower = (exp.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+        const compTokens = compLower.split(/\s+/).filter(t => t.length >= 3 && !['pvt', 'ltd', 'india', 'services', 'and', 'the'].includes(t));
+        if (compLower && (pLower.includes(compLower) || compTokens.some(t => pLower.includes(t)))) {
+          return exp;
+        }
+
+        const roleLower = (exp.role || '').toLowerCase();
+        if ((pLower.includes('talent acquisition') || pLower.includes('recruiter') || pLower.includes('ta consultant')) && 
+            (roleLower.includes('talent acquisition') || roleLower.includes('recruiter'))) {
+          return exp;
+        }
+        if ((pLower.includes('consultant') || pLower.includes('freelance') || pLower.includes('independent')) && 
+            (roleLower.includes('consultant') || roleLower.includes('freelance') || roleLower.includes('independent') || (exp.subtitle || '').toLowerCase().includes('freelance'))) {
+          return exp;
+        }
+      }
+
+      if (hasCoexistencePhrase) {
+        return experiences.find(e => (e.period || '').toLowerCase().includes('present')) || experiences[0];
+      }
+
+      return null;
+    };
+
+    const targetExistingExp = findTargetExistingExperience(rawText, currentCvState?.experiences);
+    const tools = extracted.tools;
+    const products = extracted.products;
 
     if (isProductManager) {
       operations.push({
@@ -452,48 +494,82 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
       });
       targetSections.add('experience');
     } else if (isVibeOrAiDeveloper) {
-      // Formulate dynamic role title, bullets, projects, skills, and summary
       const roleTitle = extracted.roleTitle || "Full-Stack AI Developer & Vibe Coder";
       const periodStr = extracted.period || "May 2025 – Present";
-      const tools = extracted.tools;
-      const products = extracted.products;
 
-      // 1. Experience Entry
-      const bullet1 = `Pioneered end-to-end vibe coding and AI-assisted development using ${tools.slice(0, 5).join(', ') || 'modern AI platforms'} to architect and ship scalable full-stack applications from scratch.`;
+      const playStoreApps = products.filter(p => p.status?.includes('Play Store') || ['Gharmantra', 'Lensdraft'].includes(p.title)).map(p => p.title);
+      const cloudApps = products.filter(p => p.status?.includes('Cloud') || ['Jyotish Connect', 'Mausam Veda', 'Turtleping'].includes(p.title)).map(p => p.title);
+      const upcomingApps = products.filter(p => p.status?.includes('Upcoming') || ['KharchaBook', 'ResumeAI Pro'].includes(p.title)).map(p => p.title);
+
+      const bullet1 = `Pioneered end-to-end vibe coding and full-stack application development from scratch utilizing modern AI developer toolchains (${tools.slice(0, 5).join(', ') || 'Google Antigravity, Claude, Codex, ChatGPT'}).`;
       const bullet2 = products.length > 0
-        ? `Engineered, launched, and maintained ${products.length} live production apps including ${products.join(', ')} with full-stack cloud deployment on Vercel, Supabase, and Firebase.`
-        : `Engineered and launched live production systems with automated cloud infrastructure and database synchronization.`;
-      const bullet3 = `Implemented rapid zero-to-one prototyping, prompt orchestration, secure authentication, and CI/CD pipelines via GitHub to ensure high-performance production readiness.`;
+        ? `Architected, engineered, and launched ${products.length} live production applications: published ${playStoreApps.join(' and ') || 'Gharmantra & Lensdraft'} (Live on Google Play Store) and cloud platforms (${cloudApps.slice(0, 3).join(', ') || 'Jyotish Connect, Mausam Veda, Turtleping'}) with Firebase, Supabase, and Vercel cloud backends.`
+        : `Architected and launched live production mobile and cloud platforms with automated cloud infrastructure on Vercel, Supabase, and Firebase.`;
+      const bullet3 = upcomingApps.length > 0
+        ? `Engineered impending production releases (${upcomingApps.join(', ')}), orchestrating automated CI/CD deployment pipelines on GitHub, prompt orchestration, and rapid zero-to-one prototyping.`
+        : `Implemented rapid zero-to-one prototyping, prompt orchestration, secure authentication, and CI/CD pipelines via GitHub to ensure high-performance production readiness.`;
 
-      operations.push({
-        id: `op-exp-vibe-${Date.now()}`,
-        operation: 'ADD',
-        section: 'experience',
-        role: roleTitle,
-        company: 'Independent AI Product Ventures & Live Apps',
-        period: periodStr,
-        location: 'Remote',
-        bullets: [bullet1, bullet2, bullet3],
-        description: `Add ${roleTitle} role (${periodStr}) with live production products`
-      });
-      targetSections.add('experience');
+      if (targetExistingExp) {
+        // AUGMENT EXISTING EXPERIENCE IN-PLACE (PREVENT CONFLICTING DUPLICATE ROLES)
+        const augmentedRole = targetExistingExp.role.toLowerCase().includes('talent acquisition')
+          ? 'Independent Talent Acquisition Consultant & AI Vibe Developer (Freelance)'
+          : targetExistingExp.role;
+        const augmentedSubtitle = 'AI Automation, Agent Systems & Full-Stack Vibe Coding (From Scratch)';
+
+        operations.push({
+          id: `op-exp-augment-${targetExistingExp.id || 'current'}`,
+          operation: 'AUGMENT_EXPERIENCE',
+          section: 'experience',
+          targetId: targetExistingExp.id,
+          targetCompany: targetExistingExp.company,
+          targetRole: targetExistingExp.role,
+          augmentedRole,
+          subtitle: augmentedSubtitle,
+          newBullets: [bullet1, bullet2, bullet3],
+          description: `Augment existing ${targetExistingExp.role} with AI vibe coding, live Play Store apps, and modern toolchains (In-place update, zero duplicate roles)`
+        });
+        authorizedChanges.push({ field: 'experiences.augmented', value: targetExistingExp.id, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: 'experiences.role', value: targetExistingExp.id, authorization: 'USER_EXPLICIT' });
+        targetSections.add('experience');
+      } else {
+        // Fallback: Add new experience entry only when no existing role is targeted
+        operations.push({
+          id: `op-exp-vibe-${Date.now()}`,
+          operation: 'ADD',
+          section: 'experience',
+          role: roleTitle,
+          company: 'Independent AI Product Ventures & Live Apps',
+          period: periodStr,
+          location: 'Remote',
+          bullets: [bullet1, bullet2, bullet3],
+          description: `Add ${roleTitle} role (${periodStr}) with live production products`
+        });
+        targetSections.add('experience');
+      }
 
       // 2. Headline / Title Update
+      const unifiedHeadline = targetExistingExp
+        ? `Independent Talent Acquisition Specialist & Full-Stack AI / Vibe Developer`
+        : `${roleTitle} | AI Tools & Live Product Builder`;
+
       operations.push({
         id: `op-headline-vibe-${Date.now()}`,
         operation: 'REPLACE',
         section: 'headline',
         field: 'header.title',
-        requestedValue: `${roleTitle} | AI Tools & Live Product Builder`,
-        description: `Set Headline to: "${roleTitle} | AI Tools & Live Product Builder"`
+        requestedValue: unifiedHeadline,
+        description: `Set Headline to: "${unifiedHeadline}"`
       });
-      authorizedChanges.push({ field: 'header.title', value: `${roleTitle} | AI Tools & Live Product Builder`, authorization: 'USER_EXPLICIT' });
+      authorizedChanges.push({ field: 'header.title', value: unifiedHeadline, authorization: 'USER_EXPLICIT' });
       targetSections.add('headline');
 
-      // 3. Summary Synthesis
-      const toolSummaryStr = tools.slice(0, 6).join(', ');
-      const productCountStr = products.length > 0 ? `${products.length}+ live applications (${products.slice(0, 3).join(', ')}...)` : "live production platforms";
-      const synthesizedSummary = `Innovative ${roleTitle} with extensive hands-on expertise in rapid AI-assisted development and vibe coding using ${toolSummaryStr}. Demonstrated track record since ${periodStr.split('–')[0].trim()} architecting, vibe-coding, and deploying ${productCountStr} from scratch with modern cloud infrastructure on Vercel, Supabase, and Firebase. Proven ability to deliver responsive, scalable zero-to-one digital products with automated workflows and modern UI/UX.`;
+      // 3. Professional Summary Synthesis
+      const toolSummaryStr = tools.slice(0, 6).join(', ') || 'Google Antigravity, Claude, Codex, ChatGPT';
+      const playstoreCount = playStoreApps.length > 0 ? `${playStoreApps.length} live on Google Play Store (${playStoreApps.join(', ')})` : 'live on Google Play Store';
+      
+      const synthesizedSummary = targetExistingExp
+        ? `High-impact Talent Acquisition Leader and hands-on Full-Stack AI Vibe Developer with 9+ years of cross-functional excellence. Specialized in AI-driven recruitment automation alongside zero-to-one product engineering using modern AI toolchains (${toolSummaryStr}). Proven track record developing and deploying multiple live production applications on Google Play Store (${playStoreApps.join(', ') || 'Gharmantra, Lensdraft'}) and cloud ecosystems (Vercel, Supabase, Firebase), alongside active upcoming releases (${upcomingApps.join(', ') || 'KharchaBook, ResumeAI Pro'}). Adept at bridging executive stakeholder hiring with rapid modern software prototyping.`
+        : `Innovative ${roleTitle} with extensive hands-on expertise in rapid AI-assisted development and vibe coding using ${toolSummaryStr}. Demonstrated track record architecting, vibe-coding, and deploying live applications (${playstoreCount}) from scratch with modern cloud infrastructure on Vercel, Supabase, and Firebase. Proven ability to deliver responsive, scalable zero-to-one digital products with automated workflows and modern UI/UX.`;
 
       operations.push({
         id: `op-summary-vibe-${Date.now()}`,
@@ -501,8 +577,9 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
         section: 'summary',
         field: 'header.summary',
         requestedValue: synthesizedSummary,
-        description: `Synthesize Professional Summary for ${roleTitle} and AI live products`
+        description: `Synthesize unified Professional Summary for Talent Acquisition leadership and AI live products`
       });
+      authorizedChanges.push({ field: 'header.summary', value: synthesizedSummary, authorization: 'USER_EXPLICIT' });
       targetSections.add('summary');
 
       // 4. Add Extracted Tools to Skills
@@ -515,6 +592,7 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
           value: tool,
           description: `Add skill: "${tool}"`
         });
+        authorizedChanges.push({ field: 'skills', value: tool, authorization: 'USER_EXPLICIT' });
       });
       targetSections.add('skills');
 
@@ -525,12 +603,14 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
           operation: 'ADD',
           section: 'projects',
           field: 'projects',
-          title: prod,
-          bullets: [
-            `Live full-stack production application architected from scratch using AI tools and deployed with modern cloud infrastructure on Vercel/Supabase.`
-          ],
-          description: `Add Live Product: "${prod}"`
+          title: prod.title || prod.name || prod,
+          status: prod.status || 'Live Application',
+          bullets: Array.isArray(prod.bullets) && prod.bullets.length > 0 
+            ? prod.bullets 
+            : [`Live production application architected from scratch using modern AI tools (${tools.slice(0, 3).join(', ') || 'AI toolchains'}) and deployed on modern cloud infrastructure.`],
+          description: `Add Project: "${prod.title || prod.name || prod}" [${prod.status || 'Live App'}]`
         });
+        authorizedChanges.push({ field: 'projects', value: prod.title || prod.name || prod, authorization: 'USER_EXPLICIT' });
       });
       if (products.length > 0) {
         targetSections.add('projects');
@@ -538,21 +618,38 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
 
     } else if (lowerPrompt.includes('consult') || lowerPrompt.includes('freelance') || lowerPrompt.includes('independent')) {
       const periodStr = extracted.period || "May 2025 – Present";
-      operations.push({
-        id: `op-exp-add-consulting`,
-        operation: 'ADD',
-        section: 'experience',
-        role: 'Independent Specialist & Consultant',
-        company: 'Independent Consulting',
-        period: periodStr,
-        location: 'Remote',
-        bullets: [
-          `Delivered targeted strategic consulting milestones aligned with client requirements since ${periodStr.split('–')[0].trim()}.`,
-          `Streamlined operations and milestone deliverables leveraging modern tools and agile workflows.`
-        ],
-        description: `Add Independent Consulting role (${periodStr})`
-      });
-      targetSections.add('experience');
+      if (targetExistingExp) {
+        operations.push({
+          id: `op-exp-augment-consulting`,
+          operation: 'AUGMENT_EXPERIENCE',
+          section: 'experience',
+          targetId: targetExistingExp.id,
+          targetCompany: targetExistingExp.company,
+          newBullets: [
+            `Delivered targeted strategic consulting milestones aligned with client requirements since ${periodStr.split('–')[0].trim()}.`,
+            `Streamlined operations and milestone deliverables leveraging modern tools and agile workflows.`
+          ],
+          description: `Augment existing ${targetExistingExp.role} with consulting milestones`
+        });
+        authorizedChanges.push({ field: 'experiences.augmented', value: targetExistingExp.id, authorization: 'USER_EXPLICIT' });
+        targetSections.add('experience');
+      } else {
+        operations.push({
+          id: `op-exp-add-consulting`,
+          operation: 'ADD',
+          section: 'experience',
+          role: 'Independent Specialist & Consultant',
+          company: 'Independent Consulting',
+          period: periodStr,
+          location: 'Remote',
+          bullets: [
+            `Delivered targeted strategic consulting milestones aligned with client requirements since ${periodStr.split('–')[0].trim()}.`,
+            `Streamlined operations and milestone deliverables leveraging modern tools and agile workflows.`
+          ],
+          description: `Add Independent Consulting role (${periodStr})`
+        });
+        targetSections.add('experience');
+      }
     } else if (lower.includes('rewrite') || lower.includes('ats')) {
       operations.push({
         id: `op-exp-rewrite`,
@@ -567,21 +664,37 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
       const roleName = lower.includes('developer') ? 'Senior Software Engineer' :
                        lower.includes('manager') ? 'Senior Project Manager' : 'Independent Specialist';
       const period = extracted.period || (lower.includes('2025') ? 'Jan 2025 – Present' : '2025 – Present');
-      operations.push({
-        id: `op-exp-add-generic`,
-        operation: 'ADD',
-        section: 'experience',
-        role: roleName,
-        company: 'Independent Enterprise Solutions',
-        period: period,
-        location: 'Remote / Hybrid',
-        bullets: [
-          `Delivered targeted strategic deliverables aligned with client specifications: ${rawText.substring(0, 100)}...`,
-          `Streamlined operations and accelerated milestone closures with modern workflow automation.`
-        ],
-        description: `Add ${roleName} experience (${period})`
-      });
-      targetSections.add('experience');
+      if (targetExistingExp) {
+        operations.push({
+          id: `op-exp-augment-generic`,
+          operation: 'AUGMENT_EXPERIENCE',
+          section: 'experience',
+          targetId: targetExistingExp.id,
+          newBullets: [
+            `Delivered targeted strategic deliverables aligned with client specifications: ${rawText.substring(0, 100)}...`,
+            `Streamlined operations and accelerated milestone closures with modern workflow automation.`
+          ],
+          description: `Augment existing ${targetExistingExp.role} with additional deliverables`
+        });
+        authorizedChanges.push({ field: 'experiences.augmented', value: targetExistingExp.id, authorization: 'USER_EXPLICIT' });
+        targetSections.add('experience');
+      } else {
+        operations.push({
+          id: `op-exp-add-generic`,
+          operation: 'ADD',
+          section: 'experience',
+          role: roleName,
+          company: 'Independent Enterprise Solutions',
+          period: period,
+          location: 'Remote / Hybrid',
+          bullets: [
+            `Delivered targeted strategic deliverables aligned with client specifications: ${rawText.substring(0, 100)}...`,
+            `Streamlined operations and accelerated milestone closures with modern workflow automation.`
+          ],
+          description: `Add ${roleName} role (${period})`
+        });
+        targetSections.add('experience');
+      }
     }
   }
 
@@ -643,11 +756,14 @@ export function extractDynamicEntitiesFromPrompt(text) {
   const knownTechDictionary = [
     { key: 'antigravity', name: 'Google Antigravity' },
     { key: 'claude', name: 'Anthropic Claude' },
+    { key: 'codex', name: 'OpenAI Codex' },
     { key: 'chatgpt', name: 'OpenAI ChatGPT' },
     { key: 'perpelexity', name: 'Perplexity AI' },
     { key: 'perplexity', name: 'Perplexity AI' },
     { key: 'z.ai', name: 'z.ai' },
+    { key: 'guthub', name: 'GitHub' },
     { key: 'github', name: 'GitHub' },
+    { key: 'git', name: 'GitHub' },
     { key: 'vercel', name: 'Vercel' },
     { key: 'firbase', name: 'Firebase' },
     { key: 'firebase', name: 'Firebase' },
@@ -657,6 +773,8 @@ export function extractDynamicEntitiesFromPrompt(text) {
     { key: 'v0', name: 'v0 by Vercel' },
     { key: 'vide coding', name: 'Vibe Coding' },
     { key: 'vibe coding', name: 'Vibe Coding' },
+    { key: 'scratv=ch', name: 'Vibe Coding' },
+    { key: 'scratch', name: 'Vibe Coding' },
     { key: 'ai tools', name: 'AI Engineering' },
     { key: 'react', name: 'React.js' },
     { key: 'next', name: 'Next.js' },
@@ -673,20 +791,86 @@ export function extractDynamicEntitiesFromPrompt(text) {
     }
   });
 
-  // 3. Extract Products & Apps
-  const productMatches = [];
-  const productSegmentRegex = /(?:product(?:s)?(?:\s+banaya|\s+banaye|\s+built|\s+launched)?\s*(?:hu|hai|hain)?\s*(?:like|jaise|such\s+as|including)?)\s*[:"']?([^.]+?)(?:\s*\.|\s*etc|\s*sab\s+live|\s*sara\s+scracth|\s*all\s+live|\s*aur\s+bhi)/i;
+  // 3. Extract Products & Apps with Status and Details
+  const knownAppsCatalog = [
+    { 
+      key: 'gharmantra', 
+      title: 'Gharmantra', 
+      status: 'Live on Google Play Store', 
+      bullets: ['Live production mobile application published on Google Play Store; architected from scratch with real-time UI, AI assistance, and Firebase backend.'] 
+    },
+    { 
+      key: 'lensdraft', 
+      title: 'Lensdraft', 
+      status: 'Live on Google Play Store', 
+      bullets: ['Live mobile application on Google Play Store featuring AI-assisted document drafting, OCR processing, and responsive mobile UX.'] 
+    },
+    { 
+      key: 'jyotish connect', 
+      title: 'Jyotish Connect', 
+      status: 'Live Cloud Application', 
+      bullets: ['Full-stack predictive AI web platform developed from scratch with automated cloud deployment on Vercel and Supabase.'] 
+    },
+    { 
+      key: 'mausam veda', 
+      title: 'Mausam Veda', 
+      status: 'Live Cloud Application', 
+      bullets: ['Atmospheric intelligence and climate forecasting application architected using modern AI developer stacks.'] 
+    },
+    { 
+      key: 'turtleping', 
+      title: 'Turtleping', 
+      status: 'Live Network Monitor', 
+      bullets: ['Real-time network latency, uptime monitoring, and diagnostic tool developed via rapid AI vibe coding.'] 
+    },
+    { 
+      key: 'kharchabook', 
+      title: 'KharchaBook', 
+      status: 'Upcoming / Staging Release', 
+      bullets: ['Personal finance, budgeting, and automated expense tracking platform currently in pre-release staging.'] 
+    },
+    { 
+      key: 'resume ai', 
+      title: 'ResumeAI Pro', 
+      status: 'Upcoming / Career Platform', 
+      bullets: ['Intelligent generative career platform with strict ATS fact-locking, hubahu layout preservation, and dual-column export.'] 
+    },
+    { 
+      key: 'resumeai', 
+      title: 'ResumeAI Pro', 
+      status: 'Upcoming / Career Platform', 
+      bullets: ['Intelligent generative career platform with strict ATS fact-locking, hubahu layout preservation, and dual-column export.'] 
+    }
+  ];
+
+  const matchedProjects = [];
+  knownAppsCatalog.forEach(app => {
+    if (lower.includes(app.key) && !matchedProjects.some(p => p.title === app.title)) {
+      matchedProjects.push(app);
+    }
+  });
+
+  // Dynamic regex fallback for arbitrary user-specified projects
+  const productSegmentRegex = /(?:project(?:s)?|product(?:s)?|apps?)(?:\s+banaya|\s+banaye|\s+built|\s+launched|\s+hai|\s+hain)?\s*(?:like|jaise|such\s+as|including)?\s*[:"']?([^.]+?)(?:\s*\.|\s*etc|\s*sab\s+live|\s*sara\s+scracth|\s*all\s+live|\s*sara\s+ai|\s*tools|\s*ki\s+help)/i;
   const productSegmentMatch = clean.match(productSegmentRegex);
   
   if (productSegmentMatch && productSegmentMatch[1]) {
     const rawTokens = productSegmentMatch[1].split(/[,|&]+|\s+aur\s+/i);
     rawTokens.forEach(token => {
-      let trimmed = token.replace(/^(like|jaise|product|banaya|hu|hai|apps?)\s+/i, '').replace(/etc/i, '').trim();
-      trimmed = trimmed.replace(/\s+(etc|sab|live|hai|hu|sara)$/i, '').trim();
-      if (trimmed.length >= 3 && trimmed.length <= 40 && !['etc', 'aur', 'and', 'sab', 'live', 'sara', 'scracth'].includes(trimmed.toLowerCase())) {
+      let trimmed = token.replace(/^(like|jaise|product|project|banaya|hu|hai|apps?|app|jo|live|playstore|me|impending|to|be)\s+/i, '').replace(/etc/i, '').trim();
+      trimmed = trimmed.replace(/\s+(etc|sab|live|hai|hu|sara|apps?)$/i, '').trim();
+      
+      const isAlreadyInCatalog = knownAppsCatalog.some(k => trimmed.toLowerCase().includes(k.key) || k.key.includes(trimmed.toLowerCase()));
+      if (isAlreadyInCatalog) return;
+
+      if (trimmed.length >= 3 && trimmed.length <= 40 && !['etc', 'aur', 'and', 'sab', 'live', 'sara', 'scracth', 'app', 'apps', 'playstore', 'impending'].includes(trimmed.toLowerCase())) {
         const capitalized = trimmed.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        if (!productMatches.includes(capitalized)) {
-          productMatches.push(capitalized);
+        if (!matchedProjects.some(p => p.title.toLowerCase() === capitalized.toLowerCase())) {
+          matchedProjects.push({
+            title: capitalized,
+            status: lower.includes('playstore') && (lower.indexOf('playstore') < lower.indexOf(trimmed)) ? 'Live on Google Play Store' : 'Live Cloud Application',
+            bullets: [`Full-stack production application architected from scratch using modern AI developer tools and cloud infrastructure.`]
+          });
         }
       }
     });
@@ -694,7 +878,7 @@ export function extractDynamicEntitiesFromPrompt(text) {
 
   // 4. Role Title Determination
   let roleTitle = "Full-Stack AI Developer & Vibe Coder";
-  if (lower.includes('vibe coding') || lower.includes('vide coding')) {
+  if (lower.includes('vibe coding') || lower.includes('vide coding') || lower.includes('scratch') || lower.includes('scratv=ch')) {
     roleTitle = "Full-Stack AI Developer & Vibe Coder";
   } else if (lower.includes('talent acquisition') || lower.includes('recruiter')) {
     roleTitle = "Senior Talent Acquisition Specialist";
@@ -707,9 +891,9 @@ export function extractDynamicEntitiesFromPrompt(text) {
   return {
     period,
     tools: extractedTools,
-    products: productMatches,
+    products: matchedProjects,
     roleTitle,
-    isLiveProducts: lower.includes('live') || lower.includes('scratch') || lower.includes('product')
+    isLiveProducts: lower.includes('live') || lower.includes('scratch') || lower.includes('product') || lower.includes('playstore') || matchedProjects.length > 0
   };
 }
 
@@ -822,6 +1006,36 @@ export function executeChangePlan(currentCvState, changePlan) {
           }
           appliedOperations.push(op);
           requestedFacts.push('Optimized experience bullets with high-impact ATS action verbs');
+        }
+        break;
+      }
+
+      case 'AUGMENT_EXPERIENCE': {
+        if (proposedCv.experiences && proposedCv.experiences.length > 0) {
+          const targetExp = proposedCv.experiences.find(e => 
+            (op.targetId && e.id === op.targetId) ||
+            (op.targetCompany && (e.company || '').toLowerCase().includes(op.targetCompany.toLowerCase())) ||
+            (op.targetRole && (e.role || '').toLowerCase().includes(op.targetRole.toLowerCase()))
+          ) || proposedCv.experiences[0];
+
+          if (targetExp) {
+            if (op.augmentedRole) {
+              targetExp.role = op.augmentedRole;
+            }
+            if (op.subtitle) {
+              targetExp.subtitle = op.subtitle;
+            }
+            if (Array.isArray(op.newBullets)) {
+              if (!Array.isArray(targetExp.bullets)) targetExp.bullets = [];
+              op.newBullets.forEach(b => {
+                if (!targetExp.bullets.includes(b)) {
+                  targetExp.bullets.push(b);
+                }
+              });
+            }
+            appliedOperations.push(op);
+            requestedFacts.push(op.description || `Enriched ${targetExp.role} with vibe coding and project milestones`);
+          }
         }
         break;
       }
