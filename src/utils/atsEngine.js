@@ -64,7 +64,7 @@ export {
  * Natural Language Bullet Matcher:
  * Finds all matching bullets in experiences or summary with company scoping and fuzzy keyword segmentation.
  */
-export function findAllTargetBulletsInCv(snippet, experiences = [], summary = '') {
+export function findAllTargetBulletsInCv(snippet, experiences = [], summary = '', education = []) {
   if (!snippet || typeof snippet !== 'string') return [];
   const rawPrompt = snippet.trim();
   const pLower = rawPrompt.toLowerCase();
@@ -122,7 +122,7 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
     .replace(/\b(?:se|me|ka|ke|ki|wale|wali|wala|employment|experience|job)\b/gi, ' ')
     .replace(/\b(?:ye|yeh|woh|isko|unko|inhe|dono|sab|sabhi)\b/gi, ' ')
     .replace(/\b(?:pointers?|points?|bullets?|lines?|statements?)\b/gi, ' ')
-    .replace(/\b(?:hata\s*do|hatao|hata|hta\s*de|hta\s*do|htao|delete\s*karo|delete|nikal\s*do|nikalo|remove\s*karo|remove|drop|chhod\s*do|omit)\b/gi, ' ')
+    .replace(/\b(?:hata\s*do|hatao|hata|hataye|hta\s*de|hta\s*do|htao|delete\s*karo|delete|nikal\s*do|nikalo|remove\s*karo|remove|drop|chhod\s*do|omit)\b/gi, ' ')
     .replace(/\b(?:karo|kar\s*do|karna|hai|tha|the|please|bhi)\b/gi, ' ')
     .trim();
 
@@ -159,6 +159,32 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
         }
       });
     });
+
+    // Also check education if provided
+    if (Array.isArray(education)) {
+      education.forEach((edu, eduIdx) => {
+        if (matchedBulletsSet.has(edu)) return;
+        const eLower = edu.toLowerCase().trim();
+        if (pLower.includes(eLower)) {
+          addMatch({ section: 'education', eduIdx, bulletText: edu });
+          return;
+        }
+        for (const seg of segments) {
+          const segTokens = seg.split(/\s+/).filter(t => t.length >= 2 && !['from', 'with', 'that', 'this', 'for', 'the', 'in', 'and', 'aur'].includes(t));
+          if (eLower.includes(seg) || (seg.length >= 6 && seg.includes(eLower))) {
+            addMatch({ section: 'education', eduIdx, bulletText: edu });
+            break;
+          }
+          if (segTokens.length > 0) {
+            const matchCount = segTokens.filter(tok => eLower.includes(tok)).length;
+            if (matchCount === segTokens.length || (segTokens.length >= 2 && matchCount / segTokens.length >= 0.5)) {
+              addMatch({ section: 'education', eduIdx, bulletText: edu });
+              break;
+            }
+          }
+        }
+      });
+    }
   }
 
   // Also check summary if requested
@@ -393,25 +419,40 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     }
   }
 
-  // 3.0 BULLET / POINT DELETION (Point-by-point removal from experience or summary)
+  // 3.0 BULLET / POINT DELETION (Point-by-point removal from experience, education, or summary)
   const cvExperiences = currentCvState?.experiences || currentCvState?.experience || sourceMaster?.experiences || sourceMaster?.experience || [];
   const cvSummary = currentCvState?.header?.summary || currentCvState?.summary || sourceMaster?.header?.summary || sourceMaster?.summary || '';
-  const matchedTargetBullets = hasDeleteWord ? findAllTargetBulletsInCv(rawText, cvExperiences, cvSummary) : [];
+  const cvEducation = currentCvState?.education || sourceMaster?.education || [];
+  const matchedTargetBullets = hasDeleteWord ? findAllTargetBulletsInCv(rawText, cvExperiences, cvSummary, cvEducation) : [];
   if (hasDeleteWord && (hasBulletWord || matchedTargetBullets.length > 0)) {
     if (matchedTargetBullets.length > 0) {
       matchedTargetBullets.forEach((matched, idx) => {
-        operations.push({
-          id: `op-del-bullet-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
-          operation: 'DELETE_BULLET',
-          section: matched.section || 'experience',
-          targetBullet: matched.bulletText,
-          targetCompany: matched.targetCompany,
-          description: `Delete point: "${matched.bulletText.slice(0, 50)}..."`
-        });
-        authorizedChanges.push({ field: 'experiences.deleted_bullet', value: matched.bulletText, authorization: 'USER_EXPLICIT' });
-        authorizedChanges.push({ field: 'experiences.bullet.deleted', value: matched.bulletText, authorization: 'USER_EXPLICIT' });
-        targetSections.add(matched.section || 'experience');
-        summaries.push(`Removed bullet point: "${matched.bulletText.slice(0, 45)}..."`);
+        if (matched.section === 'education') {
+          operations.push({
+            id: `op-del-edu-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+            operation: 'REMOVE_EDUCATION',
+            section: 'education',
+            value: matched.bulletText,
+            description: `Remove education: "${matched.bulletText.slice(0, 50)}..."`
+          });
+          authorizedChanges.push({ field: 'education', value: matched.bulletText, authorization: 'USER_EXPLICIT' });
+          authorizedChanges.push({ field: 'education.deleted', value: matched.bulletText, authorization: 'USER_EXPLICIT' });
+          targetSections.add('education');
+          summaries.push(`Removed education: "${matched.bulletText.slice(0, 45)}..."`);
+        } else {
+          operations.push({
+            id: `op-del-bullet-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+            operation: 'DELETE_BULLET',
+            section: matched.section || 'experience',
+            targetBullet: matched.bulletText,
+            targetCompany: matched.targetCompany,
+            description: `Delete point: "${matched.bulletText.slice(0, 50)}..."`
+          });
+          authorizedChanges.push({ field: 'experiences.deleted_bullet', value: matched.bulletText, authorization: 'USER_EXPLICIT' });
+          authorizedChanges.push({ field: 'experiences.bullet.deleted', value: matched.bulletText, authorization: 'USER_EXPLICIT' });
+          targetSections.add(matched.section || 'experience');
+          summaries.push(`Removed bullet point: "${matched.bulletText.slice(0, 45)}..."`);
+        }
       });
     } else {
       const m = rawText.match(/(?:point|bullet|line|pointer)s?\s*(?:delete|hata|remove|hta)?\s*[:"']?(.+?)(?:["']|\s*ye\s*pointers?\s*hata\s*do|\s*ye\s*pointers?\s*hta\s*de|\s*delete\s*karo|\s*hata\s*do|\s*hta\s*de|$)/i) ||
@@ -1661,9 +1702,18 @@ export function executeChangePlan(currentCvState, changePlan) {
 
       case 'REMOVE_EDUCATION': {
         if (op.value && Array.isArray(proposedCv.education)) {
-          const vLow = op.value.toLowerCase();
+          const valLow = op.value.toLowerCase().trim();
+          const valTokens = valLow.split(/\s+/).filter(t => t.length >= 3 && !['from', 'in', 'and', 'with', 'the', 'dono', 'hataye', 'hata', 'karo'].includes(t));
           const initialCount = proposedCv.education.length;
-          proposedCv.education = proposedCv.education.filter(e => !e.toLowerCase().includes(vLow) && !vLow.includes(e.toLowerCase()));
+          proposedCv.education = proposedCv.education.filter(e => {
+            const eLow = e.toLowerCase().trim();
+            if (eLow === valLow || eLow.includes(valLow) || valLow.includes(eLow)) return false;
+            if (valTokens.length >= 2) {
+              const matchedTokens = valTokens.filter(t => eLow.includes(t));
+              if (matchedTokens.length === valTokens.length || (valTokens.length >= 3 && matchedTokens.length / valTokens.length >= 0.5)) return false;
+            }
+            return true;
+          });
           if (proposedCv.education.length < initialCount) {
             appliedOperations.push(op);
             requestedFacts.push(op.description || `Removed education: "${op.value}"`);

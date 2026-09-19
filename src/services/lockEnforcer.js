@@ -68,17 +68,18 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
   // 4. EDUCATION & CERTIFICATIONS LOCK
   // Protect education & certifications from unauthorized AI alterations unless targeted
   if (!targetSections.has('education') && !authorizedFields.has('education')) {
-    output.education = [...(base.education || master.education || [])];
+    output.education = Array.isArray(base.education) ? [...base.education] : [...(master.education || [])];
   }
   if (!targetSections.has('certifications') && !authorizedFields.has('certifications')) {
-    output.certifications = [...(base.certifications || master.certifications || [])];
+    output.certifications = Array.isArray(base.certifications) ? [...base.certifications] : [...(master.certifications || [])];
   }
 
   // 4.1 SKILLS LOCK
   // Protect skills unless targeted or explicitly authorized
   if (!targetSections.has('skills') && !authorizedFields.has('skills')) {
-    output.skills = [...(base.skills || master.skills || [])];
-    if (base.itSkills) output.itSkills = [...(base.itSkills || master.itSkills || [])];
+    output.skills = Array.isArray(base.skills) ? [...base.skills] : [...(master.skills || [])];
+    if (base.itSkills) output.itSkills = [...base.itSkills];
+    else if (master.itSkills) output.itSkills = [...master.itSkills];
   }
 
   // 5. EXISTING WORK EXPERIENCE LOCKS
@@ -95,8 +96,17 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
   if (Array.isArray(master.experiences) && Array.isArray(output.experiences)) {
     master.experiences.forEach((sourceExp, expIdx) => {
       const sourceCompLower = (sourceExp.company || '').toLowerCase();
-      // Skip if this company was explicitly deleted by the user
+      // Skip if this company was explicitly deleted by the user in this turn
       if (deletedCompanies.some(d => sourceCompLower.includes(d) || d.includes(sourceCompLower))) {
+        return;
+      }
+
+      // If company was already deleted in a prior turn (absent from base), do NOT resurrect it!
+      const wasCompanyInBase = base.experiences?.some(e => 
+        (sourceExp.id && e.id === sourceExp.id) || 
+        (e.company && sourceExp.company && e.company.toLowerCase().trim() === sourceCompLower)
+      );
+      if (base.experiences && !wasCompanyInBase) {
         return;
       }
 
@@ -105,6 +115,13 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
         (e.role === sourceExp.role && e.company === sourceExp.company) ||
         (sourceExp.company && e.company === sourceExp.company)
       ) || (output.experiences.length === master.experiences.length ? output.experiences[expIdx] : null);
+
+      const baseExp = base.experiences?.find(e => 
+        (sourceExp.id && e.id === sourceExp.id) || 
+        (e.role === sourceExp.role && e.company === sourceExp.company) ||
+        (sourceExp.company && e.company === sourceExp.company)
+      ) || (base.experiences?.length === master.experiences.length ? base.experiences[expIdx] : null);
+
       if (targetExp) {
         // Enforce exact company, dates, and locations from master unless authorized
         if (!authorizedFields.has(`experiences[${expIdx}].company`)) {
@@ -127,7 +144,14 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
             const isAuthorizedReplacement = Array.from(authorizedFields).some(field => 
               field.startsWith('experiences[') && field.endsWith(`.bullets[${idx}]`)
             );
-            if (Array.isArray(targetExp.bullets) && !targetExp.bullets.includes(sourceBullet) && !isAuthorizedReplacement && !isExplicitlyDeleted) {
+            // CRITICAL ANTI-RESURRECTION GUARD:
+            // Only restore if this bullet was actually present in base (prior approved version).
+            // If it was already absent from base, it was deleted in a previous turn - NEVER resurrect it!
+            const wasPresentInBase = baseExp && Array.isArray(baseExp.bullets)
+              ? baseExp.bullets.some(b => b.toLowerCase().trim() === sourceBulletLower)
+              : false;
+
+            if (wasPresentInBase && Array.isArray(targetExp.bullets) && !targetExp.bullets.includes(sourceBullet) && !isAuthorizedReplacement && !isExplicitlyDeleted) {
               targetExp.bullets.splice(idx, 0, sourceBullet);
             }
           });
