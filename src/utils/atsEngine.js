@@ -62,56 +62,105 @@ export {
 
 /**
  * Natural Language Bullet Matcher:
- * Finds the exact or highest-scoring matching bullet in experiences or summary.
+ * Finds all matching bullets in experiences or summary with company scoping.
  */
-export function findTargetBulletInCv(snippet, experiences = [], summary = '') {
-  if (!snippet || typeof snippet !== 'string') return null;
-  const cleanSnippet = snippet
-    .replace(/^(?:delete|remove|hata\s*do|hatao|nikal\s*do|nikalo|point|bullet|line|isko|ye|se|karo)\s+/gi, '')
-    .replace(/\s+(?:ye\s*point\s*hata\s*do|point\s*delete\s*karo|delete\s*karo|hata\s*do|remove\s*karo|hatao|nikal\s*do|delete|remove)$/gi, '')
-    .trim()
-    .toLowerCase();
-  if (cleanSnippet.length < 4) return null;
+export function findAllTargetBulletsInCv(snippet, experiences = [], summary = '') {
+  if (!snippet || typeof snippet !== 'string') return [];
+  const rawPrompt = snippet.trim();
+  const pLower = rawPrompt.toLowerCase();
 
-  let bestMatch = null;
-  let highestScore = 0;
-
-  experiences.forEach((exp, expIdx) => {
-    (exp.bullets || []).forEach((b, bulletIdx) => {
-      const bLower = b.toLowerCase();
-      if (bLower.includes(cleanSnippet) || cleanSnippet.includes(bLower)) {
-        const score = 100 + (bLower === cleanSnippet ? 50 : 0);
-        if (score > highestScore) {
-          highestScore = score;
-          bestMatch = { section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role };
-        }
-      } else {
-        const snipWords = cleanSnippet.split(/[\s,.'"-]+/).filter(w => w.length > 3);
-        const bulletWords = bLower.split(/[\s,.'"-]+/).filter(w => w.length > 3);
-        const matchCount = snipWords.filter(w => bulletWords.some(bw => bw.includes(w) || w.includes(bw))).length;
-        if (snipWords.length > 0 && matchCount >= Math.min(2, snipWords.length)) {
-          const score = (matchCount / snipWords.length) * 80;
-          if (score > highestScore && score >= 40) {
-            highestScore = score;
-            bestMatch = { section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role };
-          }
-        }
-      }
-    });
-  });
-
-  if (summary) {
-    const sumLower = summary.toLowerCase();
-    if (sumLower.includes(cleanSnippet) || cleanSnippet.includes(sumLower)) {
-      const score = 90;
-      if (score > highestScore) {
-        highestScore = score;
-        bestMatch = { section: 'summary', bulletText: summary };
+  // 1. Identify target company if mentioned in prompt
+  let targetCompany = null;
+  if (Array.isArray(experiences)) {
+    for (const exp of experiences) {
+      const compName = (exp.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+      const tokens = compName.split(/\s+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'company', 'technologies', 'startup'].includes(t));
+      if (tokens.some(t => pLower.includes(t))) {
+        targetCompany = exp.company;
+        break;
       }
     }
   }
 
-  return bestMatch;
+  const matches = [];
+  const matchedBulletsSet = new Set();
+
+  const addMatch = (match) => {
+    if (!matchedBulletsSet.has(match.bulletText)) {
+      matchedBulletsSet.add(match.bulletText);
+      matches.push(match);
+    }
+  };
+
+  // Pass 1: Direct bullet substring check against whole prompt
+  if (Array.isArray(experiences)) {
+    experiences.forEach((exp, expIdx) => {
+      if (targetCompany && exp.company && !exp.company.toLowerCase().includes(targetCompany.toLowerCase()) && !targetCompany.toLowerCase().includes(exp.company.toLowerCase())) {
+        return;
+      }
+      (exp.bullets || []).forEach((b, bulletIdx) => {
+        const bLower = b.toLowerCase().trim();
+        if (bLower.length >= 6 && pLower.includes(bLower)) {
+          addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
+        }
+      });
+    });
+  }
+
+  // Pass 2: Clean snippet check for individual targeted bullets
+  const cleanSnippet = pLower
+    .replace(/^(?:delete|remove|hata\s*do|hatao|hta\s*do|hta\s*de|htao|nikal\s*do|nikalo|point|bullet|line|isko|ye|se|karo)\s+/gi, '')
+    .replace(/\s+(?:ye\s*pointers?\s*hata\s*do|ye\s*pointers?\s*hta\s*de|ye\s*point\s*hata\s*do|point\s*delete\s*karo|delete\s*karo|hata\s*do|hta\s*do|hta\s*de|remove\s*karo|hatao|htao|nikal\s*do|delete|remove)$/gi, '')
+    .trim();
+
+  if (Array.isArray(experiences)) {
+    experiences.forEach((exp, expIdx) => {
+      if (targetCompany && exp.company && !exp.company.toLowerCase().includes(targetCompany.toLowerCase()) && !targetCompany.toLowerCase().includes(exp.company.toLowerCase())) {
+        return;
+      }
+      (exp.bullets || []).forEach((b, bulletIdx) => {
+        if (matchedBulletsSet.has(b)) return;
+        const bLower = b.toLowerCase().trim();
+        if (cleanSnippet.length >= 6 && (bLower.includes(cleanSnippet) || cleanSnippet.includes(bLower))) {
+          addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
+        }
+      });
+    });
+  }
+
+  // Pass 3: Multi-phrase / Word cluster check
+  if (matches.length === 0 && Array.isArray(experiences)) {
+    experiences.forEach((exp, expIdx) => {
+      if (targetCompany && exp.company && !exp.company.toLowerCase().includes(targetCompany.toLowerCase()) && !targetCompany.toLowerCase().includes(exp.company.toLowerCase())) {
+        return;
+      }
+      (exp.bullets || []).forEach((b, bulletIdx) => {
+        if (matchedBulletsSet.has(b)) return;
+        const bLower = b.toLowerCase().trim();
+        const bulletWords = bLower.split(/[\s,.'"-]+/).filter(w => w.length >= 3 && !['from', 'with', 'that', 'this', 'and', 'for', 'the'].includes(w));
+        const promptWords = pLower.split(/[\s,.'"-]+/).filter(w => w.length >= 3);
+        const matchCount = bulletWords.filter(w => promptWords.includes(w)).length;
+        if (bulletWords.length > 0 && matchCount >= Math.min(3, bulletWords.length)) {
+          addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
+        }
+      });
+    });
+  }
+
+  // Also check summary if requested
+  if (summary) {
+    const sumLower = summary.toLowerCase().trim();
+    if (sumLower.length >= 6 && (pLower.includes(sumLower) || sumLower.includes(cleanSnippet))) {
+      addMatch({ section: 'summary', bulletText: summary });
+    }
+  }
+
+  return matches;
+}
+
+export function findTargetBulletInCv(snippet, experiences = [], summary = '') {
+  const all = findAllTargetBulletsInCv(snippet, experiences, summary);
+  return all.length > 0 ? all[0] : null;
 }
 
 /**
@@ -137,8 +186,11 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     };
   }
 
-  const hasDeleteWord = lower.includes('delete') || lower.includes('hata') || lower.includes('remove') || lower.includes('nikal') || lower.includes('hatao');
-  const hasBulletWord = lower.includes('point') || lower.includes('bullet') || lower.includes('line') || lower.includes('statement');
+  const hasDeleteWord = lower.includes('delete') || lower.includes('hata') || lower.includes('remove') || lower.includes('nikal') || lower.includes('hatao') ||
+                        lower.includes('hta') || lower.includes('htao') || lower.includes('del ') || lower.includes('del-') || lower.includes('drop') ||
+                        lower.includes('chhod') || lower.includes('omit');
+  const hasBulletWord = lower.includes('point') || lower.includes('bullet') || lower.includes('line') || lower.includes('statement') ||
+                        lower.includes('pointer') || lower.includes('pointers');
   const hasAddWord = lower.includes('add') || lower.includes('daal') || lower.includes('jodo') || lower.includes('insert') || lower.includes('include') || lower.includes('likho');
 
   // 0. CANDIDATE NAME DETECTION
@@ -241,7 +293,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   }
 
   // 2.5 CERTIFICATIONS OPERATIONS (ADD / REMOVE)
-  if (lower.includes('certification') || lower.includes('certificate')) {
+  if (!hasBulletWord && !lower.includes('employment') && !lower.includes('experience') && (lower.includes('certification') || lower.includes('certificate'))) {
     if (hasDeleteWord) {
       let certName = rawText
         .replace(/^(?:delete|remove|hata\s*do)\s*(?:certification|certificate)s?\s*[:"']?/i, '')
@@ -285,7 +337,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   }
 
   // 2.6 EDUCATION OPERATIONS (ADD / REMOVE)
-  if (lower.includes('education') || lower.includes('degree') || lower.includes('college') || lower.includes('university')) {
+  if (!hasBulletWord && !lower.includes('employment') && !lower.includes('experience') && (lower.includes('education') || lower.includes('degree') || lower.includes('college') || lower.includes('university'))) {
     if (hasDeleteWord) {
       let eduName = rawText
         .replace(/^(?:delete|remove|hata\s*do)\s*(?:education|degree|college|university)s?\s*[:"']?/i, '')
@@ -328,29 +380,41 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   }
 
   // 3.0 BULLET / POINT DELETION (Point-by-point removal from experience or summary)
-  const matchedTargetBullet = hasDeleteWord ? findTargetBulletInCv(rawText, currentCvState?.experiences || sourceMaster?.experiences, currentCvState?.header?.summary) : null;
-  if (hasDeleteWord && (hasBulletWord || matchedTargetBullet)) {
-    let bulletSnippet = '';
-    if (matchedTargetBullet) {
-      bulletSnippet = matchedTargetBullet.bulletText;
-    } else {
-      const m = rawText.match(/(?:point|bullet|line)\s*(?:delete|hata|remove)?\s*[:"']?(.+?)(?:["']|\s*ye\s*point\s*hata\s*do|\s*delete\s*karo|\s*hata\s*do|$)/i) ||
-                rawText.match(/(?:delete|remove|hata\s*do|hatao)\s*(?:point|bullet|line)?\s*[:"']?(.+?)(?:["']|$)/i);
-      bulletSnippet = m ? m[1].trim() : rawText;
-    }
-
-    if (bulletSnippet && bulletSnippet.length >= 4) {
-      operations.push({
-        id: `op-del-bullet-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-        operation: 'DELETE_BULLET',
-        section: matchedTargetBullet?.section || 'experience',
-        targetBullet: bulletSnippet,
-        description: `Delete point: "${bulletSnippet.slice(0, 50)}..."`
+  const matchedTargetBullets = hasDeleteWord ? findAllTargetBulletsInCv(rawText, currentCvState?.experiences || sourceMaster?.experiences, currentCvState?.header?.summary) : [];
+  if (hasDeleteWord && (hasBulletWord || matchedTargetBullets.length > 0)) {
+    if (matchedTargetBullets.length > 0) {
+      matchedTargetBullets.forEach((matched, idx) => {
+        operations.push({
+          id: `op-del-bullet-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+          operation: 'DELETE_BULLET',
+          section: matched.section || 'experience',
+          targetBullet: matched.bulletText,
+          targetCompany: matched.targetCompany,
+          description: `Delete point: "${matched.bulletText.slice(0, 50)}..."`
+        });
+        authorizedChanges.push({ field: 'experiences.deleted_bullet', value: matched.bulletText, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: 'experiences.bullet.deleted', value: matched.bulletText, authorization: 'USER_EXPLICIT' });
+        targetSections.add(matched.section || 'experience');
+        summaries.push(`Removed bullet point: "${matched.bulletText.slice(0, 45)}..."`);
       });
-      authorizedChanges.push({ field: 'experiences.deleted_bullet', value: bulletSnippet, authorization: 'USER_EXPLICIT' });
-      authorizedChanges.push({ field: 'experiences.bullet.deleted', value: bulletSnippet, authorization: 'USER_EXPLICIT' });
-      targetSections.add('experience');
-      summaries.push(`Removed bullet point: "${bulletSnippet.slice(0, 45)}..."`);
+    } else {
+      const m = rawText.match(/(?:point|bullet|line|pointer)s?\s*(?:delete|hata|remove|hta)?\s*[:"']?(.+?)(?:["']|\s*ye\s*pointers?\s*hata\s*do|\s*ye\s*pointers?\s*hta\s*de|\s*delete\s*karo|\s*hata\s*do|\s*hta\s*de|$)/i) ||
+                rawText.match(/(?:delete|remove|hata\s*do|hatao|hta\s*de|hta\s*do)\s*(?:point|bullet|line|pointer)s?\s*[:"']?(.+?)(?:["']|$)/i);
+      const bulletSnippet = m ? m[1].trim() : rawText;
+
+      if (bulletSnippet && bulletSnippet.length >= 4) {
+        operations.push({
+          id: `op-del-bullet-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          operation: 'DELETE_BULLET',
+          section: 'experience',
+          targetBullet: bulletSnippet,
+          description: `Delete point: "${bulletSnippet.slice(0, 50)}..."`
+        });
+        authorizedChanges.push({ field: 'experiences.deleted_bullet', value: bulletSnippet, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: 'experiences.bullet.deleted', value: bulletSnippet, authorization: 'USER_EXPLICIT' });
+        targetSections.add('experience');
+        summaries.push(`Removed bullet point: "${bulletSnippet.slice(0, 45)}..."`);
+      }
     }
   }
 
@@ -433,7 +497,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   // 3.3 DELETE / REMOVE EXPERIENCE & PROJECTS (Guarded: Do NOT delete company if user targeted a specific bullet!)
   const isDeleteIntent = hasDeleteWord;
   let deletedAny = false;
-  if (isDeleteIntent && !hasBulletWord && !matchedTargetBullet) {
+  if (isDeleteIntent && !hasBulletWord && (!matchedTargetBullets || matchedTargetBullets.length === 0)) {
     const currentExperiences = currentCvState?.experiences || sourceMaster?.experiences || [];
     currentExperiences.forEach(exp => {
       const fullComp = (exp.company || '').toLowerCase();
@@ -1469,6 +1533,13 @@ export function executeChangePlan(currentCvState, changePlan) {
           const targetText = op.targetBullet.toLowerCase().trim();
           if (Array.isArray(proposedCv.experiences)) {
             proposedCv.experiences.forEach(exp => {
+              if (op.targetCompany) {
+                const compLower = (exp.company || '').toLowerCase();
+                const targetCompLower = op.targetCompany.toLowerCase();
+                if (!compLower.includes(targetCompLower) && !targetCompLower.includes(compLower)) {
+                  return;
+                }
+              }
               if (Array.isArray(exp.bullets)) {
                 const beforeLen = exp.bullets.length;
                 exp.bullets = exp.bullets.filter(b => {
@@ -1483,7 +1554,7 @@ export function executeChangePlan(currentCvState, changePlan) {
               }
             });
           }
-          if (proposedCv.header?.summary) {
+          if (proposedCv.header?.summary && (!op.targetCompany || op.section === 'summary')) {
             const sumLow = proposedCv.header.summary.toLowerCase();
             if (sumLow.includes(targetText)) {
               const sentences = proposedCv.header.summary.split(/(?<=[.!?])\s+/);
@@ -1631,7 +1702,14 @@ export function verifyRequestedChange(baseCv, proposedCv, changePlan) {
       }
     } else if (op.operation === 'DELETE_BULLET') {
       const targetText = (op.targetBullet || '').toLowerCase().trim();
-      const allPropBullets = (proposedCv.experiences || []).flatMap(e => e.bullets || []).map(b => b.toLowerCase().trim());
+      let targetExperiences = proposedCv.experiences || [];
+      if (op.targetCompany) {
+        targetExperiences = targetExperiences.filter(e => 
+          (e.company || '').toLowerCase().includes(op.targetCompany.toLowerCase()) ||
+          op.targetCompany.toLowerCase().includes((e.company || '').toLowerCase())
+        );
+      }
+      const allPropBullets = targetExperiences.flatMap(e => e.bullets || []).map(b => b.toLowerCase().trim());
       const stillPresent = allPropBullets.some(b => b.includes(targetText) || targetText.includes(b));
       if (stillPresent) {
         return { verified: false, reason: `Requested bullet deletion was not reflected.` };
