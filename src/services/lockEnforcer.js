@@ -52,6 +52,16 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
       output.contact.linkedin = base.contact.linkedin || master.contact?.linkedin;
     }
   }
+  if (!authorizedFields.has('contact.github')) {
+    if (output.contact && base.contact) {
+      output.contact.github = base.contact.github || master.contact?.github;
+    }
+  }
+  if (!authorizedFields.has('contact.website') && !authorizedFields.has('contact.portfolio')) {
+    if (output.contact && base.contact) {
+      output.contact.website = base.contact.website || master.contact?.website;
+    }
+  }
 
   // 2. SUMMARY LOCK
   // If summary was NOT in target sections, restore base summary (preserving previous approved changes)
@@ -170,6 +180,12 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
       const titleLower = (p.title || p.name || '').toLowerCase();
       return !deletedProjects.some(d => titleLower.includes(d) || d.includes(titleLower));
     });
+  }
+
+  // 5.2 PROJECTS RETENTION
+  // If projects section was not targeted and not authorized, ensure previously approved base projects are preserved
+  if (!targetSections.has('projects') && !authorizedFields.has('projects') && base.projects && !output.projects) {
+    output.projects = JSON.parse(JSON.stringify(base.projects));
   }
 
   // 6. UNSUPPORTED FACT PURGE (Rejects hallucinated metrics/claims like "$10M revenue", "Fortune 500")

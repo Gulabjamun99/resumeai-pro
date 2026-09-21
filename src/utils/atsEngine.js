@@ -325,46 +325,135 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   }
 
   // 2. PHONE / CONTACT DETECTION
-  const phoneMatch = rawText.match(/(?:phone|mobile|contact|number)\s*(?:number)?\s*(?:ko|to|change\s*karke|as|is)?\s*[:"']?([+0-9\s-]{8,20})/i);
-  if (phoneMatch && phoneMatch[1]) {
-    const phoneVal = phoneMatch[1].trim();
-    operations.push({
-      id: `op-phone-${Date.now()}`,
-      operation: 'REPLACE',
-      section: 'contact',
-      field: 'contact.phone',
-      requestedValue: phoneVal,
-      description: `Update Phone Number to: "${phoneVal}"`
-    });
-    authorizedChanges.push({ field: 'contact.phone', value: phoneVal, authorization: 'USER_EXPLICIT' });
-    targetSections.add('contact');
-    summaries.push(`Phone updated to "${phoneVal}"`);
+  if ((lower.includes('phone') || lower.includes('mobile') || lower.includes('contact') || lower.includes('number')) && !hasBulletWord) {
+    const numMatch = rawText.match(/(\+?\d[\d\s-]{7,18}\d)/);
+    if (numMatch && numMatch[1]) {
+      const phoneVal = numMatch[1].trim();
+      operations.push({
+        id: `op-phone-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'contact',
+        field: 'contact.phone',
+        requestedValue: phoneVal,
+        description: `Update Phone Number to: "${phoneVal}"`
+      });
+      authorizedChanges.push({ field: 'contact.phone', value: phoneVal, authorization: 'USER_EXPLICIT' });
+      targetSections.add('contact');
+      summaries.push(`Phone updated to "${phoneVal}"`);
+    }
   }
 
-  const emailMatch = rawText.match(/(?:email)\s*(?:ko|to|change\s*karke|as|is)?\s*[:"']?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
-  if (emailMatch && emailMatch[1]) {
-    const emailVal = emailMatch[1].trim();
-    operations.push({
-      id: `op-email-${Date.now()}`,
-      operation: 'REPLACE',
-      section: 'contact',
-      field: 'contact.email',
-      requestedValue: emailVal,
-      description: `Update Email to: "${emailVal}"`
-    });
-    authorizedChanges.push({ field: 'contact.email', value: emailVal, authorization: 'USER_EXPLICIT' });
-    targetSections.add('contact');
-    summaries.push(`Email updated to "${emailVal}"`);
+  // EMAIL DETECTION
+  if (lower.includes('email') || lower.includes('mail')) {
+    const emailMatch = rawText.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+    if (emailMatch && emailMatch[1]) {
+      const emailVal = emailMatch[1].trim();
+      operations.push({
+        id: `op-email-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'contact',
+        field: 'contact.email',
+        requestedValue: emailVal,
+        description: `Update Email to: "${emailVal}"`
+      });
+      authorizedChanges.push({ field: 'contact.email', value: emailVal, authorization: 'USER_EXPLICIT' });
+      targetSections.add('contact');
+      summaries.push(`Email updated to "${emailVal}"`);
+    }
+  }
+
+  // LinkedIn Detection
+  if ((lower.includes('linkedin') || lower.includes('linked in')) && !hasBulletWord) {
+    const urlMatch = rawText.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/[^\s"']+/i);
+    let linkedinVal = '';
+    if (urlMatch) {
+      linkedinVal = urlMatch[0];
+    } else {
+      const m = rawText.match(/(?:linkedin|linked\s*in)\s*(?:url|profile|id|link)?\s*(?:ko|to|change\s*karke|update\s*karke|badal\s*ke|change|update|add|add\s*karo)?\s*[:"']?([A-Za-z0-9._~:/?#[\]@!$&'()*+,;=-]+)/i);
+      if (m && m[1]) {
+        linkedinVal = m[1].replace(/^(ko|to|karke|ke|as|is|add|update|change)\s+/i, '').trim();
+      }
+    }
+    linkedinVal = (linkedinVal || '').replace(/\s+(kar\s*do|likho|rakho|bana\s*do|hai|karo)$/i, '').trim();
+    if (linkedinVal.length >= 3 && !['change', 'karo', 'do', 'update', 'add'].includes(linkedinVal.toLowerCase())) {
+      operations.push({
+        id: `op-linkedin-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'contact',
+        field: 'contact.linkedin',
+        requestedValue: linkedinVal,
+        description: `Update LinkedIn to: "${linkedinVal}"`
+      });
+      authorizedChanges.push({ field: 'contact.linkedin', value: linkedinVal, authorization: 'USER_EXPLICIT' });
+      targetSections.add('contact');
+      summaries.push(`LinkedIn updated to "${linkedinVal}"`);
+    }
+  }
+
+  // GitHub Detection
+  if ((lower.includes('github') || lower.includes('git hub')) && !hasBulletWord) {
+    const urlMatch = rawText.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s"']+/i);
+    let githubVal = '';
+    if (urlMatch) {
+      githubVal = urlMatch[0];
+    } else {
+      const m = rawText.match(/(?:github|git\s*hub)\s*(?:url|profile|id|link)?\s*(?:ko|to|change\s*karke|update\s*karke|badal\s*ke|change|update|add|add\s*karo)?\s*[:"']?([A-Za-z0-9._~:/?#[\]@!$&'()*+,;=-]+)/i);
+      if (m && m[1]) {
+        githubVal = m[1].replace(/^(ko|to|karke|ke|as|is|add|update|change)\s+/i, '').trim();
+      }
+    }
+    githubVal = (githubVal || '').replace(/\s+(kar\s*do|likho|rakho|bana\s*do|hai|karo)$/i, '').trim();
+    if (githubVal.length >= 3 && !['change', 'karo', 'do', 'update', 'add'].includes(githubVal.toLowerCase())) {
+      operations.push({
+        id: `op-github-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'contact',
+        field: 'contact.github',
+        requestedValue: githubVal,
+        description: `Update GitHub to: "${githubVal}"`
+      });
+      authorizedChanges.push({ field: 'contact.github', value: githubVal, authorization: 'USER_EXPLICIT' });
+      targetSections.add('contact');
+      summaries.push(`GitHub updated to "${githubVal}"`);
+    }
+  }
+
+  // Website / Portfolio Detection
+  if ((lower.includes('website') || lower.includes('portfolio')) && !hasBulletWord && !lower.includes('project')) {
+    const urlMatch = rawText.match(/(?:https?:\/\/[^\s"']+|[a-zA-Z0-9.-]+\.(?:com|dev|io|org|net|me|app|ai|co)(?:\/[^\s"']*)?)/i);
+    let webVal = '';
+    if (urlMatch) {
+      webVal = urlMatch[0];
+    } else {
+      const m = rawText.match(/(?:website|portfolio)\s*(?:url|link)?\s*(?:ko|to|change\s*karke|update\s*karke|badal\s*ke|change|update|add|add\s*karo|daal\s*do)?\s*[:"']?([A-Za-z0-9._~:/?#[\]@!$&'()*+,;=-]+)/i);
+      if (m && m[1]) {
+        webVal = m[1].replace(/^(ko|to|karke|ke|as|is|add|update|change|karo|daal|do)\s+/i, '').trim();
+      }
+    }
+    webVal = (webVal || '').replace(/\s+(kar\s*do|likho|rakho|bana\s*do|hai|karo|daal\s*do)$/i, '').trim();
+    if (webVal.length >= 3 && !['change', 'karo', 'do', 'update', 'add'].includes(webVal.toLowerCase())) {
+      operations.push({
+        id: `op-website-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'contact',
+        field: 'contact.website',
+        requestedValue: webVal,
+        description: `Update Website to: "${webVal}"`
+      });
+      authorizedChanges.push({ field: 'contact.website', value: webVal, authorization: 'USER_EXPLICIT' });
+      targetSections.add('contact');
+      summaries.push(`Website updated to "${webVal}"`);
+    }
   }
 
   // 2.5 CERTIFICATIONS OPERATIONS (ADD / REMOVE)
   if (!hasBulletWord && !lower.includes('employment') && !lower.includes('experience') && (lower.includes('certification') || lower.includes('certificate'))) {
     if (hasDeleteWord) {
       let certName = rawText
-        .replace(/^(?:delete|remove|hata\s*do)\s*(?:certification|certificate)s?\s*[:"']?/i, '')
-        .replace(/(?:certification|certificate)s?\s*(?:se|me\s*se)?\s*(?:remove\s*karo|hata\s*do|delete\s*karo)?\s*[:"']?/i, '')
-        .replace(/^(?:remove\s*karo|hata\s*do|delete\s*karo|delete|remove)\s*[:"']?/i, '')
-        .replace(/\s*(?:hata\s*do|remove\s*karo|delete\s*karo|delete|remove)$/i, '')
+        .replace(/^(?:delete|remove|hata\s*do|hatao|uda\s*do|nikal\s*do)\s*/i, '')
+        .replace(/(?:from\s+)?(?:certifications?|certificates?)\s*(?:se|me\s*se)?\s*[:"']?/i, '')
+        .replace(/\s*(?:from\s+)?(?:certifications?|certificates?)\s*(?:se|me\s*se)?\s*(?:remove\s*karo|hata\s*do|delete\s*karo|hatao|uda\s*do|nikal\s*do|delete|remove)?$/i, '')
+        .replace(/\s*(?:hata\s*do|remove\s*karo|delete\s*karo|hatao|uda\s*do|nikal\s*do|delete|remove)$/i, '')
         .replace(/^[:"']+|["']+$/g, '')
         .trim();
       if (certName.length >= 3) {
@@ -381,11 +470,13 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       }
     } else if (hasAddWord) {
       let certName = rawText
-        .replace(/^(?:add\s*(?:to\s*)?)?(?:certifications?|certificates?)\s*(?:me|se|me\s*se)?\s*(?:add\s*karo|daal\s*do|include\s*karo)?\s*[:"']?/i, '')
-        .replace(/^(?:add\s*karo|daal\s*do|include\s*karo)\s*[:"']?/i, '')
+        .replace(/^(?:add\s*(?:to\s*)?)?(?:certifications?|certificates?)\s*[:"']?/i, '')
+        .replace(/^(?:add\s*karo|daal\s*do|include\s*karo|add)\s*[:"']?/i, '')
+        .replace(/\s*(?:to|in|into|me|se)?\s*(?:certifications?|certificates?)\s*(?:me|se|me\s*se)?\s*(?:add\s*karo|daal\s*do|include\s*karo|add)?$/i, '')
         .replace(/\s*(?:add\s*karo|daal\s*do|include\s*karo|add)$/i, '')
-        .replace(/^[:"']+|["']+$/g, '')
         .trim();
+      certName = certName.replace(/\s+(?:to|in|into|me|se)$/i, '').trim();
+      certName = certName.replace(/^[:"']+|["']+$/g, '').trim();
       if (certName.length >= 3) {
         operations.push({
           id: `op-add-cert-${Date.now()}`,
@@ -461,12 +552,19 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   if (!hasBulletWord && !lower.includes('employment') && !lower.includes('experience') && (lower.includes('education') || lower.includes('degree') || lower.includes('college') || lower.includes('university'))) {
     if (hasDeleteWord && !operations.some(op => op.operation === 'REMOVE_EDUCATION')) {
       let eduName = rawText
-        .replace(/^(?:delete|remove|hata\s*do|hatao|htao|nikal\s*do|uda\s*do)\s*(?:education|degree|college|university)s?\s*[:"']?/i, '')
-        .replace(/(?:education|degree|college|university)s?\s*(?:se|me\s*se|ko)?\s*[:"']?/i, '')
+        .replace(/^(?:delete|remove|hata\s*do|hatao|htao|nikal\s*do|uda\s*do)\s*/i, '')
+        .replace(/(?:from\s+)?(?:education|degree|college|university)s?\s*(?:se|me\s*se|ko)?\s*[:"']?/i, '')
+        .replace(/\s*(?:from\s+)?(?:education|degree|college|university)s?\s*(?:se|me\s*se|ko)?\s*(?:hata\s*do|hatao|hataye|hatayein|hataiye|htaa|htaye|remove\s*karo|delete\s*karo|delete|remove|nikal\s*do|uda\s*do|b=hataye)?$/i, '')
         .replace(/\b(?:se|me|mein|ko|ye|yeh|degree|college|university|bhi|toh|ise|unhe|isko)\b/gi, ' ')
         .replace(/\s*(?:hata\s*do|hatao|hataye|hatayein|hataiye|htaa|htaye|remove\s*karo|delete\s*karo|delete|remove|nikal\s*do|uda\s*do|b=hataye)$/i, '')
         .replace(/^[:"']+|["']+$/g, '')
         .trim();
+
+      if (currentCvState?.education) {
+        const found = currentCvState.education.find(e => e.toLowerCase().includes(eduName.toLowerCase()) || (eduName.length >= 3 && eduName.toLowerCase().includes(e.toLowerCase().slice(0, 10))));
+        if (found) eduName = found;
+      }
+
       if (eduName.length >= 3) {
         operations.push({
           id: `op-del-edu-${Date.now()}`,
@@ -526,17 +624,24 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     }
     newBulletText = newBulletText.replace(/^[:"'-]+|["']+$/g, '').trim();
 
-    if (newBulletText.length >= 8) {
-      const currentExps = currentCvState?.experiences || sourceMaster?.experiences || [];
-      let targetComp = null;
-      currentExps.forEach(e => {
-        const cLower = (e.company || '').toLowerCase();
-        const rLower = (e.role || '').toLowerCase();
-        if ((cLower && lower.includes(cLower)) || (rLower && lower.includes(rLower))) {
-          targetComp = e.company || e.role;
-        }
-      });
+    const currentExps = currentCvState?.experiences || sourceMaster?.experiences || [];
+    let targetComp = null;
+    currentExps.forEach(e => {
+      const cLower = (e.company || '').toLowerCase();
+      const rLower = (e.role || '').toLowerCase();
+      if ((cLower && lower.includes(cLower)) || (rLower && lower.includes(rLower))) {
+        targetComp = e.company || e.role;
+      }
+    });
 
+    if (targetComp) {
+      const compRegex = new RegExp(`^(?:to\\s+)?(?:${targetComp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|the\\s+company|the\\s+role)\\s*[:\\-]?\\s*`, 'i');
+      newBulletText = newBulletText.replace(compRegex, '').trim();
+    }
+    newBulletText = newBulletText.replace(/^(?:to\s+[A-Za-z0-9\s.'-]+[:\-])\s*/i, '').trim();
+    newBulletText = newBulletText.replace(/^[:"'-]+|["']+$/g, '').trim();
+
+    if (newBulletText.length >= 8) {
       operations.push({
         id: `op-add-bullet-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         operation: 'ADD_BULLET',
@@ -581,15 +686,15 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   // 3.3 DELETE / REMOVE EXPERIENCE & PROJECTS (Guarded: Do NOT delete company if user targeted a specific bullet!)
   const isDeleteIntent = hasDeleteWord;
   let deletedAny = false;
-  if (isDeleteIntent && !hasBulletWord && (!matchedTargetBullets || matchedTargetBullets.length === 0)) {
+  if (isDeleteIntent && !hasBulletWord && (!matchedTargetBullets || matchedTargetBullets.length === 0) && !operations.some(op => op.section === 'certifications' || op.section === 'skills' || op.section === 'education') && !lower.includes('certification') && !lower.includes('certificate')) {
     const currentExperiences = currentCvState?.experiences || sourceMaster?.experiences || [];
     currentExperiences.forEach(exp => {
       const fullComp = (exp.company || '').toLowerCase();
       const fullRole = (exp.role || '').toLowerCase();
-      const compTokens = fullComp.split(/[\s,().-]+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'technologies'].includes(t));
+      const compTokens = fullComp.split(/[\s,().-]+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'technologies', 'solutions', 'systems', 'consulting', 'global', 'group', 'enterprises', 'tech', 'company', 'international'].includes(t));
 
-      const isMatched = compTokens.some(tok => lower.includes(tok)) ||
-                        (fullComp.length >= 3 && lower.includes(fullComp)) ||
+      const isMatched = (compTokens.length > 0 && compTokens.some(tok => lower.includes(tok))) ||
+                        (fullComp.length >= 4 && lower.includes(fullComp)) ||
                         (fullRole.length >= 4 && lower.includes(fullRole));
 
       if (isMatched) {
@@ -612,7 +717,10 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
 
     const knownFallbacks = ['nathcorp', 'pulse solutions', 'execo', 'infogain', 'seewe', 'indigenous'];
     knownFallbacks.forEach(comp => {
-      if (lower.includes(comp) && !operations.some(op => op.targetCompany?.toLowerCase()?.includes(comp))) {
+      const isFallbackMatched = comp === 'pulse solutions' 
+        ? (lower.includes('pulse solutions') || /\bpulse\b/i.test(lower))
+        : lower.includes(comp);
+      if (isFallbackMatched && !operations.some(op => op.targetCompany?.toLowerCase()?.includes(comp))) {
         operations.push({
           id: `op-del-exp-${comp}-${Date.now()}`,
           operation: 'DELETE_EXPERIENCE',
@@ -646,6 +754,41 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         deletedAny = true;
         summaries.push(`Deleted project "${proj}"`);
       }
+    }
+  }
+
+  // 3.4 ADD PROJECT OPERATIONS
+  if (!isExplicitBulletAdd && !hasBulletWord && (lower.includes('project') || lower.includes('projects')) && hasAddWord) {
+    const projMatch = rawText.match(/(?:add\s*project|project\s*add\s*karo|naya\s*project\s*add\s*karo|project\s*me\s*add\s*karo|projects\s*me\s*daal\s*do|project\s*daal\s*do)\s*[:"']?(.+?)(?:["']|$)/i) ||
+                      rawText.match(/(?:add\s*to\s*projects|add\s*project)\s*[:"']?(.+?)(?:["']|$)/i);
+    const projText = projMatch ? projMatch[1].trim() : rawText.replace(/(?:project|projects|add|naya|daal|do|me|karo)/gi, '').trim();
+    const cleanProj = projText.replace(/^[:"'-]+|["']+$/g, '').trim();
+
+    if (cleanProj.length >= 3) {
+      let pTitle = cleanProj;
+      let pDesc = '';
+      if (cleanProj.includes(' - ') || cleanProj.includes(' : ') || cleanProj.includes(':')) {
+        const parts = cleanProj.split(/\s*[-:]\s*/);
+        pTitle = parts[0].trim();
+        pDesc = parts.slice(1).join(' - ').trim();
+      }
+
+      operations.push({
+        id: `op-add-proj-${Date.now()}`,
+        operation: 'ADD_PROJECT',
+        section: 'projects',
+        project: {
+          id: `proj-${Date.now()}`,
+          title: pTitle,
+          name: pTitle,
+          description: pDesc || `Engineered and launched ${pTitle} with modern cloud infrastructure and scalable performance.`,
+          link: ''
+        },
+        description: `Add project: "${pTitle}"`
+      });
+      authorizedChanges.push({ field: 'projects', value: pTitle, authorization: 'USER_EXPLICIT' });
+      targetSections.add('projects');
+      summaries.push(`Added project: "${pTitle}"`);
     }
   }
 
@@ -737,12 +880,13 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     }
   }
 
-  // 4.5 SMART UNIVERSAL "X KO Y KAR DO" / "X KI JAGAH Y LIKHO" VALUE SWITCHER
-  const koRegex = /["']?([^"'\n]+?)["']?\s*(?:ko|ki\s*jagah|se)\s*["']?([^"'\n]+?)["']?\s*(?:kar\s*do|likho|badal\s*do|bana\s*do|rakho)/i;
-  const koMatch = rawText.match(koRegex);
+  // 4.5 SMART UNIVERSAL "X KO Y KAR DO" / "X KI JAGAH Y LIKHO" / "REPLACE X WITH Y" VALUE SWITCHER
+  const koRegex = /["']?([^"'\n]+?)["']?\s*(?:ko|ki\s*jagah|se)\s*["']?([^"'\n]+?)["']?\s*(?:kar\s*do|likho|badal\s*do|bana\s*do|rakho|daal\s*do)/i;
+  const engReplaceRegex = /(?:replace|change)\s+["']?([^"'\n]+?)["']?\s+(?:with|to)\s+["']?([^"'\n]+?)["']?$/i;
+  const koMatch = rawText.match(koRegex) || rawText.match(engReplaceRegex);
   if (koMatch && koMatch[1] && koMatch[2] && operations.length === 0) {
-    const fromVal = koMatch[1].trim();
-    const toVal = koMatch[2].trim().replace(/\s+(kar\s*do|likho|rakho|bana\s*do)$/i, '').trim();
+    let fromVal = koMatch[1].trim();
+    let toVal = koMatch[2].trim().replace(/\s+(kar\s*do|likho|rakho|bana\s*do|daal\s*do)$/i, '').trim();
 
     if (fromVal.length >= 2 && toVal.length >= 2) {
       const fromLower = fromVal.toLowerCase();
@@ -762,7 +906,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         summaries.push(`Name updated to "${toVal}"`);
       }
       // Check Location
-      else if (currentCvState?.contact?.location && (currentCvState.contact.location.toLowerCase().includes(fromLower) || fromLower.includes('location') || fromLower.includes('city'))) {
+      else if (currentCvState?.contact?.location && (currentCvState.contact.location.toLowerCase().includes(fromLower) || fromLower.includes('location') || fromLower.includes('city') || fromLower.includes('shahar'))) {
         operations.push({
           id: `op-loc-${Date.now()}`,
           operation: 'REPLACE',
@@ -777,7 +921,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         summaries.push(`Location updated to "${toVal}"`);
       }
       // Check Title
-      else if (currentCvState?.header?.title && (currentCvState.header.title.toLowerCase().includes(fromLower) || fromLower.includes('title') || fromLower.includes('role') || fromLower.includes('headline'))) {
+      else if (currentCvState?.header?.title && (currentCvState.header.title.toLowerCase().includes(fromLower) || fromLower.includes('title') || fromLower.includes('role') || fromLower.includes('headline') || fromLower.includes('designation'))) {
         operations.push({
           id: `op-title-${Date.now()}`,
           operation: 'REPLACE',
@@ -790,9 +934,83 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         targetSections.add('headline');
         summaries.push(`Headline updated to "${toVal}"`);
       }
+      // Check Phone
+      else if (fromLower.includes('phone') || fromLower.includes('mobile') || fromLower.includes('contact')) {
+        operations.push({
+          id: `op-phone-${Date.now()}`,
+          operation: 'REPLACE',
+          section: 'contact',
+          field: 'contact.phone',
+          requestedValue: toVal,
+          description: `Update Phone Number to "${toVal}"`
+        });
+        authorizedChanges.push({ field: 'contact.phone', value: toVal, authorization: 'USER_EXPLICIT' });
+        targetSections.add('contact');
+        summaries.push(`Phone updated to "${toVal}"`);
+      }
+      // Check Email
+      else if (fromLower.includes('email')) {
+        operations.push({
+          id: `op-email-${Date.now()}`,
+          operation: 'REPLACE',
+          section: 'contact',
+          field: 'contact.email',
+          requestedValue: toVal,
+          description: `Update Email to "${toVal}"`
+        });
+        authorizedChanges.push({ field: 'contact.email', value: toVal, authorization: 'USER_EXPLICIT' });
+        targetSections.add('contact');
+        summaries.push(`Email updated to "${toVal}"`);
+      }
+      // Check LinkedIn
+      else if (fromLower.includes('linkedin') || fromLower.includes('linked in')) {
+        operations.push({
+          id: `op-linkedin-${Date.now()}`,
+          operation: 'REPLACE',
+          section: 'contact',
+          field: 'contact.linkedin',
+          requestedValue: toVal,
+          description: `Update LinkedIn to "${toVal}"`
+        });
+        authorizedChanges.push({ field: 'contact.linkedin', value: toVal, authorization: 'USER_EXPLICIT' });
+        targetSections.add('contact');
+        summaries.push(`LinkedIn updated to "${toVal}"`);
+      }
+      // Check GitHub
+      else if (fromLower.includes('github') || fromLower.includes('git hub')) {
+        operations.push({
+          id: `op-github-${Date.now()}`,
+          operation: 'REPLACE',
+          section: 'contact',
+          field: 'contact.github',
+          requestedValue: toVal,
+          description: `Update GitHub to "${toVal}"`
+        });
+        authorizedChanges.push({ field: 'contact.github', value: toVal, authorization: 'USER_EXPLICIT' });
+        targetSections.add('contact');
+        summaries.push(`GitHub updated to "${toVal}"`);
+      }
+      // Check Website
+      else if (fromLower.includes('website') || fromLower.includes('portfolio')) {
+        operations.push({
+          id: `op-website-${Date.now()}`,
+          operation: 'REPLACE',
+          section: 'contact',
+          field: 'contact.website',
+          requestedValue: toVal,
+          description: `Update Website to "${toVal}"`
+        });
+        authorizedChanges.push({ field: 'contact.website', value: toVal, authorization: 'USER_EXPLICIT' });
+        targetSections.add('contact');
+        summaries.push(`Website updated to "${toVal}"`);
+      }
       // Check Skills
-      else if (currentCvState?.skills && currentCvState.skills.some(s => s.toLowerCase().includes(fromLower))) {
-        const oldSkill = currentCvState.skills.find(s => s.toLowerCase().includes(fromLower));
+      else if (
+        (currentCvState?.skills && currentCvState.skills.some(s => s.toLowerCase().includes(fromLower))) ||
+        lower.includes('skill') || lower.includes('skills') ||
+        ['python', 'react', 'node', 'java', 'sql', 'docker', 'aws', 'typescript', 'javascript'].some(sk => fromLower.includes(sk) || toVal.toLowerCase().includes(sk))
+      ) {
+        const oldSkill = (currentCvState?.skills || []).find(s => s.toLowerCase().includes(fromLower)) || fromVal;
         operations.push({
           id: `op-skill-replace-${Date.now()}`,
           operation: 'REPLACE_SKILL',
@@ -805,6 +1023,35 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         authorizedChanges.push({ field: 'skills', value: toVal, authorization: 'USER_EXPLICIT' });
         targetSections.add('skills');
         summaries.push(`Replaced skill "${oldSkill}" with "${toVal}"`);
+      }
+      // Check Experience Bullets
+      else if (currentCvState?.experiences) {
+        let matchedExpIdx = -1;
+        let matchedBulletIdx = -1;
+        currentCvState.experiences.forEach((exp, eIdx) => {
+          (exp.bullets || []).forEach((b, bIdx) => {
+            const bLow = b.toLowerCase();
+            if (bLow.includes(fromLower) || (fromLower.length >= 8 && fromLower.includes(bLow.slice(0, 30)))) {
+              matchedExpIdx = eIdx;
+              matchedBulletIdx = bIdx;
+            }
+          });
+        });
+
+        if (matchedExpIdx !== -1 && matchedBulletIdx !== -1) {
+          operations.push({
+            id: `op-bullet-replace-${Date.now()}`,
+            operation: 'REVISE_BULLET',
+            section: 'experience',
+            expIndex: matchedExpIdx,
+            bulletIndex: matchedBulletIdx,
+            requestedValue: toVal,
+            description: `Update bullet to: "${toVal.slice(0, 50)}..."`
+          });
+          authorizedChanges.push({ field: `experiences[${matchedExpIdx}].bullets[${matchedBulletIdx}]`, value: toVal, authorization: 'USER_EXPLICIT' });
+          targetSections.add('experience');
+          summaries.push(`Updated bullet: "${toVal.slice(0, 45)}..."`);
+        }
       }
     }
   }
@@ -1198,7 +1445,7 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
 
   // Check if multiple directives are present (split by newlines, semicolons, or numbered list)
   const chunks = rawText
-    .split(/(?:\r?\n|;\s*|\b\d+[\.\)]\s*)/)
+    .split(/(?:\r?\n|;\s*|(?<=^|\n|\r)\s*\d+[\.\)]\s*)/)
     .map(l => l.trim())
     .filter(l => l.length >= 4);
 
@@ -1450,6 +1697,16 @@ export function executeChangePlan(currentCvState, changePlan) {
           proposedCv.contact.linkedin = op.requestedValue;
           appliedOperations.push(op);
           requestedFacts.push(`Updated LinkedIn to: "${op.requestedValue}"`);
+        } else if (op.field === 'contact.github') {
+          if (!proposedCv.contact) proposedCv.contact = {};
+          proposedCv.contact.github = op.requestedValue;
+          appliedOperations.push(op);
+          requestedFacts.push(`Updated GitHub to: "${op.requestedValue}"`);
+        } else if (op.field === 'contact.website' || op.field === 'contact.portfolio') {
+          if (!proposedCv.contact) proposedCv.contact = {};
+          proposedCv.contact.website = op.requestedValue;
+          appliedOperations.push(op);
+          requestedFacts.push(`Updated Website to: "${op.requestedValue}"`);
         } else if (op.section === 'experience' && op.field?.startsWith('experiences[')) {
           const match = op.field.match(/experiences\[(\d+)\]\.bullets\[(\d+)\]/);
           if (match) {
@@ -1601,6 +1858,23 @@ export function executeChangePlan(currentCvState, changePlan) {
             appliedOperations.push(op);
             requestedFacts.push(op.description || `Removed experience "${op.targetCompany}"`);
           }
+        }
+        break;
+      }
+
+      case 'ADD_PROJECT': {
+        if (!proposedCv.projects) proposedCv.projects = [];
+        const pObj = op.project || {
+          id: `proj-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          title: op.title || op.name || "Live Application",
+          description: op.description || "Live production application architected from scratch using AI tools and modern cloud infrastructure."
+        };
+        const title = pObj.title || pObj.name || "New Project";
+        const isDuplicate = proposedCv.projects.some(p => (p.title || p.name || '').toLowerCase() === title.toLowerCase());
+        if (!isDuplicate) {
+          proposedCv.projects.push(pObj);
+          appliedOperations.push(op);
+          requestedFacts.push(op.description || `Added Project: "${title}"`);
         }
         break;
       }
