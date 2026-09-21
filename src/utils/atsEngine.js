@@ -119,17 +119,25 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
 
   // Remove common Hindi/Hinglish and English filler phrases and action words
   clean = clean
-    .replace(/\b(?:se|me|ka|ke|ki|wale|wali|wala|employment|experience|job)\b/gi, ' ')
-    .replace(/\b(?:ye|yeh|woh|isko|unko|inhe|dono|sab|sabhi)\b/gi, ' ')
+    .replace(/\b(?:se|me|mein|ka|ke|ki|ko|wale|wali|wala|employment|experience|job)\b/gi, ' ')
+    .replace(/\b(?:ye|yeh|woh|wo|isko|ise|unko|unhe|inhe|dono|sab|sabhi)\b/gi, ' ')
     .replace(/\b(?:pointers?|points?|bullets?|lines?|statements?)\b/gi, ' ')
-    .replace(/\b(?:hata\s*do|hatao|hata|hataye|hta\s*de|hta\s*do|htao|delete\s*karo|delete|nikal\s*do|nikalo|remove\s*karo|remove|drop|chhod\s*do|omit)\b/gi, ' ')
-    .replace(/\b(?:karo|kar\s*do|karna|hai|tha|the|please|bhi)\b/gi, ' ')
+    .replace(/\b(?:hata\s*do|hatao|hata|hataye|hatayein|hataiye|hatado|hatade|hta\s*de|hta\s*do|htao|htaye|htayein|htado|htade|delete\s*karo|delete|nikal\s*do|nikalo|remove\s*karo|remove|drop|chhod\s*do|omit|uda\s*do|ura\s*do|mat\s*rakho|nahi\s*chahiye|chahiye\s*nahi|khatam\s*karo)\b/gi, ' ')
+    .replace(/[=_-]?(?:hata|hta)[a-z]*/gi, ' ')
+    .replace(/\b(?:karo|kar\s*do|karna|hai|tha|the|please|bhi|toh|to)\b/gi, ' ')
     .trim();
 
   // If user query is valid after removing fillers
   if (clean.length >= 2) {
-    // Split query into candidate search segments by 'aur', 'and', commas, '&'
-    const segments = clean
+    // Smart splitting:
+    // 1. Split on year boundary followed by degree or capitalized word (e.g. "2012 BBA")
+    // 2. Split before major degrees/keywords (e.g. MBA, BBA, BTech)
+    // 3. Split by commas, 'aur', 'and', '&'
+    let splitClean = clean
+      .replace(/\b(20\d\d|19\d\d)\s+([a-z]+)\b/gi, '$1, $2')
+      .replace(/\s+(?=(?:mba|bba|btech|mtech|bca|mca|bsc|msc|phd)\b)/gi, ', ');
+
+    const segments = splitClean
       .split(/\s+(?:aur|and|&)\s+|,\s*/)
       .map(s => s.trim())
       .filter(s => s.length >= 2);
@@ -226,12 +234,29 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     };
   }
 
-  const hasDeleteWord = lower.includes('delete') || lower.includes('hata') || lower.includes('remove') || lower.includes('nikal') || lower.includes('hatao') ||
-                        lower.includes('hta') || lower.includes('htao') || lower.includes('del ') || lower.includes('del-') || lower.includes('drop') ||
-                        lower.includes('chhod') || lower.includes('omit');
-  const hasBulletWord = lower.includes('point') || lower.includes('bullet') || lower.includes('line') || lower.includes('statement') ||
-                        lower.includes('pointer') || lower.includes('pointers');
-  const hasAddWord = lower.includes('add') || lower.includes('daal') || lower.includes('jodo') || lower.includes('insert') || lower.includes('include') || lower.includes('likho');
+  const hasDeleteWord = (
+    lower.includes('delete') || lower.includes('remove') || lower.includes('drop') || lower.includes('omit') ||
+    /(?:hata|hta|htaa)[a-z]*\b/.test(lower) ||
+    /(?:uda|ura)[a-z]*\s*(?:do|de|o)?/.test(lower) ||
+    /(?:nikal)[a-z]*\b/.test(lower) ||
+    /(?:mat\s+(?:rakh|rakho|rakhna|rakhein|daal|daalo|daalna|karo|karna))/.test(lower) ||
+    /(?:nahi\s+(?:chahiye|rakhna|hona|daalna))/.test(lower) ||
+    /(?:chahiye\s+nahi)/.test(lower) ||
+    /(?:khatam\s+(?:karo|kar|kardo))/.test(lower) ||
+    /(?:chhod\s+(?:do|de|na))/.test(lower) ||
+    /[=_-]?(?:hata|hta)[a-z]*/.test(lower) ||
+    lower.includes('del ') || lower.includes('del-') || lower.includes('del_')
+  );
+  const hasBulletWord = lower.includes('point') || lower.includes('bullet') || lower.includes('pointer') || lower.includes('pointers') ||
+                        lower.includes('statement') ||
+                        (/\b(?:first|last|ye|yeh|woh|this)?\s*lines?\b/i.test(lower) && !/\b\d+\s*lines?\b/i.test(lower));
+  const hasAddWord = (
+    lower.includes('add') || lower.includes('insert') || lower.includes('include') ||
+    /(?:daal|dale|daale|dalo|daalo)[a-z]*\b/.test(lower) ||
+    /(?:jod|jodo|jode|jodein)[a-z]*\b/.test(lower) ||
+    /(?:likh|likho|likhe|likhein)[a-z]*\b/.test(lower) ||
+    /(?:shamil)[a-z]*\b/.test(lower)
+  );
 
   // 0. CANDIDATE NAME DETECTION
   const nameMatch = rawText.match(/(?:change\s*name\s*to|update\s*name\s*to|set\s*name\s*to)\s*[:"']?([A-Za-z\s.'-]{2,40})/i) ||
@@ -376,50 +401,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     }
   }
 
-  // 2.6 EDUCATION OPERATIONS (ADD / REMOVE)
-  if (!hasBulletWord && !lower.includes('employment') && !lower.includes('experience') && (lower.includes('education') || lower.includes('degree') || lower.includes('college') || lower.includes('university'))) {
-    if (hasDeleteWord) {
-      let eduName = rawText
-        .replace(/^(?:delete|remove|hata\s*do)\s*(?:education|degree|college|university)s?\s*[:"']?/i, '')
-        .replace(/(?:education|degree|college|university)s?\s*(?:se|me\s*se)?\s*[:"']?/i, '')
-        .replace(/\s*(?:hata\s*do|remove\s*karo|delete\s*karo|delete|remove)$/i, '')
-        .replace(/^[:"']+|["']+$/g, '')
-        .trim();
-      if (eduName.length >= 3) {
-        operations.push({
-          id: `op-del-edu-${Date.now()}`,
-          operation: 'REMOVE_EDUCATION',
-          section: 'education',
-          value: eduName,
-          description: `Remove education: "${eduName}"`
-        });
-        authorizedChanges.push({ field: 'education', value: eduName, authorization: 'USER_EXPLICIT' });
-        targetSections.add('education');
-        summaries.push(`Removed education: "${eduName}"`);
-      }
-    } else if (hasAddWord) {
-      let eduName = rawText
-        .replace(/^(?:add\s*(?:to\s*)?)?(?:education|degree|college|university)s?\s*(?:me)?\s*(?:add\s*karo|daal\s*do|include\s*karo)?\s*[:"']?/i, '')
-        .replace(/^(?:add\s*karo|daal\s*do|include\s*karo)\s*[:"']?/i, '')
-        .replace(/\s*(?:add\s*karo|daal\s*do|include\s*karo|add)$/i, '')
-        .replace(/^[:"']+|["']+$/g, '')
-        .trim();
-      if (eduName.length >= 3) {
-        operations.push({
-          id: `op-add-edu-${Date.now()}`,
-          operation: 'ADD_EDUCATION',
-          section: 'education',
-          value: eduName,
-          description: `Add education: "${eduName}"`
-        });
-        authorizedChanges.push({ field: 'education', value: eduName, authorization: 'USER_EXPLICIT' });
-        targetSections.add('education');
-        summaries.push(`Added education: "${eduName}"`);
-      }
-    }
-  }
-
-  // 3.0 BULLET / POINT DELETION (Point-by-point removal from experience, education, or summary)
+  // 3.0 BULLET / POINT / DEGREE DELETION (Point-by-point removal from experience, education, or summary)
   const cvExperiences = currentCvState?.experiences || currentCvState?.experience || sourceMaster?.experiences || sourceMaster?.experience || [];
   const cvSummary = currentCvState?.header?.summary || currentCvState?.summary || sourceMaster?.header?.summary || sourceMaster?.summary || '';
   const cvEducation = currentCvState?.education || sourceMaster?.education || [];
@@ -475,6 +457,50 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     }
   }
 
+  // 2.6 EDUCATION OPERATIONS (ADD / REMOVE - Fallback when not specifically matched above)
+  if (!hasBulletWord && !lower.includes('employment') && !lower.includes('experience') && (lower.includes('education') || lower.includes('degree') || lower.includes('college') || lower.includes('university'))) {
+    if (hasDeleteWord && !operations.some(op => op.operation === 'REMOVE_EDUCATION')) {
+      let eduName = rawText
+        .replace(/^(?:delete|remove|hata\s*do|hatao|htao|nikal\s*do|uda\s*do)\s*(?:education|degree|college|university)s?\s*[:"']?/i, '')
+        .replace(/(?:education|degree|college|university)s?\s*(?:se|me\s*se|ko)?\s*[:"']?/i, '')
+        .replace(/\b(?:se|me|mein|ko|ye|yeh|degree|college|university|bhi|toh|ise|unhe|isko)\b/gi, ' ')
+        .replace(/\s*(?:hata\s*do|hatao|hataye|hatayein|hataiye|htaa|htaye|remove\s*karo|delete\s*karo|delete|remove|nikal\s*do|uda\s*do|b=hataye)$/i, '')
+        .replace(/^[:"']+|["']+$/g, '')
+        .trim();
+      if (eduName.length >= 3) {
+        operations.push({
+          id: `op-del-edu-${Date.now()}`,
+          operation: 'REMOVE_EDUCATION',
+          section: 'education',
+          value: eduName,
+          description: `Remove education: "${eduName}"`
+        });
+        authorizedChanges.push({ field: 'education', value: eduName, authorization: 'USER_EXPLICIT' });
+        targetSections.add('education');
+        summaries.push(`Removed education: "${eduName}"`);
+      }
+    } else if (hasAddWord) {
+      let eduName = rawText
+        .replace(/^(?:add\s*(?:to\s*)?)?(?:education|degree|college|university)s?\s*(?:me)?\s*(?:add\s*karo|daal\s*do|include\s*karo)?\s*[:"']?/i, '')
+        .replace(/^(?:add\s*karo|daal\s*do|include\s*karo)\s*[:"']?/i, '')
+        .replace(/\s*(?:add\s*karo|daal\s*do|include\s*karo|add)$/i, '')
+        .replace(/^[:"']+|["']+$/g, '')
+        .trim();
+      if (eduName.length >= 3) {
+        operations.push({
+          id: `op-add-edu-${Date.now()}`,
+          operation: 'ADD_EDUCATION',
+          section: 'education',
+          value: eduName,
+          description: `Add education: "${eduName}"`
+        });
+        authorizedChanges.push({ field: 'education', value: eduName, authorization: 'USER_EXPLICIT' });
+        targetSections.add('education');
+        summaries.push(`Added education: "${eduName}"`);
+      }
+    }
+  }
+
   // 3.1 BULLET / POINT ADDITION (Point-by-point addition)
   const isExplicitBulletAdd = hasAddWord && (
     hasBulletWord ||
@@ -526,8 +552,9 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   }
 
   // 3.2 SUMMARY OPERATIONS (REWRITE / SHORTEN / EXPAND / REVISE)
-  if ((lower.includes('summary') || lower.includes('profile') || lower.includes('objective')) && !hasBulletWord) {
-    if (lower.includes('short') || lower.includes('concise') || lower.includes('chhota') || lower.includes('brief')) {
+  if ((lower.includes('summary') || lower.includes('profile') || lower.includes('objective')) &&
+      (!matchedTargetBullets || matchedTargetBullets.every(m => m.section !== 'summary'))) {
+    if (lower.includes('short') || lower.includes('concise') || lower.includes('chhota') || lower.includes('chhoti') || lower.includes('brief') || lower.includes('kam karo') || /\b\d+\s*lines?\b/i.test(lower)) {
       operations.push({
         id: `op-summary-shorten-${Date.now()}`,
         operation: 'SHORTEN',
@@ -623,30 +650,61 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   }
 
   // 4. SKILLS OPERATIONS (Guarded: Do NOT match if user was adding/deleting a bullet!)
-  if (!isExplicitBulletAdd && !hasBulletWord && (lower.includes('skill') || lower.includes('skills') || lower.includes('docker') || lower.includes('python'))) {
+  const currentSkills = currentCvState?.skills || sourceMaster?.skills || [];
+  const allSkillNames = (Array.isArray(currentSkills) ? currentSkills : Object.values(currentSkills).flat())
+    .map(s => typeof s === 'string' ? s : (s?.name || s?.skill || ''))
+    .filter(s => s && s.length >= 2);
+
+  const mentionsKnownSkill = allSkillNames.some(sk => {
+    try {
+      return new RegExp(`\\b${sk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(lower);
+    } catch {
+      return lower.includes(sk.toLowerCase());
+    }
+  });
+
+  const hasMatchedBulletOrEdu = operations.some(op => op.operation === 'DELETE_BULLET' || op.operation === 'REMOVE_EDUCATION');
+
+  const isSkillsSectionMentioned = !isExplicitBulletAdd && !hasBulletWord && !hasMatchedBulletOrEdu && (
+    lower.includes('skill') || lower.includes('skills') ||
+    lower.includes('tech stack') || (mentionsKnownSkill && !lower.includes('experience') && !lower.includes('employment') && !lower.includes('institute') && !lower.includes('university') && !lower.includes('college'))
+  );
+
+  if (isSkillsSectionMentioned) {
     const isSkillRemoveIntent = hasDeleteWord;
     const isSkillAddIntent = hasAddWord || (!isSkillRemoveIntent && (lower.includes('skills') || lower.includes('skill')));
 
-    let cleanedSkillText = rawText
-      // Strip prefix like "add skills:", "skills me", "skills se"
-      .replace(/^(?:add\s+(?:skills?|technologies?)?|remove\s+(?:skills?|technologies?)?|delete\s+(?:skills?|technologies?)?)\s*[:\-]?\s*/i, '')
-      .replace(/^(?:skills?\s*(?:me|mein|se)?)\s*[:\-]?\s*/i, '')
-      // Strip postfix like "ko skills me add karo", "skills me add karo", "skill hata do", "skills se hata do", "add karo", "hata do"
-      .replace(/\s*(?:ko\s*)?(?:skills?|technologies?)\s*(?:me|mein|se)?\s*(?:add\s*karo|daal\s*do|add\s*kar\s*do|include\s*karo|jod\s*do|hata\s*do|remove\s*karo|delete\s*karo|nikalo)\s*$/i, '')
-      .replace(/\s*(?:ko\s*)?(?:skills?\s*(?:me|mein|se)?|skill)\s*(?:hata\s*do|remove\s*karo|delete\s*karo|nikalo)\s*$/i, '')
-      .replace(/\s*(?:skills?\s*(?:me|mein)?)\s*(?:add\s*karo|daal\s*do|add\s*kar\s*do|include\s*karo)\s*$/i, '')
-      .replace(/\s*(?:add\s*karo|daal\s*do|add\s*kar\s*do|include\s*karo|hata\s*do|remove\s*karo|delete\s*karo|nikalo)\s*$/i, '')
-      .trim();
-
     const parseSkillTokens = (str) => {
-      return str
-        .split(/[,/&]+|\s+and\s+|\s+aur\s+/i)
-        .map(s => s.trim().replace(/^[:"']+|[:"']+$/g, '').trim())
-        .filter(s => s.length >= 2 && !['karo', 'do', 'add', 'remove', 'skills', 'skill', 'me', 'mein', 'se', 'ko', 'aur', 'and', 'delete', 'hata'].includes(s.toLowerCase()));
+      const parts = str.split(/[,/&]+|\s+and\s+|\s+aur\s+/i);
+      const cleaned = [];
+
+      const stopWords = new Set([
+        'karo', 'kar', 'do', 'de', 'add', 'remove', 'skills', 'skill', 'me', 'mein', 'se', 'ko', 'aur', 'and',
+        'delete', 'hata', 'hta', 'hataye', 'hatado', 'hatao', 'hatayein', 'hataiye', 'nikal', 'nikalo',
+        'uda', 'ura', 'mat', 'rakho', 'rakh', 'rakhna', 'rakhein', 'nahi', 'chahiye', 'khatam', 'chhod',
+        'daal', 'daalo', 'dale', 'jod', 'jodo', 'jode', 'jodein', 'likh', 'likho', 'shamil',
+        'ye', 'yeh', 'woh', 'bhi', 'to', 'toh', 'ise', 'unhe', 'isko', 'wale', 'wali', 'wala',
+        'technologies', 'technology', 'tech', 'stack', 'please', 'sirf'
+      ]);
+
+      for (const part of parts) {
+        const words = part
+          .replace(/[^a-zA-Z0-9.+/#\s-]/g, ' ')
+          .split(/\s+/)
+          .filter(w => w && !stopWords.has(w.toLowerCase()));
+
+        if (words.length > 0) {
+          const candidate = words.join(' ').trim();
+          if (candidate.length >= 2 && !stopWords.has(candidate.toLowerCase())) {
+            cleaned.push(candidate);
+          }
+        }
+      }
+      return cleaned;
     };
 
     if (isSkillAddIntent && !isSkillRemoveIntent) {
-      const skillsToAdd = parseSkillTokens(cleanedSkillText);
+      const skillsToAdd = parseSkillTokens(rawText);
       skillsToAdd.forEach(sk => {
         operations.push({
           id: `op-skill-add-${sk.replace(/[^a-z0-9]/gi, '-')}`,
@@ -661,7 +719,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       });
       if (skillsToAdd.length > 0) targetSections.add('skills');
     } else if (isSkillRemoveIntent) {
-      const skillsToRemove = parseSkillTokens(cleanedSkillText);
+      const skillsToRemove = parseSkillTokens(rawText);
       skillsToRemove.forEach(sk => {
         operations.push({
           id: `op-skill-remove-${sk.replace(/[^a-z0-9]/gi, '-')}`,
@@ -671,6 +729,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
           value: sk,
           description: `Remove skill: "${sk}"`
         });
+        authorizedChanges.push({ field: 'skills', value: sk, authorization: 'USER_EXPLICIT' });
         authorizedChanges.push({ field: 'skills.removed', value: sk, authorization: 'USER_EXPLICIT' });
         summaries.push(`Removed skill: "${sk}"`);
       });
@@ -1038,6 +1097,28 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
 
   // 6. DEFAULT FALLBACK OPERATION IF NO SPECIFIC OPERATION MATCHED
   if (operations.length === 0) {
+    if (hasDeleteWord) {
+      // User asked to delete something, but it wasn't found or was already deleted!
+      // Strict Fact-Locking: NEVER rewrite candidate's summary on delete intent!
+      const cvExpsMaster = sourceMaster?.experiences || sourceMaster?.experience || [];
+      const cvSumMaster = sourceMaster?.header?.summary || sourceMaster?.summary || '';
+      const cvEduMaster = sourceMaster?.education || [];
+      const matchesInMaster = findAllTargetBulletsInCv(rawText, cvExpsMaster, cvSumMaster, cvEduMaster);
+
+      const alreadyRemovedMsg = matchesInMaster.length > 0
+        ? `Point / item pehle se hi remove ho chuka hai (Already removed from CV)`
+        : `Specified point / item CV me nahi mila (Target not found in current CV)`;
+
+      return {
+        scope: 'FORMATTING_ONLY',
+        operations: [],
+        targetSections: [],
+        authorizedChanges: [],
+        rawPrompt: rawText,
+        planSummary: alreadyRemovedMsg
+      };
+    }
+
     if (lower.includes('format') || lower.includes('layout')) {
       operations.push({
         id: `op-format`,
