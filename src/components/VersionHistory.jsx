@@ -21,7 +21,7 @@ export default function VersionHistory({
         <div className="flex items-center gap-2">
           <History className="w-4 h-4 text-sky-400" />
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-            Document Version History & Rollback (Rule #13 & #14)
+            Document Version History & Rollback
           </h3>
         </div>
         <span className="text-[10px] bg-slate-800 text-sky-300 px-2 py-0.5 rounded-full font-mono border border-slate-700">

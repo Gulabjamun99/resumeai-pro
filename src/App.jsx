@@ -646,103 +646,102 @@ export default function App() {
 
         {/* SCREEN 7: FINAL COMPARISON STUDIO */}
         {currentScreen === 7 && currentCvState && (
-          <div className="flex flex-col gap-6">
-            {/* Version History Drawer */}
-            <VersionHistory 
-              versions={versionHistory}
-              currentVersion={currentVersion}
-              onRollback={handleRollbackVersion}
-              onMakeChange={handleMakeAnotherChange}
-            />
-
-            {/* Show top Template Selector and Scorecard only in Side-by-Side comparison mode */}
+          <div className="flex flex-col gap-4">
+            {/* Show Version History & Legacy Tabs ONLY when in Split / Source / Manual Comparison mode */}
             {activeTab !== 'interactive' && (
               <>
+                <VersionHistory 
+                  versions={versionHistory}
+                  currentVersion={currentVersion}
+                  onRollback={handleRollbackVersion}
+                  onMakeChange={handleMakeAnotherChange}
+                />
+
                 <TemplateSelector 
                   selectedTemplateId={selectedTemplateId}
                   onSelectTemplate={setSelectedTemplateId}
                 />
                 <AtsScorecardPanel resume={currentCvState} />
+
+                {/* Legacy Studio Toolbar */}
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap justify-between items-center gap-4">
+                  {/* Tab Selector: Interactive Studio / Split / Source / Updated */}
+                  <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                    <button
+                      onClick={() => setActiveTab('interactive')}
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
+                        activeTab === 'interactive' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Interactive Studio (Live AI)
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('split')}
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
+                        activeTab === 'split' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
+                      }`}
+                    >
+                      <Columns className="w-3.5 h-3.5" />
+                      Side-by-Side Comparison
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('updated')}
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
+                        activeTab === 'updated' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
+                      }`}
+                    >
+                      Final Version ({`v${currentVersion}`}) Only
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('source')}
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
+                        activeTab === 'source' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
+                      }`}
+                    >
+                      Original Source (v1)
+                    </button>
+                  </div>
+
+                  {/* Action Buttons: Make Another Change, Reset & Downloads */}
+                  <div className="flex items-center gap-2.5">
+                    <button
+                      onClick={handleClearSession}
+                      className="bg-slate-800 hover:bg-red-950/60 text-slate-400 hover:text-red-300 border border-slate-700 hover:border-red-800 text-xs px-3 py-2 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
+                      title="Clear session and start with a new CV"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Start New CV</span>
+                    </button>
+
+                    <button
+                      onClick={handleMakeAnotherChange}
+                      className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
+                      title="Make another change on top of current version"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>Make Another Change (v{currentVersion + 1})</span>
+                    </button>
+
+                    <button
+                      onClick={() => exportResumeToPdf('preview-resume-updated', currentCvState?.header?.name || 'Candidate', currentVersion)}
+                      className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>PDF</span>
+                    </button>
+
+                    <button
+                      onClick={() => exportResumeToDocx(currentCvState, currentVersion, selectedTemplateId)}
+                      className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>DOCX</span>
+                    </button>
+                  </div>
+                </div>
               </>
             )}
-
-            {/* Studio Header Toolbar */}
-            <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-wrap justify-between items-center gap-4">
-              {/* Tab Selector: Interactive Studio / Split / Source / Updated */}
-              <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
-                <button
-                  onClick={() => setActiveTab('interactive')}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
-                    activeTab === 'interactive' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
-                  }`}
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Interactive Studio (Live AI)
-                </button>
-                <button
-                  onClick={() => setActiveTab('split')}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1.5 ${
-                    activeTab === 'split' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
-                  }`}
-                >
-                  <Columns className="w-3.5 h-3.5" />
-                  Side-by-Side Comparison
-                </button>
-                <button
-                  onClick={() => setActiveTab('updated')}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
-                    activeTab === 'updated' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
-                  }`}
-                >
-                  Final Version ({`v${currentVersion}`}) Only
-                </button>
-                <button
-                  onClick={() => setActiveTab('source')}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-medium transition ${
-                    activeTab === 'source' ? 'bg-sky-500 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
-                  }`}
-                >
-                  Original Source (v1)
-                </button>
-              </div>
-
-              {/* Action Buttons: Make Another Change, Reset & Downloads */}
-              <div className="flex items-center gap-2.5">
-                <button
-                  onClick={handleClearSession}
-                  className="bg-slate-800 hover:bg-red-950/60 text-slate-400 hover:text-red-300 border border-slate-700 hover:border-red-800 text-xs px-3 py-2 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
-                  title="Clear session and start with a new CV"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Start New CV</span>
-                </button>
-
-                <button
-                  onClick={handleMakeAnotherChange}
-                  className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
-                  title="Make another change on top of current version"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Make Another Change (v{currentVersion + 1})</span>
-                </button>
-
-                <button
-                  onClick={() => exportResumeToPdf('preview-resume-updated', currentCvState?.header?.name || 'Candidate', currentVersion)}
-                  className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>PDF</span>
-                </button>
-
-                <button
-                  onClick={() => exportResumeToDocx(currentCvState, currentVersion, selectedTemplateId)}
-                  className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>DOCX</span>
-                </button>
-              </div>
-            </div>
 
             {/* Interactive Live Studio View */}
             {activeTab === 'interactive' && (
@@ -758,6 +757,7 @@ export default function App() {
                 versionHistory={versionHistory}
                 designTheme={designTheme}
                 onUpdateDesignTheme={setDesignTheme}
+                onToggleCompare={() => setActiveTab('split')}
               />
             )}
 
