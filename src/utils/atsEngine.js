@@ -759,19 +759,21 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
 
   // 3.4 ADD PROJECT OPERATIONS
   if (!isExplicitBulletAdd && !hasBulletWord && (lower.includes('project') || lower.includes('projects')) && hasAddWord) {
+    const isConversational = lower.includes('thora thora') || lower.includes('detail') || lower.includes('bata rha') || lower.includes('likhye') || lower.includes('likhe');
     const projMatch = rawText.match(/(?:add\s*project|project\s*add\s*karo|naya\s*project\s*add\s*karo|project\s*me\s*add\s*karo|projects\s*me\s*daal\s*do|project\s*daal\s*do)\s*[:"']?(.+?)(?:["']|$)/i) ||
                       rawText.match(/(?:add\s*to\s*projects|add\s*project)\s*[:"']?(.+?)(?:["']|$)/i);
-    const projText = projMatch ? projMatch[1].trim() : rawText.replace(/(?:project|projects|add|naya|daal|do|me|karo)/gi, '').trim();
-    const cleanProj = projText.replace(/^[:"'-]+|["']+$/g, '').trim();
+    if (projMatch || !isConversational) {
+      const projText = projMatch ? projMatch[1].trim() : rawText.replace(/(?:project|projects|add|naya|daal|do|me|karo)/gi, '').trim();
+      const cleanProj = projText.replace(/^[:"'-]+|["']+$/g, '').trim();
 
-    if (cleanProj.length >= 3) {
-      let pTitle = cleanProj;
-      let pDesc = '';
-      if (cleanProj.includes(' - ') || cleanProj.includes(' : ') || cleanProj.includes(':')) {
-        const parts = cleanProj.split(/\s*[-:]\s*/);
-        pTitle = parts[0].trim();
-        pDesc = parts.slice(1).join(' - ').trim();
-      }
+      if (cleanProj.length >= 3 && cleanProj.length <= 100) {
+        let pTitle = cleanProj;
+        let pDesc = '';
+        if (cleanProj.includes(' - ') || cleanProj.includes(' : ') || cleanProj.includes(':')) {
+          const parts = cleanProj.split(/\s*[-:]\s*/);
+          pTitle = parts[0].trim();
+          pDesc = parts.slice(1).join(' - ').trim();
+        }
 
       operations.push({
         id: `op-add-proj-${Date.now()}`,
@@ -789,6 +791,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       authorizedChanges.push({ field: 'projects', value: pTitle, authorization: 'USER_EXPLICIT' });
       targetSections.add('projects');
       summaries.push(`Added project: "${pTitle}"`);
+      }
     }
   }
 
@@ -1405,6 +1408,124 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
 }
 
 /**
+ * Extract structured project definitions from rich/detailed user prompts.
+ * Handles multi-project blocks, e.g. "Gharmantra -(Developed...)"
+ */
+export function extractDetailedProjectsFromText(text, currentProjects = []) {
+  if (!text || typeof text !== 'string') return null;
+  const lower = text.toLowerCase();
+
+  const knownCatalog = [
+    { key: 'gharmantra', title: 'Gharmantra', defaultStatus: 'Live on Google Play Store' },
+    { key: 'kharchabook', title: 'KharchaBook', defaultStatus: 'Live App / Shared Finance' },
+    { key: 'lensdraft', title: 'Lensdraft', defaultStatus: 'Live on Google Play Store' },
+    { key: 'jyotish connect', title: 'Jyotish Connect', defaultStatus: 'Live Web Application' },
+    { key: 'jyotishconnect', title: 'Jyotish Connect', defaultStatus: 'Live Web Application' },
+    { key: 'mausamveda', title: 'Mausam Veda', defaultStatus: 'Live Cloud Application' },
+    { key: 'mausam veda', title: 'Mausam Veda', defaultStatus: 'Live Cloud Application' },
+    { key: 'turtleping', title: 'Turtleping', defaultStatus: 'Live Network Monitor' },
+    { key: 'resume ai pro', title: 'ResumeAI Pro', defaultStatus: 'Live Cloud Application' },
+    { key: 'resumeai pro', title: 'ResumeAI Pro', defaultStatus: 'Live Cloud Application' },
+    { key: 'resume ai', title: 'ResumeAI Pro', defaultStatus: 'Live Cloud Application' },
+    { key: 'resumeai', title: 'ResumeAI Pro', defaultStatus: 'Live Cloud Application' }
+  ];
+
+  const allKnown = [...knownCatalog];
+  (currentProjects || []).forEach(cp => {
+    const title = cp.title || cp.name;
+    if (title && !allKnown.some(k => k.title.toLowerCase() === title.toLowerCase())) {
+      allKnown.push({
+        key: title.toLowerCase(),
+        title: title,
+        defaultStatus: cp.status || 'Live Application'
+      });
+    }
+  });
+
+  const matches = [];
+  allKnown.forEach(app => {
+    const idx = lower.indexOf(app.key);
+    if (idx !== -1) {
+      let segStart = idx;
+      const preSlice = text.slice(Math.max(0, idx - 45), idx);
+      const preMatch = preSlice.match(/(?:(?:web\s+and\s+app\s+)?project(?:s)?\s*[-:]?\s*)$/i);
+      if (preMatch) {
+        segStart = idx - preMatch[0].length;
+      }
+      matches.push({
+        key: app.key,
+        title: app.title,
+        status: app.defaultStatus,
+        startIndex: segStart,
+        nameIndex: idx
+      });
+    }
+  });
+
+  matches.sort((a, b) => a.startIndex - b.startIndex);
+  const filtered = [];
+  matches.forEach(m => {
+    if (!filtered.some(f => Math.abs(f.startIndex - m.startIndex) < 15 || f.title.toLowerCase() === m.title.toLowerCase())) {
+      filtered.push(m);
+    }
+  });
+
+  if (filtered.length === 0) return null;
+
+  // If only 1 project found, require structured detail markers like `-(...)` or `(...)` or `- Developed`
+  if (filtered.length === 1 && !text.includes('(') && !text.includes('-(') && !text.includes(':') && !lower.includes('developed')) {
+    return null;
+  }
+
+  const projects = [];
+  for (let i = 0; i < filtered.length; i++) {
+    const current = filtered[i];
+    const nextStart = (i + 1 < filtered.length) ? filtered[i + 1].startIndex : text.length;
+    let blockText = text.slice(current.startIndex, nextStart).trim();
+
+    // Clean conversational suffixes if last block
+    if (i === filtered.length - 1) {
+      blockText = blockText.replace(/\s*(?:sabhi|sab)\s*ko\s*asan\s*sabdo.*$/i, '').trim();
+    }
+
+    let content = blockText;
+    // Strip project name prefix: e.g. "Gharmantra -(" or "Web and app project- Jyotish connect- ("
+    content = content.replace(/^[^\-(:]*[-:]?\s*\(?\s*/i, '');
+    // Strip trailing closing paren if present
+    content = content.replace(/\s*\)+$/, '').trim();
+
+    const rawLines = content
+      .split(/(?:\r?\n|Core Features:|Group & Shared Expenses:|Data Accessibility:|OCR & AI Integration:|PDF Utilities:|Internationalization & Performance:|Deployment & Tech Stack:|API & Data Integration:|Deployment & UI:|Performance & Hosting:|UI\/UX Design:|ATS Compatibility:|Tech & Deployment:)/i)
+      .map(l => l.trim())
+      .filter(l => l.length >= 15);
+
+    let bulletIdx = 0;
+    if (rawLines[0] && (rawLines[0].includes('.vercel.app') || rawLines[0].includes('com.') || rawLines[0].includes('|')) && rawLines.length > 1) {
+      bulletIdx = 1;
+    }
+
+    let bullet1 = rawLines[bulletIdx] || `${current.title}: Engineered with modern AI toolchains and responsive cloud architecture.`;
+    let bullet2 = rawLines[bulletIdx + 1] || '';
+
+    const bullets = [bullet1];
+    if (bullet2 && bullet2.length >= 15 && bullet2 !== bullet1) {
+      bullets.push(bullet2);
+    }
+
+    projects.push({
+      id: `proj-${current.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+      title: current.title,
+      name: current.title,
+      status: current.status,
+      description: bullets[0],
+      bullets: bullets
+    });
+  }
+
+  return projects;
+}
+
+/**
  * Natural Language User-Intent Parser:
  * Converts arbitrary natural language user requests into a structured, executable ChangePlan.
  * Supports single directives as well as multi-line / multi-directive compound requests.
@@ -1440,6 +1561,39 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
       authorizedChanges: [],
       rawPrompt: rawText,
       planSummary: 'No changes requested'
+    };
+  }
+
+  // 3. SPECIALIZED MULTI-PROJECT EXTRACTION:
+  // If prompt contains structured project specifications (e.g. "Gharmantra -(...)", "Kharchabook -(...)", etc.)
+  // process all projects holistically instead of breaking the text into arbitrary newline fragments!
+  const detailedProjects = extractDetailedProjectsFromText(rawText, currentCvState?.projects);
+  if (detailedProjects && detailedProjects.length > 0) {
+    const operations = [];
+    const authorizedChanges = [];
+    const summaries = [];
+
+    detailedProjects.forEach(proj => {
+      operations.push({
+        id: `op-proj-update-${proj.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+        operation: 'ADD_PROJECT',
+        section: 'projects',
+        title: proj.title,
+        status: proj.status,
+        project: proj,
+        description: `Updated project "${proj.title}" with live details`
+      });
+      authorizedChanges.push({ field: 'projects', value: proj.title, authorization: 'USER_EXPLICIT' });
+      summaries.push(`Updated project "${proj.title}"`);
+    });
+
+    return {
+      scope: 'EDIT_SECTION',
+      operations,
+      targetSections: ['projects'],
+      authorizedChanges,
+      rawPrompt: rawText,
+      planSummary: `Updated ${detailedProjects.length} live projects with concise ATS descriptions (${detailedProjects.map(p => p.title).join(', ')})`
     };
   }
 
@@ -1830,10 +1984,20 @@ export function executeChangePlan(currentCvState, changePlan) {
           const newProjEntity = {
             id: `proj-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
             title: op.title || op.name || "Live Application",
+            status: op.status || "Live App",
+            description: op.description || "",
             bullets: op.bullets || (op.description ? [op.description] : ["Live production application architected from scratch using AI tools and modern cloud infrastructure."])
           };
-          const isDuplicate = proposedCv.projects.some(p => p.title === newProjEntity.title);
-          if (!isDuplicate) {
+          const existingIdx = proposedCv.projects.findIndex(p => (p.title || p.name || '').toLowerCase() === newProjEntity.title.toLowerCase());
+          if (existingIdx !== -1) {
+            proposedCv.projects[existingIdx] = {
+              ...proposedCv.projects[existingIdx],
+              ...newProjEntity,
+              bullets: (newProjEntity.bullets && newProjEntity.bullets.length > 0) ? newProjEntity.bullets : proposedCv.projects[existingIdx].bullets
+            };
+            appliedOperations.push(op);
+            requestedFacts.push(`Updated Project: "${newProjEntity.title}"`);
+          } else {
             proposedCv.projects.push(newProjEntity);
             appliedOperations.push(op);
             requestedFacts.push(`Added Project: "${newProjEntity.title}"`);
@@ -1867,11 +2031,21 @@ export function executeChangePlan(currentCvState, changePlan) {
         const pObj = op.project || {
           id: `proj-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
           title: op.title || op.name || "Live Application",
-          description: op.description || "Live production application architected from scratch using AI tools and modern cloud infrastructure."
+          status: op.status || "Live App",
+          description: op.description || "Live production application architected from scratch using AI tools and modern cloud infrastructure.",
+          bullets: op.bullets || (op.description ? [op.description] : ["Live production application."])
         };
         const title = pObj.title || pObj.name || "New Project";
-        const isDuplicate = proposedCv.projects.some(p => (p.title || p.name || '').toLowerCase() === title.toLowerCase());
-        if (!isDuplicate) {
+        const existingIdx = proposedCv.projects.findIndex(p => (p.title || p.name || '').toLowerCase() === title.toLowerCase());
+        if (existingIdx !== -1) {
+          proposedCv.projects[existingIdx] = {
+            ...proposedCv.projects[existingIdx],
+            ...pObj,
+            bullets: (pObj.bullets && pObj.bullets.length > 0) ? pObj.bullets : (pObj.description ? [pObj.description] : proposedCv.projects[existingIdx].bullets)
+          };
+          appliedOperations.push(op);
+          requestedFacts.push(op.description || `Updated Project details: "${title}"`);
+        } else {
           proposedCv.projects.push(pObj);
           appliedOperations.push(op);
           requestedFacts.push(op.description || `Added Project: "${title}"`);
