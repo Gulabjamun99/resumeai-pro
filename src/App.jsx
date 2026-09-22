@@ -222,6 +222,64 @@ export default function App() {
     setScreen(4); // Advance to Screen 4 (Review & Approval Gate)
   };
 
+  // Direct Application: Screen 3 -> Screen 7 Fast-Track Pipeline
+  const handleApplyChangeRequestDirectly = (customPrompt = null) => {
+    const textToApply = typeof customPrompt === 'string' ? customPrompt : promptText;
+    if (!textToApply || !textToApply.trim() || !currentCvState) {
+      setScreen(7);
+      return;
+    }
+
+    setErrorMessage(null);
+    const scope = classifyPermissionScope(textToApply);
+    setPermissionScope(scope);
+
+    const plan = parseUserIntentToChangePlan(textToApply, currentCvState, sourceResume);
+    setActiveChangePlan(plan);
+
+    const { proposedCv } = executeChangePlan(currentCvState, plan);
+    const lockedCv = enforceContentLocks(sourceResume || currentCvState, currentCvState, proposedCv, plan);
+    const finalCv = lockedCv || proposedCv || currentCvState;
+
+    const nextVer = versionHistory.length + 1;
+    const summaryText = plan?.planSummary || textToApply.slice(0, 60);
+    const newVersionSnapshot = {
+      version: nextVer,
+      id: `v${nextVer}`,
+      title: `Version ${nextVer} (Screen 3 Change Request)`,
+      summary: summaryText,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      cvState: JSON.parse(JSON.stringify(finalCv)),
+      bulletsCount: finalCv.experiences?.flatMap(e => e.bullets)?.length || 0
+    };
+
+    setVersionHistory(prev => [...prev, newVersionSnapshot]);
+    setCurrentCvState(JSON.parse(JSON.stringify(finalCv)));
+    setCurrentVersion(nextVer);
+
+    try {
+      const report = runCompleteValidationSuite(sourceResume || finalCv, finalCv, textToApply, scope, plan);
+      setValidationReport(report);
+    } catch (_) {}
+
+    try {
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
+      }
+    } catch (_) {}
+
+    setScreen(7);
+  };
+
+  // Safe Stepper Navigation: Auto-applies pending Screen 3 change request if navigating to Studio
+  const handleNavigateScreen = (targetScreen) => {
+    if (currentScreen === 3 && targetScreen === 7 && promptText && promptText.trim().length > 0) {
+      handleApplyChangeRequestDirectly();
+      return;
+    }
+    setScreen(targetScreen);
+  };
+
   // Formulate Change Plan from Job Description Match Mode
   const handleApplyJdPlan = (jdPlan, promptSummary) => {
     const reqId = `req-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
@@ -420,7 +478,7 @@ export default function App() {
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
         
         {/* Guided 8-Screen Stepper */}
-        <Stepper currentScreen={currentScreen} setScreen={setScreen} />
+        <Stepper currentScreen={currentScreen} setScreen={handleNavigateScreen} />
 
         {/* Ambiguous Request Resolution Modal */}
         <ClarificationModal 
@@ -607,6 +665,7 @@ export default function App() {
             promptText={promptText}
             setPromptText={setPromptText}
             onAnalyzePrompt={handleFormulateChangePlan}
+            onApplyDirectly={handleApplyChangeRequestDirectly}
             permissionScope={permissionScope}
             currentVersion={currentVersion}
             versionHistory={versionHistory}

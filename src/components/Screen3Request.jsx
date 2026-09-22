@@ -17,6 +17,7 @@ export default function Screen3Request({
   promptText, 
   setPromptText, 
   onAnalyzePrompt, 
+  onApplyDirectly,
   permissionScope, 
   currentVersion, 
   versionHistory = [], 
@@ -395,13 +396,21 @@ export default function Screen3Request({
             </div>
           )}
 
-          <div className="flex justify-end mt-2">
+          <div className="flex flex-wrap items-center justify-end gap-3 mt-2">
             <button
               onClick={onAnalyzePrompt}
-              className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-6 py-2.5 rounded-lg shadow-lg shadow-sky-500/25 flex items-center gap-2 transition cursor-pointer"
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
             >
-              <Play className="w-4 h-4 fill-white" />
-              <span>Classify Intent & Formulate Change Plan (Screen 4)</span>
+              <Layers className="w-4 h-4 text-sky-400" />
+              <span>Review Change Plan (Screen 4)</span>
+            </button>
+
+            <button
+              onClick={() => onApplyDirectly ? onApplyDirectly() : onAnalyzePrompt()}
+              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-500/25 flex items-center gap-2 transition cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 fill-white" />
+              <span>Apply Changes & Open Live Studio (Screen 7)</span>
             </button>
           </div>
         </div>

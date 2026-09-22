@@ -171,22 +171,24 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
     // Also check education if provided
     if (Array.isArray(education)) {
       education.forEach((edu, eduIdx) => {
-        if (matchedBulletsSet.has(edu)) return;
-        const eLower = edu.toLowerCase().trim();
+        const eduObj = typeof edu === 'object' && edu !== null ? edu : null;
+        const eStr = eduObj ? (eduObj.degree || eduObj.title || eduObj.name || eduObj.institution || '') : String(edu || '');
+        if (!eStr || matchedBulletsSet.has(eStr)) return;
+        const eLower = eStr.toLowerCase().trim();
         if (pLower.includes(eLower)) {
-          addMatch({ section: 'education', eduIdx, bulletText: edu });
+          addMatch({ section: 'education', eduIdx, bulletText: eStr });
           return;
         }
         for (const seg of segments) {
           const segTokens = seg.split(/\s+/).filter(t => t.length >= 2 && !['from', 'with', 'that', 'this', 'for', 'the', 'in', 'and', 'aur'].includes(t));
           if (eLower.includes(seg) || (seg.length >= 6 && seg.includes(eLower))) {
-            addMatch({ section: 'education', eduIdx, bulletText: edu });
+            addMatch({ section: 'education', eduIdx, bulletText: eStr });
             break;
           }
           if (segTokens.length > 0) {
             const matchCount = segTokens.filter(tok => eLower.includes(tok)).length;
             if (matchCount === segTokens.length || (segTokens.length >= 2 && matchCount / segTokens.length >= 0.5)) {
-              addMatch({ section: 'education', eduIdx, bulletText: edu });
+              addMatch({ section: 'education', eduIdx, bulletText: eStr });
               break;
             }
           }
@@ -1595,6 +1597,20 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
       rawPrompt: rawText,
       planSummary: `Updated ${detailedProjects.length} live projects with concise ATS descriptions (${detailedProjects.map(p => p.title).join(', ')})`
     };
+  }
+
+  // 4. HOLISTIC MULTI-BULLET / MULTI-DEGREE DELETION CHECK:
+  // If the prompt contains a deletion/removal directive AND matches bullets across the whole text,
+  // do NOT break multi-line bullet lists into isolated chunks where earlier lines lose their deletion action!
+  const hasDeleteWord = /(?:delete|remove|hata|hatao|hataye|hatayein|hataiye|hatado|hatade|hta\s*de|hta\s*do|htao|htaye|htado|htade|nikal|drop|chhod|omit|uda|ura|mat\s*rakho|nahi\s*chahiye)/i.test(rawText);
+  if (hasDeleteWord) {
+    const cvExps = currentCvState?.experiences || currentCvState?.experience || sourceMaster?.experiences || sourceMaster?.experience || [];
+    const cvSum = currentCvState?.header?.summary || currentCvState?.summary || sourceMaster?.header?.summary || sourceMaster?.summary || '';
+    const cvEdu = currentCvState?.education || sourceMaster?.education || [];
+    const matchedBullets = findAllTargetBulletsInCv(rawText, cvExps, cvSum, cvEdu);
+    if (matchedBullets.length > 0) {
+      return parseSingleDirectiveToChangePlan(rawText, currentCvState, sourceMaster);
+    }
   }
 
   // Check if multiple directives are present (split by newlines, semicolons, or numbered list)
