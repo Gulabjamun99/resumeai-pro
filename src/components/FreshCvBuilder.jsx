@@ -49,7 +49,7 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
     {
       id: 'msg-welcome-1',
       sender: 'bot',
-      text: 'Namaste! 👋 Main aapka AI Career Assistant hu.\n\nAap bilkul aam bolchal (Hinglish ya English) me batayein — aapne kya padhai ki hai, kahan intern ya kaam kiya, aur kya projects banaye hain. Baaki professional ATS English CV banana mera kaam hai!',
+      text: 'Hello and welcome! 👋 I am your AI Career Guide.\n\nTell me about your background — your education, internships or work experience, and any academic or personal projects you have built. I will automatically synthesize your information into an executive, ATS-optimized English resume!',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -98,10 +98,10 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
 
       let botReply = '';
       if (newGaps.length === 0) {
-        botReply = 'Shaandaar! 🎉 Aapki details mil gayi hain. Maine aapka detailed professional CV pure corporate English me taiyar kar diya hai. Niche "Assemble & Open in Live Studio" click karke aap direct 36 modern templates apply kar sakte hain!';
+        botReply = 'Excellent! 🎉 Your background details have been parsed and assembled into a corporate-grade resume. Click "Assemble & Open in Live Studio" below to select from 36 modern executive templates and export.';
       } else {
         const topGap = newGaps[0];
-        botReply = `Bahut badiya! Maine ye details aapke CV me add kar di hain.\n\nEk aur cheez batayein:\n👉 ${topGap.question}`;
+        botReply = `Great progress! These details have been structured into your resume.\n\nTo ensure maximum ATS impact, could you clarify:\n👉 ${topGap.question}`;
       }
 
       setMessages(prev => [
@@ -192,14 +192,14 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-bold text-white">
-                AI Guided Fresh CV Builder
+                AI Guided Fresh Resume Builder
               </h2>
               <span className="text-[10px] font-mono bg-purple-950/80 text-purple-300 border border-purple-800/80 px-2 py-0.5 rounded-full font-bold">
-                Fresher Friendly • Hinglish / English
+                Student & Career Starter Edition
               </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Apni baatein aam bhasha me batayein — AI use detailed, industry-standard ATS English CV me convert karega.
+              Describe your background naturally — our AI synthesizes it into an executive, ATS-optimized English resume.
             </p>
           </div>
         </div>
@@ -279,7 +279,7 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
                 <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex items-start gap-2.5 my-1 text-xs text-slate-300">
                   <Sparkles className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Aap apna <strong>Naam, College, Degree, Projects ya Internship</strong> ke baare me niche likhein. AI unhe turant live parse karke professional corporate English me assemble karega.
+                    Describe your <strong>Education, Internships, Projects, and Skills</strong> below. Our AI engine will structure them into high-impact STAR bullet points.
                   </p>
                 </div>
               )}
@@ -363,7 +363,7 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
                     handleSendMessage();
                   }
                 }}
-                placeholder="Aam bhasha me likhein: e.g. 'Mera naam Rahul hai, DU se 2024 me B.Tech kiya, React me E-Commerce project banaya...'"
+                placeholder="Type your background details here (e.g. 'Graduated with B.Tech in IT from Delhi University in 2024, built an E-Commerce React app, completed 6-month frontend internship')..."
                 className="flex-1 bg-slate-950 border border-slate-700 focus:border-purple-500 rounded-xl p-3 text-xs text-white placeholder-slate-500 outline-none resize-none font-mono"
               />
               <button
@@ -398,7 +398,7 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
                 </div>
                 <h4 className="text-xs font-bold text-slate-200">Live Resume Canvas Awaiting Input</h4>
                 <p className="text-[11px] text-slate-400 max-w-xs">
-                  Aap jaise hi left side me apna background batayenge, aapka professional English CV yahan real-time assemble hoga. Zero dummy data.
+                  Share your background on the left to see your executive English resume assemble in real time. 100% live input.
                 </p>
               </div>
             ) : (

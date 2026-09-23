@@ -314,9 +314,9 @@ export default function App() {
     setIsClarificationOpen(false);
     let resolvedPrompt = promptText;
     if (chosenScope === 'ADD_ONLY') resolvedPrompt = "Add my independent consulting experience from May 2025.";
-    if (chosenScope === 'REWRITE_SECTION') resolvedPrompt = "Experience section ko ATS ke liye rewrite karo.";
-    if (chosenScope === 'REWRITE_FULL') resolvedPrompt = "Poora CV ATS optimized rewrite karo.";
-    if (chosenScope === 'FORMATTING_ONLY') resolvedPrompt = "Sirf formatting improve karo. Content same rakho.";
+    if (chosenScope === 'REWRITE_SECTION') resolvedPrompt = "Rewrite experience section for modern ATS optimization.";
+    if (chosenScope === 'REWRITE_FULL') resolvedPrompt = "Optimize and format entire CV for target ATS benchmarks.";
+    if (chosenScope === 'FORMATTING_ONLY') resolvedPrompt = "Improve formatting and layout aesthetics while preserving all content.";
 
     setPromptText(resolvedPrompt);
     const scope = classifyPermissionScope(resolvedPrompt);
@@ -506,9 +506,9 @@ export default function App() {
                   <Upload className="w-4 h-4" />
                   <span className="text-xs font-bold uppercase tracking-wider">Persona 1</span>
                 </div>
-                <h3 className="text-sm font-bold text-white">Update Existing CV (Hubahu)</h3>
+                <h3 className="text-sm font-bold text-white">Update Existing Resume (Pixel-Exact)</h3>
                 <p className="text-[11px] text-slate-400">
-                  Exact layout, sidebar & color preserve karke in-place edits karein.
+                  Preserve exact layout, fonts, and sidebars while making surgical in-place edits.
                 </p>
               </div>
 
@@ -520,9 +520,9 @@ export default function App() {
                   <Wand2 className="w-4 h-4" />
                   <span className="text-xs font-bold uppercase tracking-wider">Persona 2</span>
                 </div>
-                <h3 className="text-sm font-bold text-white">Build Fresh CV with AI Guide</h3>
+                <h3 className="text-sm font-bold text-white">Build Fresh Resume with AI Guide</h3>
                 <p className="text-[11px] text-slate-400">
-                  Naye candidates ke liye 3-minute conversational assistant.
+                  Conversational smart assistant for students, freshers, and career starters.
                 </p>
               </div>
 
@@ -536,7 +536,7 @@ export default function App() {
                 </div>
                 <h3 className="text-sm font-bold text-white">Tailor to Job Description (JD)</h3>
                 <p className="text-[11px] text-slate-400">
-                  CV upload karein + JD paste karein ➔ AI match karke CV ko tailor karega.
+                  Compare candidate resume with job posting to unlock 95%+ ATS semantic match.
                 </p>
               </div>
             </div>
@@ -548,7 +548,7 @@ export default function App() {
               </div>
 
               <div>
-                <h2 className="text-xl font-bold text-white mb-1.5">Upload Your Existing CV for 100% Hubahu Editing</h2>
+                <h2 className="text-xl font-bold text-white mb-1.5">Upload Your Existing Resume for Exact In-Place Editing</h2>
                 <p className="text-xs text-slate-400 max-w-md mx-auto">
                   PDF, DOCX, TXT formats up to 25 MB. Dynamic spatial column decomposition guarantees zero layout disruption.
                 </p>
@@ -557,7 +557,7 @@ export default function App() {
               <div className="flex flex-col sm:flex-row justify-center gap-3">
                 <label className="cursor-pointer bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-8 py-3.5 rounded-xl shadow-lg shadow-sky-500/25 flex items-center gap-2.5 transition">
                   <Upload className="w-4 h-4" />
-                  <span>Upload Candidate CV (PDF / DOCX / TXT)</span>
+                  <span>Upload Candidate Resume (PDF / DOCX / TXT)</span>
                   <input type="file" accept=".pdf,.docx,.txt,.png,.jpg" onChange={handleProductionFileUpload} className="hidden" />
                 </label>
               </div>
@@ -566,13 +566,13 @@ export default function App() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mt-2 text-left">
                 <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
                   <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 1</span>
-                  <span className="text-xs text-slate-200 font-semibold block">Ditto Parsing</span>
+                  <span className="text-xs text-slate-200 font-semibold block">Exact Parsing</span>
                   <span className="text-[11px] text-slate-400">Spatial multi-column</span>
                 </div>
                 <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
                   <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 2</span>
-                  <span className="text-xs text-slate-200 font-semibold block">Describe Change</span>
-                  <span className="text-[11px] text-slate-400">Hinglish / English</span>
+                  <span className="text-xs text-slate-200 font-semibold block">Describe Changes</span>
+                  <span className="text-[11px] text-slate-400">Natural language AI</span>
                 </div>
                 <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
                   <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 3</span>

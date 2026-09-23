@@ -185,7 +185,7 @@ export default function JdOptimizer({
             Job Description (JD) Semantic Tailor
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            <strong>Step 1:</strong> Apni CV provide karein + <strong>Step 2:</strong> Target JD paste karein ➔ AI dono ko match karega aur aapke CV ko ATS-tailored bana dega.
+            <strong>Step 1:</strong> Provide Candidate Resume + <strong>Step 2:</strong> Paste Target Job Description ➔ AI performs ATS gap analysis and tailors your resume.
           </p>
         </div>
         {onCancel && (
@@ -274,16 +274,16 @@ export default function JdOptimizer({
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white">
-                  {isParsingCv ? 'Parsing Uploaded CV...' : 'Upload Your Existing Resume'}
+                  {isParsingCv ? 'Parsing Uploaded Resume...' : 'Upload Candidate Resume'}
                 </h4>
                 <p className="text-[11px] text-slate-400 mt-1 max-w-xs leading-relaxed">
-                  PDF, DOCX, ya TXT format upload karein taaki AI aapke real experience ko JD se match kar sake.
+                  Upload PDF, DOCX, or TXT format so our AI can cross-reference your verified experience against target requirements.
                 </p>
               </div>
 
               <label className="cursor-pointer bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2 mt-1">
                 <Upload className="w-3.5 h-3.5" />
-                <span>Select CV File</span>
+                <span>Select Resume File</span>
                 <input 
                   type="file" 
                   accept=".pdf,.docx,.txt,.png,.jpg" 
@@ -324,7 +324,7 @@ export default function JdOptimizer({
               rows={6}
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
-              placeholder="Job posting ki responsibilities, requirements, aur qualifications yahan paste karein..."
+              placeholder="Paste target job posting responsibilities, technical requirements, and qualifications here..."
               className="w-full flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 outline-none focus:border-emerald-500 resize-none font-mono text-[11px] min-h-[140px]"
             />
           </div>
@@ -346,17 +346,17 @@ export default function JdOptimizer({
           {isAnalyzing ? (
             <>
               <RefreshCw className="w-4 h-4 animate-spin text-emerald-400" />
-              <span>Matching Candidate CV with Job Description...</span>
+              <span>Matching Candidate Resume with Job Description...</span>
             </>
           ) : !hasCv ? (
             <>
               <AlertTriangle className="w-4 h-4 text-amber-400" />
-              <span>Step 1 Complete Karein: Pehle apni CV upload karein</span>
+              <span>Step 1 Required: Please upload candidate resume above</span>
             </>
           ) : !hasJd ? (
             <>
               <AlertTriangle className="w-4 h-4 text-amber-400" />
-              <span>Step 2 Complete Karein: Target Job Description paste karein</span>
+              <span>Step 2 Required: Please paste target job description above</span>
             </>
           ) : (
             <>

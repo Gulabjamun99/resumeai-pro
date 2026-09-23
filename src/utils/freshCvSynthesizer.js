@@ -283,14 +283,14 @@ export function analyzeCandidateGaps(facts) {
     gaps.push({
       id: 'gap-target-role',
       type: 'ROLE',
-      question: 'Aap kis specific role ke liye apply karna chahte hain?',
-      subtext: 'Yeh aapke CV ki headline aur executive summary ko ATS ke liye align karega.',
+      question: 'What target position or career track are you aiming for?',
+      subtext: 'Calibrates your headline and executive summary for targeted ATS keyword density.',
       options: [
         { label: '💻 Full-Stack Software Engineer', value: 'Full-Stack Software Engineer' },
         { label: '🎨 Frontend Web Developer', value: 'Frontend Web Developer' },
         { label: '📱 Mobile Application Developer', value: 'Mobile Application Developer (Flutter/Android)' },
         { label: '⚙️ Backend Systems Developer', value: 'Backend Systems Developer' },
-        { label: '📊 AI / Data Analyst Fresher', value: 'AI & Data Science Specialist' }
+        { label: '📊 AI & Data Science Specialist', value: 'AI & Data Science Specialist' }
       ]
     });
   }
@@ -301,8 +301,8 @@ export function analyzeCandidateGaps(facts) {
     gaps.push({
       id: 'gap-education',
       type: 'EDUCATION',
-      question: 'Aapne kaun se college/university se graduation kiya hai aur passing year kaun sa hai?',
-      subtext: 'Recruiters sabse pehle college name aur passing batch check karte hain.',
+      question: 'Which college or university did you graduate from, and what is your graduation batch?',
+      subtext: 'Recruiters prioritize verified degree institutions and graduation timelines.',
       options: [
         { label: '🎓 B.Tech Computer Science', value: 'B.Tech in Computer Science & Engineering' },
         { label: '🎓 BCA / MCA Graduate', value: 'Bachelor or Master of Computer Applications' },
@@ -317,8 +317,8 @@ export function analyzeCandidateGaps(facts) {
     gaps.push({
       id: 'gap-projects',
       type: 'PROJECTS',
-      question: 'Freshers ke liye projects sabse important hote hain. Kya aapne koi academic, freelance ya personal project banaya hai?',
-      subtext: 'Bataiye project ka naam aur usme kya technology use ki thi.',
+      question: 'What technical, academic, or personal projects have you engineered?',
+      subtext: 'Hands-on projects provide verifiable proof of practical software engineering skills.',
       options: [
         { label: '🌐 Web Application Project', value: 'Developed a responsive web application using modern frontend & backend frameworks' },
         { label: '📱 Mobile Application Project', value: 'Developed a mobile utility application published or built with cross-platform tools' },
@@ -332,11 +332,11 @@ export function analyzeCandidateGaps(facts) {
     gaps.push({
       id: 'gap-experience',
       type: 'EXPERIENCE',
-      question: 'Kya aapne koi internship ya freelance work kiya hai, ya phir CV ko Project-Focused banayein?',
-      subtext: 'Agar koi internship nahi ki hai to koi baat nahi — hum Projects section ko highlight karenge!',
+      question: 'Do you have any internship or freelance experience to feature?',
+      subtext: 'If you have not completed a corporate internship yet, we will emphasize your hands-on projects.',
       options: [
         { label: '💼 Software Engineering Internship', value: 'Completed software development internship working on product features and bug fixes' },
-        { label: '🚀 No Internship (Project-Focused Fresher CV)', value: 'Fresher with no corporate internship yet; focus on projects and skills' },
+        { label: '🚀 Project-Focused Career Profile', value: 'Career starter focusing on project execution and technical competencies' },
         { label: '🤝 Freelance Client Deliverables', value: 'Delivered freelance web solutions and deliverables as an independent contractor' }
       ]
     });
@@ -347,8 +347,8 @@ export function analyzeCandidateGaps(facts) {
     gaps.push({
       id: 'gap-contact',
       type: 'CONTACT',
-      question: 'CV Header ke liye aapka email address aur contact number kya hai?',
-      subtext: 'Yeh recruitment contact ke liye standard format me set hoga.',
+      question: 'What email address and contact number should be featured in your header?',
+      subtext: 'Essential for recruiter communication and automated ATS parsing.',
       options: [
         { label: '⚡ Skip Contact for now (Add in Live Studio)', value: 'Skip contact details for now' }
       ]

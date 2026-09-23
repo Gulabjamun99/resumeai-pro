@@ -55,7 +55,7 @@ export default function InteractiveLiveStudio({
   const [chatLog, setChatLog] = useState([
     {
       sender: 'ai',
-      text: 'Aapka CV loaded hai! Left panel se koi bhi template 1-click me select karein, ya niche AI bar me prompt likh kar direct edit karein.',
+      text: 'Your resume is loaded and ready! Select any executive template from the left gallery, or describe custom refinements in the AI prompt bar below.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -530,7 +530,7 @@ export default function InteractiveLiveStudio({
                   </span>
                 </div>
                 <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full">
-                  Hinglish & English Active
+                  NLP AI Active
                 </span>
               </div>
 
@@ -568,7 +568,7 @@ export default function InteractiveLiveStudio({
               {/* Quick Prompt Suggestions */}
               <div className="px-3 py-2 bg-slate-950/60 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[10.5px]">
                 <span className="text-slate-500 shrink-0 font-medium">Try:</span>
-                {['Add Docker to skills', 'Summary concise karo', 'Add new project', 'Remove bullet point'].map((suggestion, sIdx) => (
+                {['Add Docker to skills', 'Make summary concise', 'Add new project', 'Remove bullet point'].map((suggestion, sIdx) => (
                   <button
                     key={sIdx}
                     onClick={() => handleSendPrompt(suggestion)}
@@ -600,7 +600,7 @@ export default function InteractiveLiveStudio({
                         }
                       }
                     }}
-                    placeholder="Type any edit (e.g. 'Delivered end-to-end... ye point hata do', 'Skills me Docker add karo', or paste multi-line points)..."
+                    placeholder="Type any instruction (e.g. 'Add Docker to skills', 'Remove bullet point', 'Update headline to Senior Engineer')..."
                     disabled={isProcessing}
                     className="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-500 rounded-xl pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition resize-none disabled:opacity-50 shadow-inner"
                   />
@@ -873,7 +873,7 @@ export default function InteractiveLiveStudio({
                 type="text"
                 value={quickPromptInput}
                 onChange={(e) => setQuickPromptInput(e.target.value)}
-                placeholder="Type any edit (e.g. 'Add Docker to skills', 'Summary concise karo', 'Remove bullet point')..."
+                placeholder="Type any instruction (e.g. 'Add Docker to skills', 'Make summary concise', 'Remove bullet point')..."
                 disabled={isProcessing}
                 className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition disabled:opacity-50"
               />

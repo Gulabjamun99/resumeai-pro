@@ -4,8 +4,8 @@ import { Play, Upload, MessageSquare, Zap, FileText, CheckCircle2 } from 'lucide
 export default function PromptConsole({ promptText, setPromptText, onExecute, isProcessing, onFileUpload }) {
   const quickPills = [
     "Add post-April 2025 AI Agent consulting (Antigravity, Claude, ChatGPT, z.ai)",
-    "Baaki sab same rahega, ATS optimize kar do",
-    "Format identical rakho, 0 content missing, 1-page compact fit"
+    "Preserve existing content, optimize keywords for ATS",
+    "Format identically, zero content missing, compact 1-page fit"
   ];
 
   return (
@@ -18,7 +18,7 @@ export default function PromptConsole({ promptText, setPromptText, onExecute, is
           </h2>
         </div>
         <span className="text-[11px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
-          Supports Hindi / Hinglish / English
+          NLP Semantic Engine Active
         </span>
       </div>
 
@@ -27,7 +27,7 @@ export default function PromptConsole({ promptText, setPromptText, onExecute, is
         <textarea
           value={promptText}
           onChange={(e) => setPromptText(e.target.value)}
-          placeholder="Enter prompt instructions (e.g. 'is cv me update karana baki sab same rhega, ats enabled resume bna dgye, 2025 ke april ke baad se independent consult kam kr rhe hai...')"
+          placeholder="Enter prompt instructions (e.g. 'Update executive summary for senior roles, add independent consulting experience, preserve all other sections exactly...')"
           className="w-full h-28 bg-slate-950 border border-slate-700 rounded-lg p-3.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition resize-none font-mono"
         />
 

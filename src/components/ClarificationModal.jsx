@@ -35,7 +35,7 @@ export default function ClarificationModal({ isOpen, onClose, onSelectOption }) 
           <div>
             <h3 className="text-base font-bold text-white">Ambiguous Instruction Detected</h3>
             <p className="text-xs text-amber-300">
-              The request <em>"CV thoda improve kar do"</em> is ambiguous. Please select your intended change permission scope:
+              Your instruction requires scope clarification. Please select your intended change permission boundary:
             </p>
           </div>
         </div>

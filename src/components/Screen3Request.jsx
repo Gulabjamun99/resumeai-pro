@@ -179,7 +179,7 @@ export default function Screen3Request({
             <textarea
               value={promptText}
               onChange={(e) => setPromptText(e.target.value)}
-              placeholder="Type instructions here (e.g. 'Headline ko AI-Driven Specialist kar do', 'Summary short karo', 'Add consulting experience post-April 2025')..."
+              placeholder="Type instructions here (e.g. 'Update headline to Senior AI Specialist', 'Make executive summary concise', 'Add new consulting experience post-April 2025')..."
               className="w-full h-36 bg-slate-950 border border-slate-700 rounded-lg p-3.5 text-xs text-slate-100 focus:outline-none focus:border-sky-500 font-mono resize-none"
             />
             {promptText && (
