@@ -378,9 +378,14 @@ export default function App() {
     setScreen(7); // Jump directly to Studio
   };
 
-  // Persona 3: Handle JD Tailoring Completion
-  const handleJdTailoringCompleted = (tailoredResume) => {
-    const nextVer = versionHistory.length + 1;
+  // Persona 3: Handle JD Tailoring Completion (matches candidate CV with JD)
+  const handleJdTailoringCompleted = (tailoredResume, baseResume = null) => {
+    const originalMaster = baseResume || sourceResume || tailoredResume;
+    if (!sourceResume && originalMaster) {
+      setSourceResume(originalMaster);
+    }
+
+    const nextVer = (versionHistory.length || 0) + 1;
     const newSnapshot = {
       version: nextVer,
       id: `v${nextVer}`,
@@ -390,9 +395,26 @@ export default function App() {
       cvState: JSON.parse(JSON.stringify(tailoredResume)),
       bulletsCount: tailoredResume.experiences?.flatMap(e => e.bullets)?.length || 0
     };
-    setVersionHistory(prev => [...prev, newSnapshot]);
+
+    if (versionHistory.length === 0 && originalMaster) {
+      const v1Snapshot = {
+        version: 1,
+        id: 'v1',
+        title: 'Version 1 (Original Upload)',
+        summary: 'Baseline copy prior to JD tailoring',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        cvState: JSON.parse(JSON.stringify(originalMaster)),
+        bulletsCount: originalMaster.experiences?.flatMap(e => e.bullets)?.length || 0
+      };
+      setVersionHistory([v1Snapshot, { ...newSnapshot, version: 2, id: 'v2', title: 'Version 2 (JD Tailored)' }]);
+      setCurrentVersion(2);
+    } else {
+      setVersionHistory(prev => [...prev, newSnapshot]);
+      setCurrentVersion(nextVer);
+    }
+
     setCurrentCvState(JSON.parse(JSON.stringify(tailoredResume)));
-    setCurrentVersion(nextVer);
+    setSelectedTemplateId('dual-column');
     setHomeMode('upload');
     setScreen(7);
   };
@@ -514,7 +536,7 @@ export default function App() {
                 </div>
                 <h3 className="text-sm font-bold text-white">Tailor to Job Description (JD)</h3>
                 <p className="text-[11px] text-slate-400">
-                  Job Description paste karke 95%+ ATS keyword boost paayein.
+                  CV upload karein + JD paste karein ➔ AI match karke CV ko tailor karega.
                 </p>
               </div>
             </div>
