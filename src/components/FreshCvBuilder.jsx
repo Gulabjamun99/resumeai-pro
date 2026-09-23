@@ -1,355 +1,688 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Sparkles, Send, User, Briefcase, GraduationCap, Code, 
-  CheckCircle2, ArrowRight, MessageSquare, Plus, Trash2, ArrowLeft 
+  CheckCircle2, ArrowRight, MessageSquare, Plus, Trash2, ArrowLeft,
+  Bot, HelpCircle, Zap, Check, AlertCircle, RefreshCw, Layers
 } from 'lucide-react';
+import { 
+  extractFresherFacts, 
+  analyzeCandidateGaps, 
+  synthesizeDetailedFresherResume 
+} from '../utils/freshCvSynthesizer';
 
 /**
- * PERSONA 2: CONVERSATIONAL FRESH CV BUILDER
+ * PERSONA 2: AI GUIDED FRESH CV BUILDER
  * 
- * Interactive conversational onboarding for users without an existing CV.
- * Multi-language friendly, zero rigid complaints, progressive assembly.
+ * Interactive conversational onboarding specifically designed for freshers & career starters:
+ * 1. Takes casual, informal user input in Hinglish or English.
+ * 2. Asks smart, friendly clarification questions for missing details (with 1-click chips).
+ * 3. Deeply synthesizes raw context into detailed, industry-standard STAR bullets.
+ * 4. STRICT GUARANTEE: All CV content is 100% pure corporate English (no Hinglish in resume data).
+ * 5. Features real-time live preview of the assembled CV card alongside the chat.
  */
 export default function FreshCvBuilder({ onComplete, onCancel }) {
-  const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
+  // Mode switcher: 'chat' (AI Conversational Guide) vs 'manual' (Classic Step Form)
+  const [viewMode, setViewMode] = useState('chat');
+
+  // Input states
+  const [inputMessage, setInputMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const chatBottomRef = useRef(null);
+
+  // Accumulated candidate facts
+  const [candidateFacts, setCandidateFacts] = useState({
     name: '',
-    title: '',
     email: '',
     phone: '',
     location: '',
+    targetRole: '',
     summary: '',
-    skills: '',
-    experienceRole: '',
-    experienceCompany: '',
-    experienceDates: '',
-    experienceBullets: '',
-    educationDegree: '',
-    educationSchool: '',
-    educationYear: ''
+    education: [],
+    experiences: [],
+    projects: [],
+    skills: [],
+    rawNotes: []
   });
 
-  const steps = [
-    { num: 1, title: 'Personal Info', icon: User, desc: 'Aapka naam aur contact details' },
-    { num: 2, title: 'Target Role & Bio', icon: Briefcase, desc: 'Aap kis role ke liye CV bana rahe hain?' },
-    { num: 3, title: 'Experience / Projects', icon: Code, desc: 'Aapka previous work ya key projects' },
-    { num: 4, title: 'Skills & Education', icon: GraduationCap, desc: 'Key skills aur academic qualification' }
+  // Conversation history
+  const [messages, setMessages] = useState([
+    {
+      id: 'msg-welcome-1',
+      sender: 'bot',
+      text: 'Namaste! 👋 Main aapka AI Career Assistant hu.\n\nAap bilkul aam bolchal (Hinglish ya English) me batayein — aapne kya padhai ki hai, kahan intern ya kaam kiya, aur kya projects banaye hain. Baaki professional ATS English CV banana mera kaam hai!',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+  ]);
+
+  // Derived gaps from current accumulated facts
+  const detectedGaps = useMemo(() => {
+    return analyzeCandidateGaps(candidateFacts);
+  }, [candidateFacts]);
+
+  // Real-time synthesized CV draft (100% Pure Corporate English)
+  const liveSynthesizedCv = useMemo(() => {
+    return synthesizeDetailedFresherResume(candidateFacts);
+  }, [candidateFacts]);
+
+  // Scroll chat to bottom on new messages
+  useEffect(() => {
+    if (chatBottomRef.current) {
+      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isTyping]);
+
+  // Starter Prompts for freshers
+  const starterPrompts = [
+    {
+      title: '🚀 Frontend & Mobile App Fresher',
+      text: 'Mera naam Rohit Kumar hai. B.Tech CSE kiya hai Lovely Professional University se 2024 me. Gharmantra app banaya Flutter me play store pe daala aur Kharchabook daily expense tracker app React me banaya. Tech Mahindra me 6 mahine frontend intern thein jaha UI banaya aur bug fix kiya.'
+    },
+    {
+      title: '💻 Full-Stack Web Developer (MERN)',
+      text: 'Mera naam Aman Sharma hai. B.Tech IT graduate hu 2024 batch. React, Node.js, Express aur MongoDB me Full-Stack E-Commerce shopping platform banaya hai jisme cart aur payment gateway integrate kiya tha. Bangalore me software developer role dekh raha hu.'
+    },
+    {
+      title: '📱 Android / Flutter Mobile Fresher',
+      text: 'BCA passout 2024 from Delhi University. Flutter aur Firebase me 2 live apps banaye hain, Google Play Store pe publish kiya hai aur REST APIs connect kiya hai. Looking for Mobile App Developer role.'
+    }
   ];
 
-  const handleNext = () => {
-    if (step < 4) setStep(prev => prev + 1);
-    else handleFinish();
-  };
+  // Process a user response (from chat input or 1-click chip)
+  const handleSendMessage = (textToSend = null) => {
+    const rawContent = (textToSend !== null ? textToSend : inputMessage).trim();
+    if (!rawContent) return;
 
-  const handleFinish = () => {
-    // Construct valid candidate resume object
-    const skillsList = formData.skills
-      .split(/[,|\n]+/)
-      .map(s => s.trim())
-      .filter(Boolean);
-
-    const bulletsList = formData.experienceBullets
-      .split('\n')
-      .map(b => b.replace(/^[•*\-]\s*/, '').trim())
-      .filter(Boolean);
-
-    const assembledResume = {
-      header: {
-        name: formData.name || 'Candidate Name',
-        title: formData.title || 'Software & AI Specialist',
-        summary: formData.summary || `${formData.name || 'Professional'} is a dedicated specialist in ${formData.title || 'technology'} with a proven track record of execution and impact.`
-      },
-      contact: {
-        email: formData.email || 'candidate@example.com',
-        phone: formData.phone || '+91 98765 43210',
-        location: formData.location || 'Bangalore, India',
-        linkedin: `https://linkedin.com/in/${(formData.name || 'candidate').toLowerCase().replace(/\s+/g, '-')}`,
-        github: '',
-        website: ''
-      },
-      skills: skillsList.length > 0 ? skillsList : [
-        'Full-Stack Development', 'AI Tools', 'Problem Solving', 'Team Leadership', 'Project Execution'
-      ],
-      experiences: formData.experienceRole ? [
-        {
-          id: 'exp-1',
-          role: formData.experienceRole,
-          company: formData.experienceCompany || 'Technology Ventures',
-          period: formData.experienceDates || '2024 – Present',
-          location: formData.location || 'Remote',
-          bullets: bulletsList.length > 0 ? bulletsList : [
-            'Spearheaded key product initiatives and deployed end-to-end scalable solutions.',
-            'Collaborated with cross-functional teams to streamline workflows and improve productivity.',
-            'Leveraged modern frameworks and tools to achieve high reliability and performance.'
-          ]
-        }
-      ] : [],
-      projects: [],
-      education: formData.educationDegree ? [
-        `${formData.educationDegree} from ${formData.educationSchool || 'University'} (${formData.educationYear || '2023'})`
-      ] : ['Bachelor of Technology / Degree in Engineering'],
-      certifications: [],
-      languages: [{ name: 'English', level: 'Professional' }, { name: 'Hindi', level: 'Native' }],
-      layoutType: 'two-column-left-sidebar'
+    // 1. Add user message to chat
+    const userMsg = {
+      id: `msg-user-${Date.now()}`,
+      sender: 'user',
+      text: rawContent,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
+    setMessages(prev => [...prev, userMsg]);
+    if (textToSend === null) setInputMessage('');
+    setIsTyping(true);
+
+    // 2. Extract facts and update state
+    setTimeout(() => {
+      const updatedFacts = extractFresherFacts(rawContent, candidateFacts);
+      setCandidateFacts(updatedFacts);
+
+      // Check remaining gaps
+      const newGaps = analyzeCandidateGaps(updatedFacts);
+
+      let botReply = '';
+      if (newGaps.length === 0) {
+        botReply = 'Shaandaar! 🎉 Aapki saari zaroori details mil gayi hain. Maine aapka detailed professional CV pure corporate English me taiyar kar diya hai. Niche "Assemble & Open in Live Studio" click karke aap direct 36 modern templates apply kar sakte hain!';
+      } else {
+        const topGap = newGaps[0];
+        botReply = `Bahut badiya! Maine ye details aapke CV me add kar di hain.\n\nEk aur cheez batayein:\n👉 ${topGap.question}`;
+      }
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: `msg-bot-${Date.now()}`,
+          sender: 'bot',
+          text: botReply,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+      setIsTyping(false);
+    }, 600);
+  };
+
+  // Direct 1-Click Chip Handler
+  const handleSelectGapOption = (optionValue) => {
+    handleSendMessage(optionValue);
+  };
+
+  // Final Action: Complete and Launch Studio (Screen 7)
+  const handleFinalSubmit = () => {
     if (onComplete) {
-      onComplete(assembledResume);
+      onComplete(liveSynthesizedCv);
     }
   };
 
+  // Manual Form States (if user switches to manual mode)
+  const [manualData, setManualData] = useState({
+    name: candidateFacts.name || 'Rohit Kumar',
+    title: candidateFacts.targetRole || 'Software Development Engineer',
+    email: candidateFacts.email || 'rohit.kumar@gmail.com',
+    phone: candidateFacts.phone || '+91 98765 43210',
+    location: candidateFacts.location || 'Bangalore, India',
+    summary: liveSynthesizedCv.header?.summary || '',
+    skills: liveSynthesizedCv.skills?.join(', ') || '',
+    company: candidateFacts.experiences[0]?.company || 'Tech Mahindra',
+    role: candidateFacts.experiences[0]?.role || 'Frontend Development Intern',
+    period: candidateFacts.experiences[0]?.period || '6 Months (2024)',
+    degree: candidateFacts.education[0]?.degree || 'Bachelor of Technology (B.Tech)',
+    school: candidateFacts.education[0]?.institution || 'Lovely Professional University, Punjab',
+    year: candidateFacts.education[0]?.year || '2024'
+  });
+
+  const handleManualSubmit = () => {
+    const manualResume = {
+      ...liveSynthesizedCv,
+      header: {
+        name: manualData.name,
+        title: manualData.title,
+        summary: manualData.summary || liveSynthesizedCv.header.summary
+      },
+      contact: {
+        ...liveSynthesizedCv.contact,
+        email: manualData.email,
+        phone: manualData.phone,
+        location: manualData.location
+      },
+      skills: manualData.skills.split(',').map(s => s.trim()).filter(Boolean),
+      experiences: [
+        {
+          id: 'exp-manual-1',
+          role: manualData.role,
+          company: manualData.company,
+          period: manualData.period,
+          location: manualData.location,
+          bullets: liveSynthesizedCv.experiences[0]?.bullets || [
+            'Architected and implemented scalable features adhering to corporate quality standards.',
+            'Collaborated with engineering teams to resolve application bugs and improve user workflows.'
+          ]
+        }
+      ],
+      education: [`${manualData.degree} • ${manualData.school} (${manualData.year})`]
+    };
+
+    if (onComplete) onComplete(manualResume);
+  };
+
   return (
-    <div className="max-w-3xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col gap-6 text-white">
-      {/* Header */}
-      <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-        <div>
-          <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-sky-400" />
-            AI Guided Fresh CV Builder
-          </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Bas kuch simple sawalon ke jawab dein — AI aapka executive ATS resume automatically assemble karega.
-          </p>
+    <div className="w-full max-w-[1600px] mx-auto bg-slate-950 border border-slate-800 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100">
+      
+      {/* Top Header & Mode Switcher */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 sm:p-5 bg-slate-900 border-b border-slate-800 gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/20 flex-shrink-0">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-white">
+                AI Guided Fresh CV Builder
+              </h2>
+              <span className="text-[10px] font-mono bg-purple-950/80 text-purple-300 border border-purple-800/80 px-2 py-0.5 rounded-full font-bold">
+                Fresher Friendly • Hinglish / English
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Apni baatein aam bhasha me batayein — AI use detailed, industry-standard ATS English CV me convert karega.
+            </p>
+          </div>
         </div>
-        {onCancel && (
-          <button
-            onClick={onCancel}
-            className="text-xs text-slate-400 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg transition cursor-pointer"
-          >
-            Cancel
-          </button>
-        )}
-      </div>
 
-      {/* Steps Progress Indicator */}
-      <div className="grid grid-cols-4 gap-2">
-        {steps.map(s => {
-          const Icon = s.icon;
-          const isActive = step === s.num;
-          const isDone = step > s.num;
-
-          return (
-            <div 
-              key={s.num} 
-              className={`p-2.5 rounded-xl border flex flex-col gap-1 transition ${
-                isActive 
-                  ? 'bg-sky-950/60 border-sky-500 shadow-md ring-1 ring-sky-500' 
-                  : isDone
-                    ? 'bg-emerald-950/30 border-emerald-800/80 text-emerald-400'
-                    : 'bg-slate-950 border-slate-800/80 text-slate-500'
+        {/* Action Controls & Mode Switch */}
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <div className="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+            <button
+              onClick={() => setViewMode('chat')}
+              className={`px-3 py-1.5 rounded-md font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                viewMode === 'chat'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              <div className="flex items-center gap-1.5">
-                <Icon className="w-3.5 h-3.5" />
-                <span className="text-[11px] font-bold">Step {s.num}</span>
-              </div>
-              <span className="text-[10px] truncate">{s.title}</span>
-            </div>
-          );
-        })}
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>AI Conversation Guide</span>
+            </button>
+            <button
+              onClick={() => setViewMode('manual')}
+              className={`px-3 py-1.5 rounded-md font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                viewMode === 'manual'
+                  ? 'bg-purple-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Classic Form</span>
+            </button>
+          </div>
+
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="text-xs text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition cursor-pointer"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Step Form Content */}
-      <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 flex flex-col gap-4">
-        {step === 1 && (
-          <div className="flex flex-col gap-3">
-            <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-              Step 1: Aapki Basic Details
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Poora Naam (Full Name) *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Rahul Sharma"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
-                />
+      {/* VIEW MODE 1: CONVERSATIONAL AI STUDIO (SPLIT SCREEN) */}
+      {viewMode === 'chat' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
+          
+          {/* LEFT PANEL (7 Cols / 58%): CONVERSATIONAL AGENT FEED */}
+          <div className="lg:col-span-7 flex flex-col border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-900/60 p-4 sm:p-5">
+            
+            {/* Top Coverage Status Badge */}
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-950/70 p-3 rounded-xl border border-slate-800/90 mb-4 text-xs">
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-purple-400" />
+                <span className="font-semibold text-slate-200">AI Context Intake Status:</span>
               </div>
-              <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Email ID *</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={e => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="e.g. rahul@example.com"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Mobile / WhatsApp Number</label>
-                <input
-                  type="text"
-                  value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="e.g. +91 98765 43210"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Current City / Location</label>
-                <input
-                  type="text"
-                  value={formData.location}
-                  onChange={e => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="e.g. Bangalore, India"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
-                />
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                <span className={`px-2 py-0.5 rounded border ${candidateFacts.name ? 'bg-emerald-950/60 border-emerald-800 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+                  {candidateFacts.name ? '✓ Name' : '○ Name'}
+                </span>
+                <span className={`px-2 py-0.5 rounded border ${candidateFacts.education.length > 0 ? 'bg-emerald-950/60 border-emerald-800 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+                  {candidateFacts.education.length > 0 ? '✓ Education' : '○ Education'}
+                </span>
+                <span className={`px-2 py-0.5 rounded border ${candidateFacts.experiences.length > 0 ? 'bg-emerald-950/60 border-emerald-800 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+                  {candidateFacts.experiences.length > 0 ? '✓ Experience' : '○ Experience'}
+                </span>
+                <span className={`px-2 py-0.5 rounded border ${candidateFacts.projects.length > 0 ? 'bg-emerald-950/60 border-emerald-800 text-emerald-300' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>
+                  {candidateFacts.projects.length > 0 ? `✓ ${candidateFacts.projects.length} Projects` : '○ Projects'}
+                </span>
               </div>
             </div>
-          </div>
-        )}
 
-        {step === 2 && (
-          <div className="flex flex-col gap-3">
-            <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-              Step 2: Target Role & Career Summary
-            </span>
-            <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Aapka Target Job Title / Headline *</label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={e => setFormData({ ...formData, title: e.target.value })}
-                placeholder="e.g. Full-Stack AI Developer | Product Engineer"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
-              />
+            {/* Chat Message Scroll Feed */}
+            <div className="flex-1 overflow-y-auto max-h-[380px] sm:max-h-[420px] flex flex-col gap-3 pr-2 mb-3">
+              
+              {/* Starter Presets (Displayed on first turn) */}
+              {messages.length <= 1 && (
+                <div className="bg-slate-950/90 border border-purple-900/50 rounded-xl p-3.5 flex flex-col gap-2 my-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300">
+                    <Zap className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Quick 1-Click Starter Prompts for Freshers:</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {starterPrompts.map((sp, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSendMessage(sp.text)}
+                        className="text-left bg-slate-900 hover:bg-slate-850 p-2.5 rounded-lg border border-slate-800 hover:border-purple-600/60 transition group cursor-pointer"
+                      >
+                        <div className="text-[11px] font-bold text-slate-200 group-hover:text-purple-300 flex items-center justify-between">
+                          <span>{sp.title}</span>
+                          <ArrowRight className="w-3 h-3 text-slate-500 group-hover:text-purple-400" />
+                        </div>
+                        <p className="text-[10px] text-slate-400 line-clamp-2 mt-1">
+                          {sp.text}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Chat Message Bubbles */}
+              {messages.map(msg => (
+                <div 
+                  key={msg.id}
+                  className={`flex gap-2.5 max-w-[92%] ${
+                    msg.sender === 'user' ? 'self-end flex-row-reverse' : 'self-start'
+                  }`}
+                >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs flex-shrink-0 mt-0.5 ${
+                    msg.sender === 'user' 
+                      ? 'bg-sky-600 text-white' 
+                      : 'bg-purple-600 text-white'
+                  }`}>
+                    {msg.sender === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                  </div>
+
+                  <div className={`rounded-xl p-3 text-xs leading-relaxed ${
+                    msg.sender === 'user'
+                      ? 'bg-sky-600 text-white rounded-tr-none'
+                      : 'bg-slate-950 border border-slate-800 text-slate-200 rounded-tl-none'
+                  }`}>
+                    <p className="whitespace-pre-line">{msg.text}</p>
+                    <span className="text-[9px] text-slate-400 block text-right mt-1 opacity-70">
+                      {msg.timestamp}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {isTyping && (
+                <div className="flex gap-2.5 self-start items-center text-xs text-purple-400 bg-slate-950 p-2 px-3 rounded-lg border border-slate-800">
+                  <Bot className="w-4 h-4 animate-bounce" />
+                  <span>AI assistant is analyzing your details & crafting STAR bullets...</span>
+                </div>
+              )}
+
+              <div ref={chatBottomRef} />
             </div>
-            <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Short Bio / Summary (Aam bhasha me likhein, AI polish kar dega)</label>
+
+            {/* Smart Clarification Query Cards (Interactive 1-Click Chips) */}
+            {detectedGaps.length > 0 && messages.length > 1 && (
+              <div className="bg-slate-950/90 border border-purple-800/40 rounded-xl p-3 flex flex-col gap-2 mb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold text-purple-300">
+                    <HelpCircle className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Quick Answer Chips (1-Click to Add):</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {detectedGaps.length} detail{detectedGaps.length > 1 ? 's' : ''} suggested
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {detectedGaps[0].options.map((opt, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleSelectGapOption(opt.value)}
+                      className="text-[11px] bg-slate-900 hover:bg-purple-950/70 border border-slate-700 hover:border-purple-500/70 text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3 text-purple-400" />
+                      <span>{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Input Bar */}
+            <div className="flex gap-2">
               <textarea
-                rows={3}
-                value={formData.summary}
-                onChange={e => setFormData({ ...formData, summary: e.target.value })}
-                placeholder="e.g. 2 saal se web development aur AI tools pe kaam kiya hai, clean code aur fast deployment me interest hai..."
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500 resize-none"
+                rows={2}
+                value={inputMessage}
+                onChange={e => setInputMessage(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                placeholder="Aam bhasha me likhein: e.g. 'Mera naam Rahul hai, DU se 2024 me B.Tech kiya, React me E-Commerce project banaya...'"
+                className="flex-1 bg-slate-950 border border-slate-700 focus:border-purple-500 rounded-xl p-3 text-xs text-white placeholder-slate-500 outline-none resize-none font-mono"
               />
+              <button
+                onClick={() => handleSendMessage()}
+                disabled={!inputMessage.trim()}
+                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white px-4 rounded-xl flex items-center justify-center transition cursor-pointer flex-shrink-0"
+              >
+                <Send className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        )}
 
-        {step === 3 && (
-          <div className="flex flex-col gap-3">
-            <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-              Step 3: Experience Ya Key Projects
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Role / Designation</label>
-                <input
-                  type="text"
-                  value={formData.experienceRole}
-                  onChange={e => setFormData({ ...formData, experienceRole: e.target.value })}
-                  placeholder="e.g. AI Engineer / Frontend Intern"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
-                />
+          {/* RIGHT PANEL (5 Cols / 42%): REAL-TIME LIVE A4 CV PREVIEW */}
+          <div className="lg:col-span-5 flex flex-col bg-slate-950 p-4 sm:p-5 border-t lg:border-t-0">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                  Live Assembled CV (Pure English)
+                </h3>
               </div>
-              <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Company / College Project Name</label>
-                <input
-                  type="text"
-                  value={formData.experienceCompany}
-                  onChange={e => setFormData({ ...formData, experienceCompany: e.target.value })}
-                  placeholder="e.g. Tech Solutions / Final Year Project"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
-                />
-              </div>
+              <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-900">
+                100% Corporate English
+              </span>
             </div>
+
+            {/* Mini Visual CV Document Card */}
+            <div className="flex-1 bg-white text-slate-900 rounded-xl p-4 sm:p-5 shadow-2xl overflow-y-auto max-h-[500px] border border-slate-200 font-sans text-left select-none text-[11px] leading-relaxed">
+              
+              {/* Header */}
+              <div className="border-b border-slate-300 pb-2.5 mb-2.5">
+                <h1 className="text-base font-extrabold text-slate-900 tracking-tight">
+                  {liveSynthesizedCv.header.name || 'Candidate Name'}
+                </h1>
+                <p className="text-xs font-bold text-sky-700 mt-0.5">
+                  {liveSynthesizedCv.header.title || 'Software Development Engineer'}
+                </p>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-600 mt-1 font-mono">
+                  <span>{liveSynthesizedCv.contact.email}</span>
+                  <span>•</span>
+                  <span>{liveSynthesizedCv.contact.phone}</span>
+                  <span>•</span>
+                  <span>{liveSynthesizedCv.contact.location}</span>
+                </div>
+              </div>
+
+              {/* Executive Summary */}
+              <div className="mb-3">
+                <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
+                  Executive Summary
+                </h4>
+                <p className="text-[10.5px] text-slate-700 leading-snug">
+                  {liveSynthesizedCv.header.summary}
+                </p>
+              </div>
+
+              {/* Skills Chips */}
+              <div className="mb-3">
+                <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
+                  Core Skills & Technologies
+                </h4>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {liveSynthesizedCv.skills.map((s, idx) => (
+                    <span 
+                      key={idx}
+                      className="bg-slate-100 border border-slate-300 text-slate-800 text-[9.5px] px-1.5 py-0.5 rounded font-mono font-medium"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Experience / Internships */}
+              {liveSynthesizedCv.experiences.length > 0 && (
+                <div className="mb-3">
+                  <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
+                    Work Experience / Internships
+                  </h4>
+                  {liveSynthesizedCv.experiences.map((exp, idx) => (
+                    <div key={idx} className="mb-2">
+                      <div className="flex justify-between items-baseline font-bold text-[10.5px]">
+                        <span className="text-slate-900">{exp.role}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">{exp.period}</span>
+                      </div>
+                      <div className="text-[10px] text-sky-800 font-semibold mb-1">
+                        {exp.company} • {exp.location}
+                      </div>
+                      <ul className="list-disc pl-4 space-y-0.5 text-[10px] text-slate-700">
+                        {exp.bullets.map((b, bIdx) => (
+                          <li key={bIdx}>{b}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Projects */}
+              {liveSynthesizedCv.projects.length > 0 && (
+                <div className="mb-3">
+                  <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
+                    Featured Engineering Projects
+                  </h4>
+                  {liveSynthesizedCv.projects.map((p, idx) => (
+                    <div key={idx} className="mb-2">
+                      <div className="flex justify-between items-baseline font-bold text-[10.5px]">
+                        <span className="text-slate-900">{p.title}</span>
+                        <span className="text-[9.5px] text-sky-700 font-mono">{p.techStack}</span>
+                      </div>
+                      <ul className="list-disc pl-4 space-y-0.5 text-[10px] text-slate-700 mt-0.5">
+                        {p.bullets.map((b, bIdx) => (
+                          <li key={bIdx}>{b}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Education */}
+              {liveSynthesizedCv.education.length > 0 && (
+                <div>
+                  <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
+                    Education & Credentials
+                  </h4>
+                  {liveSynthesizedCv.education.map((edu, idx) => (
+                    <div key={idx} className="text-[10.5px] text-slate-800 font-medium">
+                      {edu}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Direct Studio Launch CTA */}
+            <div className="pt-4 flex flex-col gap-2">
+              <button
+                onClick={handleFinalSubmit}
+                className="w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-600 hover:from-emerald-400 hover:to-sky-500 text-white font-extrabold text-xs sm:text-sm py-3 px-6 rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 fill-white" />
+                <span>Assemble & Open in Live Studio (Screen 7)</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <p className="text-[10px] text-slate-400 text-center">
+                Screen 7 me 36 modern visual templates, full WYSIWYG editor aur instant PDF export milega.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW MODE 2: CLASSIC MANUAL FORM */}
+      {viewMode === 'manual' && (
+        <div className="p-6 flex flex-col gap-5 max-w-4xl mx-auto w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Duration / Dates</label>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Full Name</label>
               <input
                 type="text"
-                value={formData.experienceDates}
-                onChange={e => setFormData({ ...formData, experienceDates: e.target.value })}
-                placeholder="e.g. May 2024 – Present"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
+                value={manualData.name}
+                onChange={e => setManualData({ ...manualData, name: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
               />
             </div>
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Aapne kya kaam kiya? (Har line me ek bullet point likhein)</label>
-              <textarea
-                rows={3}
-                value={formData.experienceBullets}
-                onChange={e => setFormData({ ...formData, experienceBullets: e.target.value })}
-                placeholder="• React aur Supabase se live web app banaya&#10;• User onboarding time 30% reduce kiya&#10;• AI prompt orchestration implement kiya"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500 resize-none"
-              />
-            </div>
-          </div>
-        )}
-
-        {step === 4 && (
-          <div className="flex flex-col gap-3">
-            <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-              Step 4: Skills & Academic Qualification
-            </span>
-            <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Skills & Tools (Comma separated)</label>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Target Job Title</label>
               <input
                 type="text"
-                value={formData.skills}
-                onChange={e => setFormData({ ...formData, skills: e.target.value })}
-                placeholder="e.g. React, Node.js, Python, Tailwind, Google Antigravity, Supabase, Git"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
+                value={manualData.title}
+                onChange={e => setManualData({ ...manualData, title: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Degree / Course</label>
-                <input
-                  type="text"
-                  value={formData.educationDegree}
-                  onChange={e => setFormData({ ...formData, educationDegree: e.target.value })}
-                  placeholder="e.g. B.Tech in CSE / MBA"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] text-slate-400 block mb-1">College / Institute</label>
-                <input
-                  type="text"
-                  value={formData.educationSchool}
-                  onChange={e => setFormData({ ...formData, educationSchool: e.target.value })}
-                  placeholder="e.g. Delhi University / LPU"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] text-slate-400 block mb-1">Passing Year</label>
-                <input
-                  type="text"
-                  value={formData.educationYear}
-                  onChange={e => setFormData({ ...formData, educationYear: e.target.value })}
-                  placeholder="e.g. 2024"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white outline-none focus:border-sky-500"
-                />
-              </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Email</label>
+              <input
+                type="email"
+                value={manualData.email}
+                onChange={e => setManualData({ ...manualData, email: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Phone</label>
+              <input
+                type="text"
+                value={manualData.phone}
+                onChange={e => setManualData({ ...manualData, phone: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
+              />
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Navigation Buttons */}
-      <div className="flex justify-between items-center pt-2">
-        {step > 1 ? (
-          <button
-            onClick={() => setStep(prev => prev - 1)}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Previous Step</span>
-          </button>
-        ) : <div />}
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Executive Summary (English)</label>
+            <textarea
+              rows={3}
+              value={manualData.summary}
+              onChange={e => setManualData({ ...manualData, summary: e.target.value })}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white resize-none"
+            />
+          </div>
 
-        <button
-          onClick={handleNext}
-          className="bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold text-xs px-6 py-2.5 rounded-lg shadow-lg flex items-center gap-1.5 transition cursor-pointer ml-auto"
-        >
-          <span>{step === 4 ? 'Assemble & Choose Template' : 'Next Step'}</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1">Skills (Comma separated)</label>
+            <input
+              type="text"
+              value={manualData.skills}
+              onChange={e => setManualData({ ...manualData, skills: e.target.value })}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Company / Org</label>
+              <input
+                type="text"
+                value={manualData.company}
+                onChange={e => setManualData({ ...manualData, company: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Role</label>
+              <input
+                type="text"
+                value={manualData.role}
+                onChange={e => setManualData({ ...manualData, role: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Duration</label>
+              <input
+                type="text"
+                value={manualData.period}
+                onChange={e => setManualData({ ...manualData, period: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Degree</label>
+              <input
+                type="text"
+                value={manualData.degree}
+                onChange={e => setManualData({ ...manualData, degree: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">College / University</label>
+              <input
+                type="text"
+                value={manualData.school}
+                onChange={e => setManualData({ ...manualData, school: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-300 block mb-1">Year</label>
+              <input
+                type="text"
+                value={manualData.year}
+                onChange={e => setManualData({ ...manualData, year: e.target.value })}
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-white"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-3">
+            <button
+              onClick={handleManualSubmit}
+              className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-6 py-2.5 rounded-lg shadow-lg flex items-center gap-1.5 transition cursor-pointer"
+            >
+              <span>Assemble & Open in Live Studio</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
