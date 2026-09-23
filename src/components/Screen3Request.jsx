@@ -46,7 +46,9 @@ export default function Screen3Request({
   }, [starSuggestions]);
 
   const currentScope = classifyPermissionScope(promptText) || permissionScope;
-  const currentPlan = parseUserIntentToChangePlan(promptText, null, null);
+  const currentPlan = useMemo(() => {
+    return parseUserIntentToChangePlan(promptText, currentCvState, sourceResume);
+  }, [promptText, currentCvState, sourceResume]);
   const activeVersionObj = versionHistory.find(v => v.version === currentVersion) || versionHistory[versionHistory.length - 1];
 
   const handleAnalyzeJobDescription = () => {
@@ -322,21 +324,21 @@ export default function Screen3Request({
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-end gap-3 mt-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-2 pt-2 border-t border-slate-800/80">
             <button
               onClick={onAnalyzePrompt}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+              className="bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-semibold px-4 py-2.5 rounded-xl border border-slate-700/80 flex items-center gap-1.5 transition cursor-pointer"
             >
-              <Layers className="w-4 h-4 text-sky-400" />
-              <span>Review Change Plan (Screen 4)</span>
+              <Layers className="w-3.5 h-3.5 text-sky-400" />
+              <span>Review Technical Change Plan (Screen 4)</span>
             </button>
 
             <button
               onClick={() => onApplyDirectly ? onApplyDirectly() : onAnalyzePrompt()}
-              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-500/25 flex items-center gap-2 transition cursor-pointer"
+              className="bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-500/25 flex items-center gap-2 transition cursor-pointer hover:scale-[1.01]"
             >
               <Sparkles className="w-4 h-4 fill-white" />
-              <span>Apply Changes & Open Live Studio (Screen 7)</span>
+              <span>Execute & Open Live Studio (Screen 7)</span>
             </button>
           </div>
         </div>

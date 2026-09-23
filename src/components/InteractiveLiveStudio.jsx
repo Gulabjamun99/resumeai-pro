@@ -36,8 +36,11 @@ export default function InteractiveLiveStudio({
   onUpdateDesignTheme,
   onToggleCompare
 }) {
-  // Main Studio Tabs: 'templates' (Default visual gallery) | 'chat' (AI live editor) | 'styling' (Colors & typography)
-  const [activeTab, setActiveTab] = useState('templates');
+  const latestVersionSnapshot = versionHistory.length > 0 ? versionHistory[versionHistory.length - 1] : null;
+  const isPostChangeVersion = currentVersion > 1 || (versionHistory.length > 1);
+
+  // Main Studio Tabs: 'chat' (if a change request was executed) | 'templates' (if fresh load)
+  const [activeTab, setActiveTab] = useState(isPostChangeVersion ? 'chat' : 'templates');
   
   const [promptInput, setPromptInput] = useState('');
   const [quickPromptInput, setQuickPromptInput] = useState('');
@@ -52,10 +55,14 @@ export default function InteractiveLiveStudio({
   // Compute exact diff between original baseline and current working version
   const diffReport = computeResumeDiff(sourceResume, resume);
 
+  const initialGreetingText = isPostChangeVersion && latestVersionSnapshot?.summary
+    ? `✅ Successfully applied your change request (Version ${currentVersion}): "${latestVersionSnapshot.summary}". Your live canvas on the right has been updated. You can ask for more changes anytime!`
+    : 'Your resume is loaded and ready! Select any executive template from the left gallery, or describe custom refinements in the AI prompt bar below.';
+
   const [chatLog, setChatLog] = useState([
     {
       sender: 'ai',
-      text: 'Your resume is loaded and ready! Select any executive template from the left gallery, or describe custom refinements in the AI prompt bar below.',
+      text: initialGreetingText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
