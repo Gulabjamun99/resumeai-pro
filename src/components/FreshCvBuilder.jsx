@@ -71,22 +71,6 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
     }
   }, [messages, isTyping]);
 
-  // Starter Prompts for freshers
-  const starterPrompts = [
-    {
-      title: '🚀 Frontend & Mobile App Fresher',
-      text: 'Mera naam Rohit Kumar hai. B.Tech CSE kiya hai Lovely Professional University se 2024 me. Gharmantra app banaya Flutter me play store pe daala aur Kharchabook daily expense tracker app React me banaya. Tech Mahindra me 6 mahine frontend intern thein jaha UI banaya aur bug fix kiya.'
-    },
-    {
-      title: '💻 Full-Stack Web Developer (MERN)',
-      text: 'Mera naam Aman Sharma hai. B.Tech IT graduate hu 2024 batch. React, Node.js, Express aur MongoDB me Full-Stack E-Commerce shopping platform banaya hai jisme cart aur payment gateway integrate kiya tha. Bangalore me software developer role dekh raha hu.'
-    },
-    {
-      title: '📱 Android / Flutter Mobile Fresher',
-      text: 'BCA passout 2024 from Delhi University. Flutter aur Firebase me 2 live apps banaye hain, Google Play Store pe publish kiya hai aur REST APIs connect kiya hai. Looking for Mobile App Developer role.'
-    }
-  ];
-
   // Process a user response (from chat input or 1-click chip)
   const handleSendMessage = (textToSend = null) => {
     const rawContent = (textToSend !== null ? textToSend : inputMessage).trim();
@@ -114,7 +98,7 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
 
       let botReply = '';
       if (newGaps.length === 0) {
-        botReply = 'Shaandaar! 🎉 Aapki saari zaroori details mil gayi hain. Maine aapka detailed professional CV pure corporate English me taiyar kar diya hai. Niche "Assemble & Open in Live Studio" click karke aap direct 36 modern templates apply kar sakte hain!';
+        botReply = 'Shaandaar! 🎉 Aapki details mil gayi hain. Maine aapka detailed professional CV pure corporate English me taiyar kar diya hai. Niche "Assemble & Open in Live Studio" click karke aap direct 36 modern templates apply kar sakte hain!';
       } else {
         const topGap = newGaps[0];
         botReply = `Bahut badiya! Maine ye details aapke CV me add kar di hain.\n\nEk aur cheez batayein:\n👉 ${topGap.question}`;
@@ -145,21 +129,21 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
     }
   };
 
-  // Manual Form States (if user switches to manual mode)
+  // Manual Form States (if user switches to manual mode) - Clean initial state with ZERO dummy data
   const [manualData, setManualData] = useState({
-    name: candidateFacts.name || 'Rohit Kumar',
-    title: candidateFacts.targetRole || 'Software Development Engineer',
-    email: candidateFacts.email || 'rohit.kumar@gmail.com',
-    phone: candidateFacts.phone || '+91 98765 43210',
-    location: candidateFacts.location || 'Bangalore, India',
+    name: candidateFacts.name || '',
+    title: candidateFacts.targetRole || '',
+    email: candidateFacts.email || '',
+    phone: candidateFacts.phone || '',
+    location: candidateFacts.location || '',
     summary: liveSynthesizedCv.header?.summary || '',
     skills: liveSynthesizedCv.skills?.join(', ') || '',
-    company: candidateFacts.experiences[0]?.company || 'Tech Mahindra',
-    role: candidateFacts.experiences[0]?.role || 'Frontend Development Intern',
-    period: candidateFacts.experiences[0]?.period || '6 Months (2024)',
-    degree: candidateFacts.education[0]?.degree || 'Bachelor of Technology (B.Tech)',
-    school: candidateFacts.education[0]?.institution || 'Lovely Professional University, Punjab',
-    year: candidateFacts.education[0]?.year || '2024'
+    company: candidateFacts.experiences[0]?.company || '',
+    role: candidateFacts.experiences[0]?.role || '',
+    period: candidateFacts.experiences[0]?.period || '',
+    degree: candidateFacts.education[0]?.degree || '',
+    school: candidateFacts.education[0]?.institution || '',
+    year: candidateFacts.education[0]?.year || ''
   });
 
   const handleManualSubmit = () => {
@@ -290,30 +274,13 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
             {/* Chat Message Scroll Feed */}
             <div className="flex-1 overflow-y-auto max-h-[380px] sm:max-h-[420px] flex flex-col gap-3 pr-2 mb-3">
               
-              {/* Starter Presets (Displayed on first turn) */}
+              {/* Clean Guidance Tip (No dummy pre-filled profiles) */}
               {messages.length <= 1 && (
-                <div className="bg-slate-950/90 border border-purple-900/50 rounded-xl p-3.5 flex flex-col gap-2 my-1">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300">
-                    <Zap className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Quick 1-Click Starter Prompts for Freshers:</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {starterPrompts.map((sp, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSendMessage(sp.text)}
-                        className="text-left bg-slate-900 hover:bg-slate-850 p-2.5 rounded-lg border border-slate-800 hover:border-purple-600/60 transition group cursor-pointer"
-                      >
-                        <div className="text-[11px] font-bold text-slate-200 group-hover:text-purple-300 flex items-center justify-between">
-                          <span>{sp.title}</span>
-                          <ArrowRight className="w-3 h-3 text-slate-500 group-hover:text-purple-400" />
-                        </div>
-                        <p className="text-[10px] text-slate-400 line-clamp-2 mt-1">
-                          {sp.text}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
+                <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex items-start gap-2.5 my-1 text-xs text-slate-300">
+                  <Sparkles className="w-4 h-4 text-purple-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Aap apna <strong>Naam, College, Degree, Projects ya Internship</strong> ke baare me niche likhein. AI unhe turant live parse karke professional corporate English me assemble karega.
+                  </p>
                 </div>
               )}
 
@@ -423,114 +390,136 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
               </span>
             </div>
 
-            {/* Mini Visual CV Document Card */}
-            <div className="flex-1 bg-white text-slate-900 rounded-xl p-4 sm:p-5 shadow-2xl overflow-y-auto max-h-[500px] border border-slate-200 font-sans text-left select-none text-[11px] leading-relaxed">
-              
-              {/* Header */}
-              <div className="border-b border-slate-300 pb-2.5 mb-2.5">
-                <h1 className="text-base font-extrabold text-slate-900 tracking-tight">
-                  {liveSynthesizedCv.header.name || 'Candidate Name'}
-                </h1>
-                <p className="text-xs font-bold text-sky-700 mt-0.5">
-                  {liveSynthesizedCv.header.title || 'Software Development Engineer'}
-                </p>
-                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-600 mt-1 font-mono">
-                  <span>{liveSynthesizedCv.contact.email}</span>
-                  <span>•</span>
-                  <span>{liveSynthesizedCv.contact.phone}</span>
-                  <span>•</span>
-                  <span>{liveSynthesizedCv.contact.location}</span>
+            {/* Mini Visual CV Document Card - ONLY displays user-provided live facts */}
+            {(!candidateFacts.name && !candidateFacts.targetRole && candidateFacts.skills.length === 0 && candidateFacts.experiences.length === 0 && candidateFacts.projects.length === 0 && candidateFacts.education.length === 0) ? (
+              <div className="flex-1 bg-slate-900/60 border border-dashed border-slate-800 rounded-xl p-8 flex flex-col items-center justify-center text-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                  <Sparkles className="w-6 h-6" />
                 </div>
-              </div>
-
-              {/* Executive Summary */}
-              <div className="mb-3">
-                <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
-                  Executive Summary
-                </h4>
-                <p className="text-[10.5px] text-slate-700 leading-snug">
-                  {liveSynthesizedCv.header.summary}
+                <h4 className="text-xs font-bold text-slate-200">Live Resume Canvas Awaiting Input</h4>
+                <p className="text-[11px] text-slate-400 max-w-xs">
+                  Aap jaise hi left side me apna background batayenge, aapka professional English CV yahan real-time assemble hoga. Zero dummy data.
                 </p>
               </div>
+            ) : (
+              <div className="flex-1 bg-white text-slate-900 rounded-xl p-4 sm:p-5 shadow-2xl overflow-y-auto max-h-[500px] border border-slate-200 font-sans text-left select-none text-[11px] leading-relaxed">
+                
+                {/* Header */}
+                {(liveSynthesizedCv.header.name || liveSynthesizedCv.header.title || liveSynthesizedCv.contact.email) && (
+                  <div className="border-b border-slate-300 pb-2.5 mb-2.5">
+                    {liveSynthesizedCv.header.name && (
+                      <h1 className="text-base font-extrabold text-slate-900 tracking-tight">
+                        {liveSynthesizedCv.header.name}
+                      </h1>
+                    )}
+                    {liveSynthesizedCv.header.title && (
+                      <p className="text-xs font-bold text-sky-700 mt-0.5">
+                        {liveSynthesizedCv.header.title}
+                      </p>
+                    )}
+                    {(liveSynthesizedCv.contact.email || liveSynthesizedCv.contact.phone || liveSynthesizedCv.contact.location) && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-600 mt-1 font-mono">
+                        {liveSynthesizedCv.contact.email && <span>{liveSynthesizedCv.contact.email}</span>}
+                        {liveSynthesizedCv.contact.phone && <span>• {liveSynthesizedCv.contact.phone}</span>}
+                        {liveSynthesizedCv.contact.location && <span>• {liveSynthesizedCv.contact.location}</span>}
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {/* Skills Chips */}
-              <div className="mb-3">
-                <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
-                  Core Skills & Technologies
-                </h4>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {liveSynthesizedCv.skills.map((s, idx) => (
-                    <span 
-                      key={idx}
-                      className="bg-slate-100 border border-slate-300 text-slate-800 text-[9.5px] px-1.5 py-0.5 rounded font-mono font-medium"
-                    >
-                      {s}
-                    </span>
-                  ))}
-                </div>
+                {/* Executive Summary */}
+                {liveSynthesizedCv.header.summary && (
+                  <div className="mb-3">
+                    <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
+                      Executive Summary
+                    </h4>
+                    <p className="text-[10.5px] text-slate-700 leading-snug">
+                      {liveSynthesizedCv.header.summary}
+                    </p>
+                  </div>
+                )}
+
+                {/* Skills Chips */}
+                {liveSynthesizedCv.skills.length > 0 && (
+                  <div className="mb-3">
+                    <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
+                      Core Skills & Technologies
+                    </h4>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {liveSynthesizedCv.skills.map((s, idx) => (
+                        <span 
+                          key={idx}
+                          className="bg-slate-100 border border-slate-300 text-slate-800 text-[9.5px] px-1.5 py-0.5 rounded font-mono font-medium"
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Experience / Internships */}
+                {liveSynthesizedCv.experiences.length > 0 && (
+                  <div className="mb-3">
+                    <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
+                      Work Experience / Internships
+                    </h4>
+                    {liveSynthesizedCv.experiences.map((exp, idx) => (
+                      <div key={idx} className="mb-2">
+                        <div className="flex justify-between items-baseline font-bold text-[10.5px]">
+                          <span className="text-slate-900">{exp.role}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">{exp.period}</span>
+                        </div>
+                        <div className="text-[10px] text-sky-800 font-semibold mb-1">
+                          {exp.company} {exp.location ? `• ${exp.location}` : ''}
+                        </div>
+                        <ul className="list-disc pl-4 space-y-0.5 text-[10px] text-slate-700">
+                          {exp.bullets.map((b, bIdx) => (
+                            <li key={bIdx}>{b}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Projects */}
+                {liveSynthesizedCv.projects.length > 0 && (
+                  <div className="mb-3">
+                    <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
+                      Featured Engineering Projects
+                    </h4>
+                    {liveSynthesizedCv.projects.map((p, idx) => (
+                      <div key={idx} className="mb-2">
+                        <div className="flex justify-between items-baseline font-bold text-[10.5px]">
+                          <span className="text-slate-900">{p.title}</span>
+                          <span className="text-[9.5px] text-sky-700 font-mono">{p.techStack}</span>
+                        </div>
+                        <ul className="list-disc pl-4 space-y-0.5 text-[10px] text-slate-700 mt-0.5">
+                          {p.bullets.map((b, bIdx) => (
+                            <li key={bIdx}>{b}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Education */}
+                {liveSynthesizedCv.education.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
+                      Education & Credentials
+                    </h4>
+                    {liveSynthesizedCv.education.map((edu, idx) => (
+                      <div key={idx} className="text-[10.5px] text-slate-800 font-medium">
+                        {edu}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              {/* Experience / Internships */}
-              {liveSynthesizedCv.experiences.length > 0 && (
-                <div className="mb-3">
-                  <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
-                    Work Experience / Internships
-                  </h4>
-                  {liveSynthesizedCv.experiences.map((exp, idx) => (
-                    <div key={idx} className="mb-2">
-                      <div className="flex justify-between items-baseline font-bold text-[10.5px]">
-                        <span className="text-slate-900">{exp.role}</span>
-                        <span className="text-[10px] text-slate-500 font-mono">{exp.period}</span>
-                      </div>
-                      <div className="text-[10px] text-sky-800 font-semibold mb-1">
-                        {exp.company} • {exp.location}
-                      </div>
-                      <ul className="list-disc pl-4 space-y-0.5 text-[10px] text-slate-700">
-                        {exp.bullets.map((b, bIdx) => (
-                          <li key={bIdx}>{b}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Projects */}
-              {liveSynthesizedCv.projects.length > 0 && (
-                <div className="mb-3">
-                  <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
-                    Featured Engineering Projects
-                  </h4>
-                  {liveSynthesizedCv.projects.map((p, idx) => (
-                    <div key={idx} className="mb-2">
-                      <div className="flex justify-between items-baseline font-bold text-[10.5px]">
-                        <span className="text-slate-900">{p.title}</span>
-                        <span className="text-[9.5px] text-sky-700 font-mono">{p.techStack}</span>
-                      </div>
-                      <ul className="list-disc pl-4 space-y-0.5 text-[10px] text-slate-700 mt-0.5">
-                        {p.bullets.map((b, bIdx) => (
-                          <li key={bIdx}>{b}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Education */}
-              {liveSynthesizedCv.education.length > 0 && (
-                <div>
-                  <h4 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider border-b border-slate-200 pb-0.5 mb-1">
-                    Education & Credentials
-                  </h4>
-                  {liveSynthesizedCv.education.map((edu, idx) => (
-                    <div key={idx} className="text-[10.5px] text-slate-800 font-medium">
-                      {edu}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Direct Studio Launch CTA */}
             <div className="pt-4 flex flex-col gap-2">

@@ -49,60 +49,6 @@ export default function Screen3Request({
   const currentPlan = parseUserIntentToChangePlan(promptText, null, null);
   const activeVersionObj = versionHistory.find(v => v.version === currentVersion) || versionHistory[versionHistory.length - 1];
 
-  const testScenarios = [
-    {
-      label: "✨ Pura CV is JD ke hisab se bana do",
-      prompt: "JD dekhte hue mera pura CV bana do. Keep original template and factual baseline locked."
-    },
-    {
-      label: "🎯 Make CV ATS Friendly & Professional",
-      prompt: "Make my CV ATS friendly and professional across all sections while preserving my factual history."
-    },
-    {
-      label: "👔 Rewrite for Target Role",
-      prompt: "Rewrite my CV for Talent Acquisition Manager with powerful action verbs."
-    },
-    {
-      label: "📝 Fix All Grammar Mistakes",
-      prompt: "Fix all grammar mistakes, passive phrases, and punctuation across all sections."
-    },
-    {
-      label: "Headline Change",
-      prompt: "Headline ko AI-Driven Talent Acquisition Specialist kar do"
-    },
-    {
-      label: "Summary Rewrite & Concise",
-      prompt: "Summary ko professional bana do aur thoda concise karo"
-    },
-    {
-      label: "Add Consulting Experience",
-      prompt: "2025 ke April ke baad se independent consulting work add karo. Baaki sab same rehna chahiye."
-    },
-    {
-      label: "Skills Add & Remove",
-      prompt: "Add AWS and remove Java from skills"
-    },
-    {
-      label: "Contact Update",
-      prompt: "Phone number change karke 9876543210 kar do"
-    },
-    {
-      label: "📄 Keep Original Template",
-      prompt: "Keep the original format and template unchanged while improving bullet points."
-    }
-  ];
-
-  const presetJdScenarios = [
-    {
-      label: "Senior Cloud & AI Recruiter JD",
-      text: `We are looking for a Senior Technical Recruiter / Talent Acquisition Lead with expertise in AI Sourcing, Technical Recruiting, AWS cloud platform hiring, ATS Optimization, and Stakeholder Management. Requires strong experience sourcing engineering talent, optimizing applicant pipelines, and leveraging data analytics. Experience with Kubernetes and Golang is a plus.`
-    },
-    {
-      label: "Full-Stack Software Engineer JD",
-      text: `Seeking a Senior Software Engineer with strong experience in React, Node.js, Python, TypeScript, REST APIs, and SQL databases. Must have proven skills in System Architecture, CI/CD pipelines, and Performance Optimization. Experience with Docker and GCP preferred.`
-    }
-  ];
-
   const handleAnalyzeJobDescription = () => {
     if (!jdText.trim()) return;
     setIsAnalyzingJd(true);
@@ -246,27 +192,7 @@ export default function Screen3Request({
             )}
           </div>
 
-          {/* Quick Test Scenario Buttons */}
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Quick Preset Scenarios:
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {testScenarios.map((scen, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setPromptText(scen.prompt)}
-                  className={`text-[10.5px] px-2.5 py-1 rounded-md border transition cursor-pointer ${
-                    promptText === scen.prompt
-                      ? 'bg-sky-600 text-white border-sky-500 shadow-md'
-                      : 'bg-slate-800 hover:bg-slate-700 text-sky-300 border-slate-700'
-                  }`}
-                >
-                  {scen.label}
-                </button>
-              ))}
-            </div>
-          </div>
+
 
           {/* P2.4: Evidence-Safe STAR & Action-Verb Bullet Polish Section */}
           {starSuggestions.length > 0 && (
@@ -451,21 +377,6 @@ export default function Screen3Request({
               )}
             </div>
 
-            {/* Quick JD Presets */}
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Preset Job Descriptions:
-              </span>
-              {presetJdScenarios.map((scen, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setJdText(scen.text)}
-                  className="text-[10.5px] bg-slate-800 hover:bg-slate-700 text-sky-300 px-2.5 py-1 rounded-md border border-slate-700 transition cursor-pointer"
-                >
-                  {scen.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Analyze Button */}

@@ -12,7 +12,7 @@ import ResumeDocument from './components/ResumeDocument';
 import TemplateSelector from './components/TemplateSelector';
 import AtsScorecardPanel from './components/AtsScorecardPanel';
 import VersionHistory from './components/VersionHistory';
-import { ROHIT_ORIGINAL_RESUME, DEFAULT_USER_PROMPT } from './data/rohitData';
+
 import { parseGenericCvText } from './services/cvExtractor';
 import { parseUploadedDocument } from './services/documentParser';
 import { classifyPermissionScope } from './services/permissionClassifier';
@@ -60,65 +60,18 @@ export default function App() {
 
   const [storageError, setStorageError] = useState(null);
 
-  // Restore Session on Page Refresh / Reopen (Full Persistence & Robust Schema Check)
+  // Ensure completely clean session on page open / refresh (Zero cached or automated dummy data)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        let parsed;
-        try {
-          parsed = JSON.parse(saved);
-        } catch (jsonErr) {
-          console.warn("Storage data was malformed JSON. Clearing corrupted session:", jsonErr);
-          localStorage.removeItem(STORAGE_KEY);
-          setStorageError("Unable to restore your previous CV safely due to corrupted data. Please start a new CV or retry.");
-          return;
-        }
-
-        // Validate essential CV schema integrity
-        const isValidResume = (r) => r && r.header?.name && Array.isArray(r.skills) && Array.isArray(r.experiences);
-        if (isValidResume(parsed.sourceResume) && isValidResume(parsed.currentCvState) && Array.isArray(parsed.versionHistory) && parsed.versionHistory.length > 0) {
-          setSourceResume(parsed.sourceResume);
-          setCurrentCvState(parsed.currentCvState);
-          setVersionHistory(parsed.versionHistory);
-          setCurrentVersion(parsed.currentVersion || 1);
-          setSelectedTemplateId(parsed.selectedTemplateId || 'source-template');
-          setScreen(7); // Automatically resume at Studio Preview
-        } else {
-          console.warn("Storage data failed schema validation. Clearing invalid session.");
-          localStorage.removeItem(STORAGE_KEY);
-          setStorageError("Unable to restore your previous CV safely. Please start a new CV or retry.");
-        }
-      }
-    } catch (e) {
-      console.warn("Storage access error (e.g. quota or sandbox restriction):", e);
-      setStorageError("Unable to access local browser storage. You can continue working in this session.");
-    }
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (_) {}
   }, []);
 
-  // Save Session on State Changes with Quota Error Handling
-  useEffect(() => {
-    if (sourceResume && currentCvState && versionHistory.length > 0) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          sourceResume,
-          currentCvState,
-          versionHistory,
-          currentVersion,
-          selectedTemplateId
-        }));
-      } catch (e) {
-        console.warn("Storage quota exceeded or storage error:", e);
-      }
-    }
-  }, [sourceResume, currentCvState, versionHistory, currentVersion, selectedTemplateId]);
-
-  // Clear Session & Reset with accidental-click confirmation
+  // Clear Session & Reset to 100% clean state
   const handleClearSession = () => {
-    if (window.confirm && !window.confirm("Start New CV? This will clear your current working CV and version history.")) {
-      return;
-    }
-    localStorage.removeItem(STORAGE_KEY);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (_) {}
     setSourceResume(null);
     setCurrentCvState(null);
     setVersionHistory([]);
@@ -130,7 +83,7 @@ export default function App() {
     setScreen(1);
   };
 
-  // Production Upload Handler - Parses ANY uploaded user CV dynamically
+  // Production Upload Handler - Parses ANY uploaded user CV dynamically with zero sample data
   const handleProductionFileUpload = async (e) => {
     const inputElement = e.currentTarget || e.target;
     const file = inputElement?.files?.[0];
@@ -148,7 +101,7 @@ export default function App() {
 
       const totalBullets = experiences.flatMap(exp => Array.isArray(exp?.bullets) ? exp.bullets : []).length;
 
-      // Initialize Version 1
+      // Initialize Version 1 from real user file
       const v1Snapshot = {
         version: 1,
         id: 'v1',
@@ -164,7 +117,7 @@ export default function App() {
       setVersionHistory([v1Snapshot]);
       setCurrentVersion(1);
       setSelectedTemplateId('source-template');
-      setPromptText("Is CV ko ATS-friendly banayein, passive verbs ko strong action verbs mein upgrade karein aur formatting polish karein.");
+      setPromptText("");
       setScreen(2);
     } catch (err) {
       console.error("CV Upload/Parsing Error:", err);
@@ -174,31 +127,6 @@ export default function App() {
         try { inputElement.value = ''; } catch (_) {}
       }
     }
-  };
-
-  // Demo Test Fixture Launcher - Isolated test fixture
-  const handleLoadRohitDemoFixture = () => {
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (_) {}
-    const master = JSON.parse(JSON.stringify(ROHIT_ORIGINAL_RESUME));
-    const v1Snapshot = {
-      version: 1,
-      id: 'v1',
-      title: 'Version 1 (Original Upload)',
-      summary: 'Master baseline copy from Rohit Kumar.pdf',
-      timestamp: 'Initial Upload',
-      cvState: JSON.parse(JSON.stringify(master)),
-      bulletsCount: master.experiences?.flatMap(e => e.bullets)?.length || 0
-    };
-
-    setSourceResume(master);
-    setCurrentCvState(JSON.parse(JSON.stringify(master)));
-    setVersionHistory([v1Snapshot]);
-    setCurrentVersion(1);
-    setSelectedTemplateId('source-template');
-    setPromptText(DEFAULT_USER_PROMPT);
-    setScreen(2);
   };
 
   // Formulate Change Plan on Screen 3
@@ -472,7 +400,10 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased selection:bg-sky-500 selection:text-white">
       {/* Top Navbar */}
-      <Header onResetPreset={handleLoadRohitDemoFixture} />
+      <Header 
+        hasActiveCv={Boolean(sourceResume || currentCvState)} 
+        onClearSession={handleClearSession} 
+      />
 
       {/* Main Container */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
@@ -535,7 +466,7 @@ export default function App() {
 
         {currentScreen === 1 && homeMode === 'jd' && (
           <JdOptimizer 
-            currentResume={currentCvState || sourceResume || ROHIT_ORIGINAL_RESUME}
+            currentResume={currentCvState || sourceResume}
             onApplyOptimization={handleJdTailoringCompleted}
             onCancel={() => setHomeMode('upload')}
           />
@@ -601,20 +532,12 @@ export default function App() {
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <label className="cursor-pointer bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-6 py-3 rounded-xl shadow-lg shadow-sky-500/25 flex items-center gap-2 transition">
+              <div className="flex flex-col sm:flex-row justify-center gap-3">
+                <label className="cursor-pointer bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-8 py-3.5 rounded-xl shadow-lg shadow-sky-500/25 flex items-center gap-2.5 transition">
                   <Upload className="w-4 h-4" />
                   <span>Upload Candidate CV (PDF / DOCX / TXT)</span>
                   <input type="file" accept=".pdf,.docx,.txt,.png,.jpg" onChange={handleProductionFileUpload} className="hidden" />
                 </label>
-
-                <button
-                  onClick={handleLoadRohitDemoFixture}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-6 py-3 rounded-xl border border-slate-700 flex items-center gap-2 transition cursor-pointer"
-                >
-                  <RefreshCw className="w-4 h-4 text-sky-400" />
-                  <span>Load Demo Test Fixture</span>
-                </button>
               </div>
 
               {/* 4-Step Concise User Guidance */}

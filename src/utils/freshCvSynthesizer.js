@@ -304,10 +304,10 @@ export function analyzeCandidateGaps(facts) {
       question: 'Aapne kaun se college/university se graduation kiya hai aur passing year kaun sa hai?',
       subtext: 'Recruiters sabse pehle college name aur passing batch check karte hain.',
       options: [
-        { label: '🎓 Lovely Professional University (2024)', value: 'Lovely Professional University, Punjab in 2024' },
-        { label: '🎓 Delhi University (2024)', value: 'University of Delhi in 2024' },
-        { label: '🎓 Final Year Pursuing (2025 Expected)', value: 'Final Year Student (Passing 2025)' },
-        { label: '🎓 B.Tech CSE (2023 Batch)', value: 'B.Tech CSE graduate 2023' }
+        { label: '🎓 B.Tech Computer Science', value: 'B.Tech in Computer Science & Engineering' },
+        { label: '🎓 BCA / MCA Graduate', value: 'Bachelor or Master of Computer Applications' },
+        { label: '🎓 Final Year Pursuing', value: 'Final Year Engineering Student' },
+        { label: '🎓 Graduate / Other Degree', value: 'Bachelor of Science / Other Degree' }
       ]
     });
   }
@@ -320,10 +320,9 @@ export function analyzeCandidateGaps(facts) {
       question: 'Freshers ke liye projects sabse important hote hain. Kya aapne koi academic, freelance ya personal project banaya hai?',
       subtext: 'Bataiye project ka naam aur usme kya technology use ki thi.',
       options: [
-        { label: '📱 Gharmantra (Home Maintenance App)', value: 'Gharmantra utility mobile app in Flutter published on Play Store' },
-        { label: '💳 Kharchabook (Expense Tracker)', value: 'Kharchabook collaborative daily expense tracking app with React and Node.js' },
-        { label: '🛒 Full-Stack E-Commerce Website', value: 'E-Commerce shopping web application using React, Redux and REST APIs' },
-        { label: '🚀 Personal Portfolio & Blog', value: 'Responsive Personal Portfolio with modern Tailwind CSS and Vite' }
+        { label: '🌐 Web Application Project', value: 'Developed a responsive web application using modern frontend & backend frameworks' },
+        { label: '📱 Mobile Application Project', value: 'Developed a mobile utility application published or built with cross-platform tools' },
+        { label: '⚡ Skip Projects (Focus on Skills & Education)', value: 'No major projects to add right now; focus on core technical proficiencies' }
       ]
     });
   }
@@ -336,9 +335,9 @@ export function analyzeCandidateGaps(facts) {
       question: 'Kya aapne koi internship ya freelance work kiya hai, ya phir CV ko Project-Focused banayein?',
       subtext: 'Agar koi internship nahi ki hai to koi baat nahi — hum Projects section ko highlight karenge!',
       options: [
-        { label: '💼 Yes, 6-Month Frontend Internship', value: 'Completed 6-month Frontend Development internship working on UI components and bug fixes' },
-        { label: '🚀 No Internship, Make it Project-Focused', value: 'No official corporate internship yet; focus primarily on production projects, open-source and core skills' },
-        { label: '🤝 Freelance Client Projects', value: 'Delivered freelance web solutions and client deliverables as an independent contractor' }
+        { label: '💼 Software Engineering Internship', value: 'Completed software development internship working on product features and bug fixes' },
+        { label: '🚀 No Internship (Project-Focused Fresher CV)', value: 'Fresher with no corporate internship yet; focus on projects and skills' },
+        { label: '🤝 Freelance Client Deliverables', value: 'Delivered freelance web solutions and deliverables as an independent contractor' }
       ]
     });
   }
@@ -349,10 +348,9 @@ export function analyzeCandidateGaps(facts) {
       id: 'gap-contact',
       type: 'CONTACT',
       question: 'CV Header ke liye aapka email address aur contact number kya hai?',
-      subtext: 'Yeh recruitement contact ke liye standard format me set hoga.',
+      subtext: 'Yeh recruitment contact ke liye standard format me set hoga.',
       options: [
-        { label: '✉️ Add Sample Contact: candidate@gmail.com | +91 98765 43210', value: 'Email: candidate@gmail.com, Phone: +91 98765 43210, Bangalore, India' },
-        { label: '⚡ Skip for now (Use placeholders)', value: 'Use standard professional placeholders for contact details' }
+        { label: '⚡ Skip Contact for now (Add in Live Studio)', value: 'Skip contact details for now' }
       ]
     });
   }
@@ -363,60 +361,60 @@ export function analyzeCandidateGaps(facts) {
 /**
  * CORPORATE ENGLISH RESUME SYNTHESIZER
  * 
- * Takes accumulated candidate facts and produces a complete, rich,
- * detailed CV state written 100% IN PURE CORPORATE ENGLISH.
+ * Takes candidate facts provided by the user and produces a structured CV state
+ * written 100% IN PURE CORPORATE ENGLISH.
  * 
- * Strictly replaces any Hinglish or casual descriptions with STAR bullet points.
+ * ZERO SAMPLE DATA RULE: Never auto-inject fake companies, fake degrees,
+ * or fake projects if the user has not mentioned them.
  */
 export function synthesizeDetailedFresherResume(facts) {
-  const rawName = facts.name || 'Candidate Name';
+  const rawName = facts.name || '';
   const name = rawName.replace(/\s+(?:hai|hoon|hu|he|is|h|sir|bhai)$/i, '').trim();
-  const targetRole = facts.targetRole || 'Software Development Engineer (Fresher)';
-  const location = facts.location || 'Bangalore, India';
-  const email = facts.email || `${name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@gmail.com`;
-  const phone = facts.phone || '+91 98765 43210';
-  const linkedin = `https://linkedin.com/in/${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-  const github = `https://github.com/${name.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  const targetRole = facts.targetRole || '';
+  const location = facts.location || '';
+  const email = facts.email || '';
+  const phone = facts.phone || '';
+  const linkedin = name ? `https://linkedin.com/in/${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : '';
+  const github = name ? `https://github.com/${name.toLowerCase().replace(/[^a-z0-9]/g, '')}` : '';
 
-  // 1. EXECUTIVE SUMMARY (100% PURE CORPORATE ENGLISH)
-  const skillsPreview = facts.skills.slice(0, 4).join(', ') || 'modern software engineering principles';
-  const summary = `Goal-oriented and highly adaptable ${targetRole} with a strong foundation in ${skillsPreview}. Demonstrates practical proficiency through hands-on full-stack development, production mobile deployments, and agile project execution. Proven capability to design clean, responsive user interfaces, write maintainable code, and solve complex algorithmic problems. Eager to contribute technical rigor and collaborative energy to a high-growth engineering team.`;
+  // 1. EXECUTIVE SUMMARY (Generated only if user has provided profile context)
+  let summary = '';
+  const hasProfileContext = targetRole || (facts.skills && facts.skills.length > 0) || (facts.experiences && facts.experiences.length > 0) || (facts.projects && facts.projects.length > 0);
+  if (hasProfileContext) {
+    const rolePhrase = targetRole || 'Software Development Specialist';
+    const skillsPreview = facts.skills && facts.skills.length > 0 
+      ? facts.skills.slice(0, 4).join(', ') 
+      : 'modern software engineering principles';
+    summary = `Goal-oriented and highly adaptable ${rolePhrase} with a strong foundation in ${skillsPreview}. Demonstrates practical proficiency through hands-on technical development and disciplined project execution. Proven capability to design responsive user interfaces, write maintainable code, and solve complex algorithmic problems. Eager to contribute technical rigor and collaborative energy to a high-growth engineering team.`;
+  }
 
-  // 2. CATEGORIZED TECHNICAL SKILLS
-  const defaultSkills = [
-    'React.js', 'JavaScript (ES6+)', 'Node.js', 'Express.js', 'HTML5', 'CSS3',
-    'Tailwind CSS', 'Flutter', 'Dart', 'MongoDB', 'RESTful APIs', 'Git', 'GitHub',
-    'Postman', 'VS Code', 'Agile / Scrum', 'Problem Solving'
-  ];
-  const mergedSkills = Array.from(new Set([...facts.skills, ...defaultSkills]));
+  // 2. SKILLS (Only user-provided or extracted skills - NO dummy default skills injected)
+  const userSkills = Array.isArray(facts.skills) ? Array.from(new Set(facts.skills)) : [];
 
-  // 3. WORK EXPERIENCES / INTERNSHIPS (STAR BULLETS IN PURE ENGLISH)
+  // 3. WORK EXPERIENCES / INTERNSHIPS (Synthesizes STAR bullets ONLY for user-provided experiences)
   const synthesizedExperiences = (facts.experiences || []).map(exp => {
     const raw = (exp.rawNotes || '').toLowerCase();
     const bullets = [];
 
-    // Synthesize STAR bullets based on raw fresher notes
     if (raw.includes('ui') || raw.includes('frontend') || raw.includes('component')) {
-      bullets.push('Architected and developed modular, reusable UI components using React.js and modern CSS frameworks, improving layout rendering consistency across browsers.');
+      bullets.push('Architected and developed modular, reusable UI components using modern frontend frameworks, improving layout rendering consistency across browsers.');
     }
     if (raw.includes('bug') || raw.includes('testing') || raw.includes('fix')) {
-      bullets.push('Investigated, diagnosed, and resolved 35+ critical front-end defects and cross-device compatibility issues, accelerating sprint turnaround times.');
+      bullets.push('Investigated, diagnosed, and resolved critical defects and cross-device compatibility issues, accelerating sprint turnaround times.');
     }
     if (raw.includes('auth') || raw.includes('login') || raw.includes('jwt')) {
-      bullets.push('Implemented secure user authentication workflows and role-based access controls using JWT and RESTful API endpoints.');
+      bullets.push('Implemented secure user authentication workflows and role-based access controls using modern token-based security and RESTful API endpoints.');
     }
     if (raw.includes('api') || raw.includes('integrate') || raw.includes('backend')) {
       bullets.push('Integrated asynchronous RESTful services and optimized client-side state handling to reduce API latency and enhance user experience.');
     }
 
-    // Default professional bullets if fewer than 3 generated
-    if (bullets.length < 3) {
-      bullets.push('Collaborated closely with senior developers, UI/UX designers, and QA engineers in daily standups to deliver production-ready product features.');
-      bullets.push('Authored comprehensive technical documentation, unit tests, and Git pull requests adhering to industry-standard code review guidelines.');
+    if (bullets.length < 2) {
+      bullets.push('Collaborated closely with development teams in regular agile cycles to deliver production-ready product features.');
+      bullets.push('Authored technical documentation, unit tests, and code reviews adhering to industry-standard engineering guidelines.');
     }
 
-    // Ensure English period string
-    let cleanPeriod = exp.period || 'May 2024 – Present';
+    let cleanPeriod = exp.period || '';
     cleanPeriod = cleanPeriod
       .replace(/\b(\d+)\s*(?:mahine|mahina|months?)\b/i, '$1 Months')
       .replace(/\b(\d+)\s*(?:saal|years?)\b/i, '$1 Years');
@@ -424,32 +422,16 @@ export function synthesizeDetailedFresherResume(facts) {
     return {
       id: exp.id || `exp-${Date.now()}`,
       role: exp.role || 'Software Engineering Intern',
-      company: exp.company || 'Technology Solutions Inc.',
+      company: exp.company || 'Technology Organization',
       period: cleanPeriod,
       location: exp.location || location,
       bullets: bullets.slice(0, 4)
     };
   });
 
-  // If no formal internship was provided, construct a dedicated "Academic & Engineering Apprenticeship" entry
-  if (synthesizedExperiences.length === 0) {
-    synthesizedExperiences.push({
-      id: 'exp-academic-1',
-      role: 'Software Development Apprentice / Capstone Lead',
-      company: 'Department of Computer Science & Engineering',
-      period: 'Aug 2023 – May 2024',
-      location: location,
-      bullets: [
-        'Led a team of 4 engineering students to architect and deploy full-stack web and mobile application prototypes.',
-        'Engineered responsive layouts, state management workflows, and RESTful microservices with 99% test coverage.',
-        'Conducted regular sprint planning, peer code reviews, and automated deployment pipelines using Git and CI/CD tools.'
-      ]
-    });
-  }
-
-  // 4. DETAILED PROJECTS (STAR BULLETS IN PURE ENGLISH)
+  // 4. DETAILED PROJECTS (Synthesizes bullets ONLY for user-provided projects)
   const synthesizedProjects = (facts.projects || []).map(p => {
-    const pTitle = p.title || 'Full-Stack Web Application';
+    const pTitle = p.title || 'Software Engineering Project';
     const titleLower = pTitle.toLowerCase();
     const bullets = [];
 
@@ -459,61 +441,35 @@ export function synthesizeDetailedFresherResume(facts) {
       bullets.push('Successfully deployed and managed production releases on Google Play Store (com.gharmantra.app) with 99.9% crash-free session stability.');
     } else if (titleLower.includes('kharchabook') || titleLower.includes('expense')) {
       bullets.push('Developed a collaborative daily expense tracking solution enabling households and teams to record, categorize, and monitor shared finances seamlessly.');
-      bullets.push('Built interactive visual financial reports, monthly budget charts, and real-time transaction history using React.js and dynamic data visualization.');
-      bullets.push('Optimized backend API response times with efficient MongoDB indexing and structured REST endpoints for instant retrieval.');
+      bullets.push('Built interactive visual financial reports, monthly budget charts, and real-time transaction history using dynamic data visualization.');
+      bullets.push('Optimized backend API response times with efficient indexing and structured REST endpoints for instant retrieval.');
     } else if (titleLower.includes('e-commerce') || titleLower.includes('shopping')) {
       bullets.push('Engineered a full-featured e-commerce web platform featuring real-time product catalogs, persistent shopping cart, and secure checkout.');
-      bullets.push('Integrated Redux Toolkit for unified global state management and implemented optimistic UI updates for rapid page navigation.');
-      bullets.push('Configured automated payment webhooks and order confirmation mechanisms with comprehensive error-handling middleware.');
+      bullets.push('Integrated global state management and implemented optimistic UI updates for rapid page navigation.');
+      bullets.push('Configured automated order processing mechanisms with comprehensive error-handling middleware.');
     } else {
-      bullets.push(`Architected and developed the ${pTitle} platform leveraging ${p.techStack || 'modern full-stack architecture'} for end-to-end functionality.`);
-      bullets.push('Implemented responsive interface components, robust error handling, and optimized database queries to ensure smooth user workflows.');
+      bullets.push(`Architected and developed the ${pTitle} platform leveraging ${p.techStack || 'modern software architecture'} for end-to-end functionality.`);
+      bullets.push('Implemented responsive interface components, robust error handling, and optimized data workflows to ensure smooth operations.');
       bullets.push('Deployed the application to cloud hosting with continuous integration, achieving high performance and mobile-friendly usability.');
     }
 
     return {
       id: p.id || `proj-${Date.now()}`,
       title: pTitle,
-      techStack: p.techStack || 'React, Node.js, Express, MongoDB, Git',
+      techStack: p.techStack || 'Modern Full-Stack Architecture',
       bullets: bullets.slice(0, 3)
     };
   });
 
-  // Ensure at least 2 strong projects for a fresher CV
-  if (synthesizedProjects.length === 0) {
-    synthesizedProjects.push({
-      id: 'proj-def-1',
-      title: 'Gharmantra — Household Maintenance & Utility App',
-      techStack: 'Flutter, Dart, Firebase, Google Play Store',
-      bullets: [
-        'Developed a utility and lifestyle mobile app focused on home maintenance, cleaning tips, and daily household organization.',
-        'Designed and built an intuitive user interface to deliver practical household care solutions and structured cleaning guides.',
-        'Published and managed the application on the Google Play Store (com.gharmantra.app), focusing on seamless navigation, clean UI/UX, and user engagement.'
-      ]
-    });
-    synthesizedProjects.push({
-      id: 'proj-def-2',
-      title: 'Kharchabook — Collaborative Expense Tracker',
-      techStack: 'React.js, Node.js, Express, MongoDB, Chart.js',
-      bullets: [
-        'Developed a collaborative daily expense tracking application designed for households to manage, record, and monitor shared finances seamlessly.',
-        'Built functionality for users to log daily expenses, categorize transactions, and view detailed financial logs anytime.',
-        'Architected clean REST APIs and stateful dashboards providing instant visual analytics of monthly expenditure patterns.'
-      ]
-    });
-  }
-
-  // 5. EDUCATION (PURE ENGLISH)
-  const primaryEdu = facts.education[0] || {};
-  const synthesizedEducation = [
-    {
-      degree: primaryEdu.degree || 'Bachelor of Technology (B.Tech)',
-      major: primaryEdu.major || 'Computer Science & Engineering',
-      institution: primaryEdu.institution || 'Lovely Professional University, Punjab',
-      year: primaryEdu.year || '2024',
-      score: primaryEdu.score || 'First Class with Distinction'
-    }
-  ];
+  // 5. EDUCATION (Only user-provided education - NO dummy default university injected)
+  const synthesizedEducation = (facts.education || []).map(edu => {
+    if (typeof edu === 'string') return edu;
+    const deg = edu.degree || 'Bachelor of Technology';
+    const maj = edu.major ? ` in ${edu.major}` : '';
+    const inst = edu.institution ? ` • ${edu.institution}` : '';
+    const yr = edu.year ? ` (${edu.year})` : '';
+    return `${deg}${maj}${inst}${yr}`;
+  });
 
   // 6. ASSEMBLED COMPLETE MASTER RESUME OBJECT
   return {
@@ -530,19 +486,14 @@ export function synthesizeDetailedFresherResume(facts) {
       github,
       website: ''
     },
-    skills: mergedSkills,
+    skills: userSkills,
     experiences: synthesizedExperiences,
     projects: synthesizedProjects,
-    education: synthesizedEducation.map(e => `${e.degree} in ${e.major} • ${e.institution} (${e.year})`),
-    certifications: [
-      'Full-Stack Web Development Specialization — Coursera',
-      'Problem Solving (Basic) Certification — HackerRank',
-      'Certified Git & GitHub Professional'
-    ],
-    languages: [
-      { name: 'English', level: 'Professional Working Proficiency' },
-      { name: 'Hindi', level: 'Native / Bilingual Proficiency' }
-    ],
+    education: synthesizedEducation,
+    certifications: [],
+    languages: userSkills.length > 0 || hasProfileContext ? [
+      { name: 'English', level: 'Professional Working Proficiency' }
+    ] : [],
     layoutType: 'two-column-left-sidebar'
   };
 }

@@ -568,7 +568,7 @@ export default function InteractiveLiveStudio({
               {/* Quick Prompt Suggestions */}
               <div className="px-3 py-2 bg-slate-950/60 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[10.5px]">
                 <span className="text-slate-500 shrink-0 font-medium">Try:</span>
-                {['Docker add karo', 'Summary concise karo', 'Update Gharmantra', 'MBA degree hatao'].map((suggestion, sIdx) => (
+                {['Add Docker to skills', 'Summary concise karo', 'Add new project', 'Remove bullet point'].map((suggestion, sIdx) => (
                   <button
                     key={sIdx}
                     onClick={() => handleSendPrompt(suggestion)}
@@ -873,7 +873,7 @@ export default function InteractiveLiveStudio({
                 type="text"
                 value={quickPromptInput}
                 onChange={(e) => setQuickPromptInput(e.target.value)}
-                placeholder="Type any edit (e.g. 'Docker add karo', 'Gharmantra update karo', 'MBA degree hatao')..."
+                placeholder="Type any edit (e.g. 'Add Docker to skills', 'Summary concise karo', 'Remove bullet point')..."
                 disabled={isProcessing}
                 className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition disabled:opacity-50"
               />
