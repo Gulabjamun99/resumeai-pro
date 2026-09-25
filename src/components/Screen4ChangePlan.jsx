@@ -420,7 +420,7 @@ export default function Screen4ChangePlan({ changePlan, currentVersion, onApprov
                           </div>
                         )}
                         <div className="text-[11px] text-slate-100 font-mono bg-emerald-950/20 p-2 rounded border border-emerald-800/40">
-                          Proposed: "{op.requestedValue || op.suggestedBullet || op.afterValue}"
+                          Proposed: "{op.requestedValue || op.suggestedBullet || op.afterValue || (op.role ? `${op.role} (${op.period || 'Present'})` : '') || op.description}"
                         </div>
                         <p className="text-[10.5px] text-slate-400 italic">Reason: {op.reason}</p>
                       </div>

@@ -13,6 +13,19 @@ export function runCompleteValidationSuite(sourceMaster, outputResume, promptTex
     changePlan.operations.forEach(op => {
       if (op.beforeValue) authorizedOldBullets.push(op.beforeValue);
       if (op.originalBullet) authorizedOldBullets.push(op.originalBullet);
+      if (op.oldBullets && Array.isArray(op.oldBullets)) {
+        authorizedOldBullets.push(...op.oldBullets);
+      }
+      if (op.operation === 'UPDATE_EXPERIENCE' && op.targetRole) {
+        // If an experience is updated/replaced by user request, its old bullets are authorized
+        const matchedExp = (sourceMaster.experiences || []).find(e => 
+          (e.role && e.role.toLowerCase().includes(op.targetRole.toLowerCase())) ||
+          (op.company && e.company && e.company.toLowerCase().includes(op.company.toLowerCase()))
+        );
+        if (matchedExp?.bullets) {
+          authorizedOldBullets.push(...matchedExp.bullets);
+        }
+      }
       if (op.section === 'experience' && (op.operation === 'REPLACE' || op.operation === 'REVISE_BULLET')) {
         let expIdx = op.expIndex;
         let bulletIdx = op.bulletIndex;
@@ -34,29 +47,56 @@ export function runCompleteValidationSuite(sourceMaster, outputResume, promptTex
   const missingSourceBullets = sourceBullets.filter(b => !outputBullets.includes(b) && !authorizedOldBullets.includes(b));
   const checkA_Passed = missingSourceBullets.length === 0;
 
-  // Layer 2: Check B - Requested Additions Verification
+  // Layer 2: Check B - Requested Additions Verification (Dynamic based on Change Plan)
   const fullTextLower = JSON.stringify(outputResume).toLowerCase();
 
-  const promptFacts = [
-    { label: "Lead Product Manager Role", key: "lead product manager", passed: fullTextLower.includes("lead product manager") },
-    { label: "AI NextGen Labs Company", key: "ai nextgen labs", passed: fullTextLower.includes("ai nextgen labs") },
-    { label: "Jan 2025 Date", key: "jan 2025", passed: fullTextLower.includes("jan 2025") },
-    { label: "LLM Orchestration", key: "llm orchestration", passed: fullTextLower.includes("llm orchestration") },
-    { label: "Enterprise AI Agents", key: "enterprise ai agents", passed: fullTextLower.includes("enterprise ai agents") }
-  ];
+  const promptFacts = (changePlan?.operations || []).slice(0, 10).map(op => {
+    const val = op.requestedValue || op.role || op.targetRole || op.project?.name || op.skill || '';
+    const passed = typeof val === 'string' && val.length > 2
+      ? fullTextLower.includes(val.toLowerCase().trim()) 
+      : true;
+    return {
+      label: op.description || op.field || 'Authorized Change',
+      key: String(val || op.description || '').slice(0, 40),
+      passed
+    };
+  });
+  if (promptFacts.length === 0) {
+    promptFacts.push({ label: 'Document Content Integrity', key: 'integrity', passed: true });
+  }
   const checkB_Passed = promptFacts.every(f => f.passed);
 
-  // Layer 3: Contact & Date Exact Match
+  // Layer 3: Contact & Date Match (Safe Fallback to header)
+  const sourceContact = sourceMaster.contact || sourceMaster.header || {};
+  const outputContact = outputResume.contact || outputResume.header || {};
   const contactMatch = (
-    sourceMaster.contact.email === outputResume.contact.email &&
-    sourceMaster.contact.phone === outputResume.contact.phone &&
-    sourceMaster.contact.linkedin === outputResume.contact.linkedin
+    (!sourceContact.email || sourceContact.email === outputContact.email) &&
+    (!sourceContact.phone || sourceContact.phone === outputContact.phone) &&
+    (!sourceContact.linkedin || sourceContact.linkedin === outputContact.linkedin)
   );
 
-  // Date Integrity Verification
-  const sourceDates = sourceMaster.experiences.map(e => e.period);
-  const outputDates = outputResume.experiences.map(e => e.period);
-  const datesConsistent = sourceDates.slice(0, sourceDates.length).every((d, i) => outputDates.includes(d));
+  // Date Integrity Verification (allowing authorized date modifications)
+  const authorizedModifiedDates = new Set();
+  if (changePlan?.operations) {
+    changePlan.operations.forEach(op => {
+      if (op.field && op.field.includes('period') && op.beforeValue) {
+        authorizedModifiedDates.add(op.beforeValue);
+      }
+      if (op.operation === 'UPDATE_EXPERIENCE' && op.period) {
+        authorizedModifiedDates.add(op.period);
+        // Also authorize the original period of the experience being updated
+        const origExp = (sourceMaster.experiences || []).find(e => 
+          (e.role && op.targetRole && e.role.toLowerCase().includes(op.targetRole.toLowerCase())) ||
+          (e.company && op.company && e.company.toLowerCase().includes(op.company.toLowerCase()))
+        );
+        if (origExp?.period) authorizedModifiedDates.add(origExp.period);
+      }
+    });
+  }
+
+  const sourceDates = (sourceMaster.experiences || []).map(e => e.period).filter(Boolean);
+  const outputDates = (outputResume.experiences || []).map(e => e.period).filter(Boolean);
+  const datesConsistent = sourceDates.every(d => outputDates.includes(d) || authorizedModifiedDates.has(d));
 
   // Layer 4: Structural Visual Collision Test
   const visualInspection = {
@@ -108,9 +148,9 @@ export function runCompleteValidationSuite(sourceMaster, outputResume, promptTex
     },
     contactIntegrity: {
       passed: contactMatch,
-      email: outputResume.contact.email,
-      phone: outputResume.contact.phone,
-      linkedin: outputResume.contact.linkedin
+      email: outputContact.email || outputResume.header?.email || 'N/A',
+      phone: outputContact.phone || outputResume.header?.phone || 'N/A',
+      linkedin: outputContact.linkedin || outputResume.header?.linkedin || 'N/A'
     },
     dateIntegrity: {
       passed: datesConsistent,

@@ -194,6 +194,50 @@ export default function Screen3Request({
             )}
           </div>
 
+          {/* Primary Action Button Bar directly below textarea */}
+          <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-950/80 border border-slate-800 rounded-xl">
+            <div className="text-xs text-slate-300">
+              {promptText?.trim() ? (
+                <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{currentPlan?.operations?.length || 0} change operations detected ready to apply</span>
+                </span>
+              ) : (
+                <span className="text-slate-500">
+                  Type instructions above, then click Apply to execute your changes
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onAnalyzePrompt}
+                disabled={!promptText?.trim()}
+                className={`text-xs font-semibold px-3.5 py-2 rounded-lg border transition cursor-pointer flex items-center gap-1.5 ${
+                  promptText?.trim()
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                    : 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-sky-400" />
+                <span>Review Plan (Screen 4)</span>
+              </button>
+
+              <button
+                onClick={() => onApplyDirectly ? onApplyDirectly(promptText) : onAnalyzePrompt()}
+                disabled={!promptText?.trim()}
+                className={`text-xs font-bold px-5 py-2 rounded-lg shadow-lg flex items-center gap-2 transition cursor-pointer ${
+                  promptText?.trim()
+                    ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 hover:from-emerald-400 hover:to-sky-400 text-white shadow-emerald-500/25 hover:scale-[1.01]'
+                    : 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 fill-white" />
+                <span>Apply My Changes & Open Studio</span>
+              </button>
+            </div>
+          </div>
+
 
 
           {/* P2.4: Evidence-Safe STAR & Action-Verb Bullet Polish Section */}

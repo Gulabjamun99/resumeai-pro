@@ -182,6 +182,14 @@ export default function InteractiveLiveStudio({
             parts.push('');
           }
 
+          if (stepDiff.addedProjects?.length > 0) {
+            parts.push(`🔹 **Naye Projects Add Huye (${stepDiff.addedProjects.length}):**`);
+            stepDiff.addedProjects.forEach(p => {
+              parts.push(`• **${p.title}**${p.techStack ? ` (${p.techStack})` : ''}`);
+            });
+            parts.push('');
+          }
+
           if (stepDiff.addedSkills?.length > 0) {
             parts.push(`🔹 **Naye Skills Jode Gaye:** ${stepDiff.addedSkills.join(', ')}\n`);
           }
