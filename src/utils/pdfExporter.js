@@ -73,16 +73,20 @@ export async function exportResumeToPdf(elementId, candidateName = 'Candidate', 
       backgroundColor: '#ffffff',
       windowWidth: 1200,
       onclone: (clonedDoc, clonedElement) => {
+        const A4_WIDTH_PX = 794;
+        const A4_HEIGHT_PX = 1123; // Exact A4 ratio: 794 * (297 / 210) = 1122.94px -> 1123px
+
         // Enforce exact standard A4 proportions on the cloned DOM element
-        clonedElement.style.width = '794px';
-        clonedElement.style.maxWidth = '794px';
-        clonedElement.style.minWidth = '794px';
+        clonedElement.style.width = `${A4_WIDTH_PX}px`;
+        clonedElement.style.maxWidth = `${A4_WIDTH_PX}px`;
+        clonedElement.style.minWidth = `${A4_WIDTH_PX}px`;
         clonedElement.style.margin = '0 auto';
         clonedElement.style.padding = '0';
         clonedElement.style.textAlign = 'left';
         clonedElement.style.boxSizing = 'border-box';
         clonedElement.style.transform = 'none';
 
+        // 1. Sanitize unsupported oklch color properties for html2canvas
         const elementsToCheck = [clonedElement, ...Array.from(clonedElement.querySelectorAll('*'))];
         elementsToCheck.forEach((el) => {
           const computed = window.getComputedStyle(el);
@@ -101,6 +105,69 @@ export async function exportResumeToPdf(elementId, candidateName = 'Candidate', 
             }
           });
         });
+
+        // 2. Boundary Collision Avoidance: Prevent text and bullet lines from getting sliced in half horizontally
+        const breakAvoidSelectors = [
+          'section',
+          '.page-break-inside-avoid',
+          'li',
+          'article',
+          '.resume-main-content > div',
+          '[class*="rounded"]'
+        ];
+
+        const getClonedOffsetTop = (el) => {
+          let top = 0;
+          let curr = el;
+          while (curr && curr !== clonedElement) {
+            top += curr.offsetTop || 0;
+            curr = curr.offsetParent;
+          }
+          return top;
+        };
+
+        for (let page = 1; page <= 6; page++) {
+          const boundary = page * A4_HEIGHT_PX;
+          const candidateBlocks = clonedElement.querySelectorAll(breakAvoidSelectors.join(', '));
+          
+          for (let i = 0; i < candidateBlocks.length; i++) {
+            const block = candidateBlocks[i];
+            if (block.classList.contains('resume-sidebar') || block.classList.contains('resume-main-content')) {
+              continue;
+            }
+
+            const blockTop = getClonedOffsetTop(block);
+            const blockHeight = block.offsetHeight;
+            const blockBottom = blockTop + blockHeight;
+
+            // If the element crosses the page boundary
+            if (blockTop < (boundary - 10) && blockBottom > (boundary + 10)) {
+              if (blockHeight < (A4_HEIGHT_PX - 80)) {
+                const shiftDown = (boundary - blockTop) + 24; // clean top margin on new page
+                const currentMarginTop = parseFloat(window.getComputedStyle(block).marginTop) || 0;
+                block.style.marginTop = `${currentMarginTop + shiftDown}px`;
+                break;
+              }
+            }
+          }
+        }
+
+        // 3. Compute exact multi-page integer A4 height
+        const naturalHeight = clonedElement.scrollHeight || clonedElement.offsetHeight;
+        const totalPages = Math.max(1, Math.ceil(naturalHeight / A4_HEIGHT_PX));
+        const exactCanvasHeight = totalPages * A4_HEIGHT_PX;
+
+        clonedElement.style.height = `${exactCanvasHeight}px`;
+        clonedElement.style.minHeight = `${exactCanvasHeight}px`;
+        clonedElement.style.maxHeight = `${exactCanvasHeight}px`;
+
+        // 4. Stretch colored sidebar 100% all the way to the bottom edge of the final page
+        const sidebarEls = clonedElement.querySelectorAll('.resume-sidebar, [class*="sidebar"]');
+        sidebarEls.forEach(sb => {
+          sb.style.height = `${exactCanvasHeight}px`;
+          sb.style.minHeight = `${exactCanvasHeight}px`;
+          sb.style.boxSizing = 'border-box';
+        });
       }
     });
 
@@ -111,22 +178,28 @@ export async function exportResumeToPdf(elementId, candidateName = 'Candidate', 
       format: 'a4'
     });
 
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    const pageHeight = pdf.internal.pageSize.getHeight();
+    const pdfWidth = pdf.internal.pageSize.getWidth(); // 210mm
+    const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
 
-    let heightLeft = pdfHeight;
-    let position = 0;
+    // Calculate total pages based on canvas dimensions and standard A4 aspect ratio
+    const a4Ratio = 297 / 210;
+    const totalPages = Math.max(1, Math.round(canvas.height / (canvas.width * a4Ratio)));
+    const totalPdfHeight = totalPages * pageHeight;
 
-    pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight, undefined, 'FAST');
-    heightLeft -= pageHeight;
-
-    while (heightLeft > 0) {
-      position = position - pageHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
-      heightLeft -= pageHeight;
+    for (let p = 0; p < totalPages; p++) {
+      if (p > 0) {
+        pdf.addPage();
+      }
+      pdf.addImage(
+        imgData,
+        'JPEG',
+        0,
+        -p * pageHeight,
+        pdfWidth,
+        totalPdfHeight,
+        undefined,
+        'FAST'
+      );
     }
 
     const blob = pdf.output('blob');

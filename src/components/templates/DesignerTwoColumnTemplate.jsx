@@ -43,11 +43,13 @@ export default function DesignerTwoColumnTemplate({
   // Sidebar Component (Reusable for 2-column left/right or single-column bottom)
   const SidebarContent = () => (
     <div 
-      className="p-6 flex flex-col gap-5 text-left"
+      className="p-6 flex flex-col gap-5 text-left resume-sidebar"
       style={{
         backgroundColor: currentTheme.sidebarBg,
         color: currentTheme.sidebarText,
         width: isTwoColumn ? '34%' : '100%',
+        minHeight: '100%',
+        flexShrink: 0,
         boxSizing: 'border-box'
       }}
     >
@@ -473,6 +475,7 @@ export default function DesignerTwoColumnTemplate({
         boxSizing: 'border-box',
         display: isTwoColumn ? 'flex' : 'block',
         flexDirection: isRightSidebar ? 'row-reverse' : 'row',
+        alignItems: 'stretch',
         fontFamily: currentTheme.fontFamily,
         backgroundColor: currentTheme.pageBg,
         lineHeight: '1.4'

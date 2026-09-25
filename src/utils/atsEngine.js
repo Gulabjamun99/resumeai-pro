@@ -28,6 +28,7 @@ import {
   optimizeBulletPoint,
   SECTION_ACTIONS
 } from './ats/index.js';
+import { parseComprehensiveChangeRequest, isSectionHeaderLine } from './changeRequestParser.js';
 
 export {
   matchesTermInText, 
@@ -672,15 +673,27 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       });
       summaries.push('Summary condensed for concise impact');
     } else {
+      let cleanSummary = rawText;
+      const sMatch = rawText.match(/^(?:summary|profile\s*summary|about\s*me|bio)\s*[:\-]?\s*(?:me\s*likho|me\s*daal\s*do|me|ko)?\s*[:\-]?\s*(.+)$/i) ||
+                     rawText.match(/(?:summary\s*me\s*likho|summary\s*change\s*karke|summary\s*ko|summary\s*me)\s*[:"']?(.+)$/i);
+      if (sMatch && sMatch[1]) {
+        cleanSummary = sMatch[1].replace(/\s+(kar\s*do|likho|rakho|bana\s*do|daal\s*do)$/i, '').trim();
+      }
+      const hasSpecificContent = cleanSummary.length >= 8 && !cleanSummary.toLowerCase().startsWith('summary ko professional') && !cleanSummary.toLowerCase().startsWith('improve summary');
+
       operations.push({
         id: `op-summary-rewrite-${Date.now()}`,
         operation: 'REWRITE',
         section: 'summary',
         field: 'header.summary',
+        requestedValue: hasSpecificContent ? cleanSummary : undefined,
         instruction: rawText,
-        description: 'Enhance professional summary for modern ATS keyword density and leadership impact'
+        description: hasSpecificContent ? 'Update professional summary' : 'Enhance professional summary for modern ATS keyword density and leadership impact'
       });
-      summaries.push('Summary enhanced for modern ATS impact');
+      if (hasSpecificContent) {
+        authorizedChanges.push({ field: 'header.summary', value: cleanSummary, authorization: 'USER_EXPLICIT' });
+      }
+      summaries.push(hasSpecificContent ? 'Summary updated' : 'Summary enhanced for modern ATS impact');
     }
     targetSections.add('summary');
   }
@@ -1349,6 +1362,17 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
 
   // 6. DEFAULT FALLBACK OPERATION IF NO SPECIFIC OPERATION MATCHED
   if (operations.length === 0) {
+    if (isSectionHeaderLine(rawText)) {
+      return {
+        scope: 'FORMATTING_ONLY',
+        operations: [],
+        targetSections: [],
+        authorizedChanges: [],
+        rawPrompt: rawText,
+        planSummary: 'Section marker processed'
+      };
+    }
+
     if (hasDeleteWord) {
       // User asked to delete something, but it wasn't found or was already deleted!
       // Strict Fact-Locking: NEVER rewrite candidate's summary on delete intent!
@@ -1487,7 +1511,7 @@ export function extractDetailedProjectsFromText(text, currentProjects = []) {
 
     // Clean conversational suffixes if last block
     if (i === filtered.length - 1) {
-      blockText = blockText.replace(/\s*(?:sabhi|sab)\s*ko\s*asan\s*sabdo.*$/i, '').trim();
+      blockText = blockText.replace(/\s*(?:sara\s+products?|sabhi|sab|ye\s*sabhi|ye\s*sab|all\s+products?|in\s*sab\s*ko|ki\s*help\s*se|ab\s*apko|or\s*aage\s*badha|edit\s*krna|usi\s*hisab).*$/i, '').trim();
     }
 
     let content = blockText;
@@ -1507,10 +1531,13 @@ export function extractDetailedProjectsFromText(text, currentProjects = []) {
     }
 
     let bullet1 = rawLines[bulletIdx] || `${current.title}: Engineered with modern AI toolchains and responsive cloud architecture.`;
+    if (/(?:ki\s*help|banaye|kr\s*rhe|banaya|ab\s*apko|ediit|kuch\s*apps|impending)/i.test(bullet1) || bullet1.length < 15) {
+      bullet1 = `${current.title}: Engineered with modern AI toolchains and responsive cloud architecture.`;
+    }
     let bullet2 = rawLines[bulletIdx + 1] || '';
 
     const bullets = [bullet1];
-    if (bullet2 && bullet2.length >= 15 && bullet2 !== bullet1) {
+    if (bullet2 && bullet2.length >= 15 && bullet2 !== bullet1 && !/(?:ki\s*help|banaye|kr\s*rhe|banaya|ab\s*apko|ediit)/i.test(bullet2)) {
       bullets.push(bullet2);
     }
 
@@ -1543,6 +1570,13 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     return generateFullDocumentOptimization(rawJd, currentCvState);
   }
 
+  // 1.5 COMPREHENSIVE MULTI-SECTION & STRUCTURED / CONVERSATIONAL PARSING:
+  // (Handles profile updates, employment additions/updates, skills, and multi-field inputs)
+  const comprehensivePlan = parseComprehensiveChangeRequest(rawText, currentCvState, sourceMaster);
+  if (comprehensivePlan && comprehensivePlan.operations && comprehensivePlan.operations.length > 0) {
+    return comprehensivePlan;
+  }
+
   // 2. WORKFLOW A: Full CV General Optimization (No JD required)
   if (
     intentClass.intent === USER_INTENTS.FULL_CV_IMPROVEMENT ||
@@ -1569,7 +1603,8 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
   // 3. SPECIALIZED MULTI-PROJECT EXTRACTION:
   // If prompt contains structured project specifications (e.g. "Gharmantra -(...)", "Kharchabook -(...)", etc.)
   // process all projects holistically instead of breaking the text into arbitrary newline fragments!
-  const detailedProjects = extractDetailedProjectsFromText(rawText, currentCvState?.projects);
+  const hasEmploymentIntent = /(?:consultant|freelanc|experience|employment|naya\s*job|vibe\s*coding|from\s*scratch|from\s*scratv)/i.test(rawText);
+  const detailedProjects = !hasEmploymentIntent ? extractDetailedProjectsFromText(rawText, currentCvState?.projects) : null;
   if (detailedProjects && detailedProjects.length > 0) {
     const operations = [];
     const authorizedChanges = [];
@@ -1818,6 +1853,43 @@ export function extractDynamicEntitiesFromPrompt(text) {
 }
 
 /**
+ * Standard ATS Reverse-Chronological Experience Sorter:
+ * Ensures active roles ("Present") appear at the top, followed by descending years (2023, 2021, 2019...).
+ */
+export function sortExperiencesChronologically(experiences) {
+  if (!Array.isArray(experiences) || experiences.length <= 1) return experiences;
+  
+  return [...experiences].sort((a, b) => {
+    const parsePeriod = (pStr) => {
+      const str = (pStr || '').toLowerCase();
+      const isPresent = str.includes('present') || str.includes('current') || str.includes('now') || str.includes('till date');
+      const years = str.match(/\b(19\d\d|20\d\d)\b/g);
+      let endYear = 0;
+      let startYear = 0;
+      if (isPresent) {
+        endYear = 9999;
+        startYear = years ? parseInt(years[0], 10) : 9999;
+      } else if (years && years.length >= 2) {
+        startYear = parseInt(years[0], 10);
+        endYear = parseInt(years[years.length - 1], 10);
+      } else if (years && years.length === 1) {
+        endYear = parseInt(years[0], 10);
+        startYear = endYear;
+      }
+      return { isPresent, endYear, startYear };
+    };
+
+    const pA = parsePeriod(a.period || a.dates);
+    const pB = parsePeriod(b.period || b.dates);
+
+    if (pA.isPresent && !pB.isPresent) return -1;
+    if (!pA.isPresent && pB.isPresent) return 1;
+    if (pB.endYear !== pA.endYear) return pB.endYear - pA.endYear;
+    return pB.startYear - pA.startYear;
+  });
+}
+
+/**
  * Execute ChangePlan Transaction onto CURRENT_CV_STATE:
  * Applies the structured operations sequentially while maintaining entity IDs and preserving untouched fields.
  */
@@ -1918,6 +1990,8 @@ export function executeChangePlan(currentCvState, changePlan) {
         if (op.section === 'summary') {
           if (op.requestedValue) {
             proposedCv.header.summary = op.requestedValue;
+          } else if (op.instruction && !op.instruction.toLowerCase().includes('professional') && op.instruction.length > 15) {
+            proposedCv.header.summary = op.instruction;
           } else {
             const currentSummary = proposedCv.header.summary || '';
             const addition = " Recognized for cross-functional leadership, modern workflows, and measurable stakeholder impact.";
@@ -1970,6 +2044,31 @@ export function executeChangePlan(currentCvState, changePlan) {
         break;
       }
 
+      case 'UPDATE_EXPERIENCE': {
+        if (proposedCv.experiences && (op.targetCompany || op.company || op.targetId || op.targetRole)) {
+          const compToMatch = (op.targetCompany || op.company || '').toLowerCase();
+          const roleToMatch = (op.targetRole || op.role || '').toLowerCase();
+          const targetExp = proposedCv.experiences.find(e => 
+            (op.targetId && e.id === op.targetId) ||
+            (compToMatch && (e.company || '').toLowerCase().includes(compToMatch)) ||
+            (roleToMatch && (e.role || '').toLowerCase().includes(roleToMatch))
+          );
+          if (targetExp) {
+            if (op.company) targetExp.company = op.company;
+            if (op.role) targetExp.role = op.role;
+            if (op.period) targetExp.period = op.period;
+            if (op.location) targetExp.location = op.location;
+            if (op.subtitle !== undefined) targetExp.subtitle = op.subtitle;
+            else if (targetExp.subtitle) targetExp.subtitle = '';
+            if (Array.isArray(op.bullets) && op.bullets.length > 0) targetExp.bullets = op.bullets;
+            targetExp._isNewUserEntry = true;
+            appliedOperations.push(op);
+            requestedFacts.push(op.description || `Updated experience for ${targetExp.company || targetExp.role}`);
+          }
+        }
+        break;
+      }
+
       case 'ADD': {
         if (op.section === 'skills') {
           if (!proposedCv.skills) proposedCv.skills = [];
@@ -1981,10 +2080,11 @@ export function executeChangePlan(currentCvState, changePlan) {
         } else if (op.section === 'experience') {
           if (!proposedCv.experiences) proposedCv.experiences = [];
           const newExpEntity = {
-            id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-            role: op.role,
-            company: op.company,
-            period: op.period,
+            id: op.id || `exp-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            _isNewUserEntry: true,
+            role: op.role || 'Specialist',
+            company: op.company || 'Enterprise Solutions',
+            period: op.period || 'Present',
             location: op.location || 'Remote',
             bullets: op.bullets || []
           };
@@ -2271,6 +2371,11 @@ export function executeChangePlan(currentCvState, changePlan) {
         break;
     }
   });
+
+  // Ensure standard reverse-chronological order for ATS compliance
+  if (Array.isArray(proposedCv.experiences) && proposedCv.experiences.length > 1) {
+    proposedCv.experiences = sortExperiencesChronologically(proposedCv.experiences);
+  }
 
   return {
     proposedCv,

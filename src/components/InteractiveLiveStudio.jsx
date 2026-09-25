@@ -11,7 +11,8 @@ import { exportResumeToPdf } from '../utils/pdfExporter';
 import { exportResumeToDocx } from '../utils/docxExporter';
 import { RESUME_TEMPLATES_CATALOG, TEMPLATE_TAG_FILTERS } from '../data/templateCatalog';
 import { COLOR_PALETTES, FONT_FAMILIES, DENSITY_OPTIONS, DEFAULT_DESIGN_THEME } from '../data/themePresets';
-import { computeResumeDiff } from '../utils/changeDiffDetector';
+import { computeResumeDiff, isDiffInquiry, formatDiffAsExplanation, isJdOptimizationRequest } from '../utils/changeDiffDetector';
+import { getGeminiChatResponse } from '../services/geminiService';
 
 /**
  * RESUMEAI PRO — MODERN ULTRA-CLEAN SPLIT STUDIO
@@ -104,9 +105,10 @@ export default function InteractiveLiveStudio({
     const text = customText || promptInput || quickPromptInput;
     if (!text || !text.trim() || isProcessing) return;
 
+    const trimmed = text.trim();
     const userMsg = {
       sender: 'user',
-      text: text.trim(),
+      text: trimmed,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -115,24 +117,107 @@ export default function InteractiveLiveStudio({
     setQuickPromptInput('');
     setIsProcessing(true);
 
+    // 1. INQUIRY / DIFF QUESTION INTENT (e.g. "kya kya change kha kha kiye ye bataye")
+    if (isDiffInquiry(trimmed)) {
+      const latestDiff = computeResumeDiff(sourceResume, resume);
+      const explanation = formatDiffAsExplanation(latestDiff, currentVersion);
+      let geminiReply = null;
+      try {
+        geminiReply = await getGeminiChatResponse(trimmed, resume, explanation);
+      } catch (err) {
+        console.warn("Gemini chat query fallback:", err.message);
+      }
+
+      setChatLog(prev => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: geminiReply || explanation,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+      setIsProcessing(false);
+      return;
+    }
+
+    // 2. RESUME REFINEMENT / JD TAILORING INTENT
     try {
       if (onApplyRefinement) {
-        const result = await onApplyRefinement(text.trim());
-        const summaryText = result?.planSummary || `Instruction "${text.trim()}" live apply ho gaya hai.`;
-        const aiResponseText = `✅ ${summaryText} Preview canvas me update check kijiye!`;
-        
-        setTimeout(() => {
-          setChatLog(prev => [
-            ...prev,
-            {
-              sender: 'ai',
-              text: aiResponseText,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }
-          ]);
-          setIsProcessing(false);
-          showToast(`✅ ${summaryText}`);
-        }, 400);
+        const result = await onApplyRefinement(trimmed);
+        const stepDiff = result?.stepDiff;
+        let aiResponseText = '';
+
+        if (stepDiff && stepDiff.hasChanges) {
+          const parts = [];
+          parts.push(`✅ **${result?.planSummary || 'Update successfully applied!'}**\n`);
+
+          if (stepDiff.summaryChanged) {
+            parts.push(`🔹 **Profile Summary (Pehle vs Ab):**`);
+            if (stepDiff.summaryBefore) parts.push(`*Pehle:* "${stepDiff.summaryBefore.length > 180 ? stepDiff.summaryBefore.slice(0, 170) + '...' : stepDiff.summaryBefore}"`);
+            if (stepDiff.summaryAfter) parts.push(`*Ab:* "${stepDiff.summaryAfter.length > 180 ? stepDiff.summaryAfter.slice(0, 170) + '...' : stepDiff.summaryAfter}"`);
+            parts.push('');
+          }
+
+          if (stepDiff.headlineChanged) {
+            parts.push(`🔹 **Target Role / Headline:**`);
+            parts.push(`*Pehle:* ${stepDiff.headlineBefore || 'N/A'} ➡️ *Ab:* **${stepDiff.headlineAfter}**\n`);
+          }
+
+          if (stepDiff.addedCompanies?.length > 0) {
+            parts.push(`🔹 **Naya Work Experience Add Hua:**`);
+            stepDiff.addedCompanies.forEach(c => {
+              parts.push(`• **${c.company}** — *${c.role || 'Role'}* (${c.period || 'Duration'}${c.location ? ' • ' + c.location : ''})`);
+              if (c.bullets?.length > 0) {
+                parts.push(`  └ Added ${c.bullets.length} high-impact responsibility bullets.`);
+              }
+            });
+            parts.push('');
+          }
+
+          if (stepDiff.modifiedCompanies?.length > 0) {
+            parts.push(`🔹 **Employment History Updated:**`);
+            stepDiff.modifiedCompanies.forEach(c => {
+              parts.push(`• **${c.company}:** ${c.changesSummary}`);
+            });
+            parts.push('');
+          }
+
+          if (stepDiff.addedSkills?.length > 0) {
+            parts.push(`🔹 **Naye Skills Jode Gaye:** ${stepDiff.addedSkills.join(', ')}\n`);
+          }
+
+          if (stepDiff.contactChanged && stepDiff.contactDiff) {
+            parts.push(`🔹 **Contact Details Updated**\n`);
+          }
+
+          parts.push(`Live canvas right panel me update ho gaya hai. Aap koi aur change bol sakte hain ya kisi specific line ko refine karwa sakte hain!`);
+          aiResponseText = parts.join('\n');
+        } else {
+          aiResponseText = `✅ ${result?.planSummary || `Instruction "${trimmed}" live apply ho gaya hai.`}\n\nPreview canvas me update check kijiye!`;
+        }
+
+        // Call Gemini 2.5 Flash for natural, conversational mentor response
+        let geminiExplanation = null;
+        try {
+          geminiExplanation = await getGeminiChatResponse(trimmed, result?.updatedCv || resume, aiResponseText);
+        } catch (gemErr) {
+          console.warn("Gemini chat explanation fallback:", gemErr.message);
+        }
+
+        const finalText = geminiExplanation 
+          ? `${geminiExplanation}\n\n---\n${aiResponseText}` 
+          : aiResponseText;
+
+        setChatLog(prev => [
+          ...prev,
+          {
+            sender: 'ai',
+            text: finalText,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+        setIsProcessing(false);
+        showToast(`✅ ${result?.planSummary || 'Update applied'}`);
       }
     } catch (err) {
       console.error("Refinement error:", err);
@@ -549,7 +634,7 @@ export default function InteractiveLiveStudio({
                     className={`flex flex-col max-w-[90%] ${msg.sender === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'}`}
                   >
                     <div 
-                      className={`p-3 rounded-2xl leading-relaxed shadow-sm ${
+                      className={`p-3 rounded-2xl leading-relaxed shadow-sm whitespace-pre-line ${
                         msg.sender === 'user' 
                           ? 'bg-sky-600 text-white rounded-br-none' 
                           : 'bg-slate-850 text-slate-200 border border-slate-700/80 rounded-bl-none'
@@ -575,7 +660,7 @@ export default function InteractiveLiveStudio({
               {/* Quick Prompt Suggestions */}
               <div className="px-3 py-2 bg-slate-950/60 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[10.5px]">
                 <span className="text-slate-500 shrink-0 font-medium">Try:</span>
-                {['Add Docker to skills', 'Make summary concise', 'Add new project', 'Remove bullet point'].map((suggestion, sIdx) => (
+                {['Kya kya changes huye batayein', 'Summary ko JD ke hisab se tailor karo', 'Wipro work experience add karo', 'Skills me marketing aur sales add karo'].map((suggestion, sIdx) => (
                   <button
                     key={sIdx}
                     onClick={() => handleSendPrompt(suggestion)}

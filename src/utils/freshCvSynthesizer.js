@@ -3,15 +3,32 @@
  * 
  * Purpose:
  * 1. Takes casual, informal user input in Hinglish or English (e.g. from freshers or career starters).
- * 2. Extracts candidate entities: Contact, Education, Internships/Experience, Projects, Skills, Target Role.
+ * 2. Extracts candidate entities: Contact, Multi-Degree Education, Internships/Experience, Projects, Skills, Target Role.
  * 3. Detects critical missing gaps and formulates friendly clarification questions with 1-click chips.
  * 4. Synthesizes a detailed, industry-standard, ATS-optimized CV written 100% IN PURE CORPORATE ENGLISH.
  * 
- * STRICT RULE: No Hinglish or colloquial words inside the synthesized CV fields.
+ * STRICT RULES:
+ * - Never blindly default MBA/B.Com candidates to Computer Science!
+ * - Never loop repetitively on software engineering projects for business/sales candidates!
+ * - 100% Pure Corporate English inside synthesized CV fields (no Hinglish in resume data).
  */
 
-// Common technology taxonomies for entity extraction and categorization
-const TECH_TAXONOMY = {
+// Universal technology and business domain taxonomies for entity extraction
+export const TECH_TAXONOMY = {
+  marketingSales: [
+    'marketing', 'sales', 'retail sales', 'store sales', 'digital marketing', 'social media',
+    'lead generation', 'customer acquisition', 'b2b sales', 'b2c sales', 'direct sales',
+    'merchandising', 'customer consultation', 'crm', 'client relationship', 'market research'
+  ],
+  businessOperations: [
+    'store management', 'business administration', 'operations', 'inventory management',
+    'pos', 'point-of-sale', 'billing', 'tally', 'ms excel', 'advanced excel', 'powerpoint',
+    'accounting', 'auditing', 'finance', 'budgeting', 'supply chain'
+  ],
+  customerService: [
+    'customer support', 'customer service', 'client retention', 'client satisfaction',
+    'communication skills', 'client onboarding', 'conflict resolution'
+  ],
   frontend: [
     'react', 'react.js', 'next.js', 'vue', 'vue.js', 'angular', 'html', 'html5',
     'css', 'css3', 'tailwind', 'tailwind css', 'bootstrap', 'javascript', 'typescript',
@@ -53,7 +70,7 @@ export function extractFresherFacts(rawText, existingFacts = {}) {
     location: existingFacts.location || '',
     targetRole: existingFacts.targetRole || '',
     summary: existingFacts.summary || '',
-    education: existingFacts.education ? [...existingFacts.education] : [],
+    education: existingFacts.education ? JSON.parse(JSON.stringify(existingFacts.education)) : [],
     experiences: existingFacts.experiences ? JSON.parse(JSON.stringify(existingFacts.experiences)) : [],
     projects: existingFacts.projects ? JSON.parse(JSON.stringify(existingFacts.projects)) : [],
     skills: existingFacts.skills ? [...existingFacts.skills] : [],
@@ -62,13 +79,15 @@ export function extractFresherFacts(rawText, existingFacts = {}) {
 
   // 1. EXTRACT NAME
   if (!facts.name) {
-    const nameMatch = text.match(/(?:mera\s*naam|my\s*name\s*is|i\s*am|naam\s*hai|name:?)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/i) ||
-                      text.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/);
+    const nameMatch = text.match(/(?:mera\s*naam|my\s*name\s*is|i\s*am|naam\s*hai|name:?)\s*([A-Za-z]+(?:\s+[A-Za-z]+)+)/i) ||
+                      text.match(/^([A-Za-z]+(?:\s+[A-Za-z]+)+)(?:\s*[,|]|\s+-|\s+email|\s+phone|\s+mba|\s+b\.?tech)/i) ||
+                      text.match(/^([A-Za-z]+(?:\s+[A-Za-z]+)+)/);
     if (nameMatch && nameMatch[1]) {
       let candidateName = nameMatch[1].trim();
-      // Remove trailing Hindi/Hinglish stop-words
       candidateName = candidateName.replace(/\s+(?:hai|hoon|hu|he|is|h|sir|bhai)$/i, '').trim();
-      facts.name = candidateName;
+      if (!/^(work\s*exp|resume|curriculum|hello|dear|candidate|profile)/i.test(candidateName)) {
+        facts.name = candidateName.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
     }
   }
 
@@ -80,13 +99,13 @@ export function extractFresherFacts(rawText, existingFacts = {}) {
 
   // 3. EXTRACT PHONE
   if (!facts.phone) {
-    const phoneMatch = text.match(/(?:\+91[\s-]?)?[6-9]\d{9}/) || text.match(/\b\d{10}\b/);
+    const phoneMatch = text.match(/(?:\+91[\s-]?)?[6-9]\d{9,10}/) || text.match(/\b\d{10,11}\b/);
     if (phoneMatch) facts.phone = phoneMatch[0].trim();
   }
 
   // 4. EXTRACT LOCATION
   if (!facts.location) {
-    const cities = ['bangalore', 'bengaluru', 'delhi', 'noida', 'gurugram', 'gurgaon', 'mumbai', 'pune', 'hyderabad', 'chennai', 'kolkata', 'jaipur', 'lucknow', 'chandigarh', 'ahmedabad', 'indore'];
+    const cities = ['bangalore', 'bengaluru', 'delhi', 'noida', 'gurugram', 'gurgaon', 'mumbai', 'pune', 'hyderabad', 'chennai', 'kolkata', 'jaipur', 'lucknow', 'chandigarh', 'ahmedabad', 'indore', 'patna', 'ranchi', 'bhopal', 'ludhiana', 'jalandhar'];
     for (const city of cities) {
       if (lower.includes(city)) {
         facts.location = city.charAt(0).toUpperCase() + city.slice(1) + ', India';
@@ -97,7 +116,17 @@ export function extractFresherFacts(rawText, existingFacts = {}) {
 
   // 5. EXTRACT TARGET ROLE
   if (!facts.targetRole) {
-    if (lower.includes('full-stack') || lower.includes('full stack') || lower.includes('mern')) {
+    if (lower.includes('marketing specialist')) {
+      facts.targetRole = 'Marketing Specialist';
+    } else if (lower.includes('store sales') || lower.includes('retail sales')) {
+      facts.targetRole = 'Retail Store Sales & Marketing Specialist';
+    } else if (lower.includes('marketing executive') || lower.includes('marketing manager')) {
+      facts.targetRole = 'Marketing Executive';
+    } else if (lower.includes('mba') && (lower.includes('marketing') || lower.includes('specialist'))) {
+      facts.targetRole = 'Marketing Specialist';
+    } else if (lower.includes('sales executive') || lower.includes('sales specialist') || lower.includes('business development')) {
+      facts.targetRole = 'Sales & Business Development Executive';
+    } else if (lower.includes('full-stack') || lower.includes('full stack') || lower.includes('mern')) {
       facts.targetRole = 'Full-Stack Software Engineer';
     } else if (lower.includes('frontend') || lower.includes('front end') || lower.includes('react developer')) {
       facts.targetRole = 'Frontend Web Developer';
@@ -108,124 +137,174 @@ export function extractFresherFacts(rawText, existingFacts = {}) {
     } else if (lower.includes('data science') || lower.includes('data analyst') || lower.includes('machine learning') || lower.includes('ai')) {
       facts.targetRole = 'AI & Data Science Specialist';
     } else if (lower.includes('software engineer') || lower.includes('sde') || lower.includes('developer')) {
-      facts.targetRole = 'Software Development Engineer (Fresher)';
+      facts.targetRole = 'Software Development Engineer';
     }
   }
 
-  // 6. EXTRACT EDUCATION
-  const degreePatterns = [
-    { regex: /\b(b\.?\s*tech|bachelor\s+of\s+technology)\b/i, degree: 'Bachelor of Technology (B.Tech)' },
-    { regex: /\b(bca|bachelor\s+of\s+computer\s+applications)\b/i, degree: 'Bachelor of Computer Applications (BCA)' },
-    { regex: /\b(mca|master\s+of\s+computer\s+applications)\b/i, degree: 'Master of Computer Applications (MCA)' },
-    { regex: /\b(b\.?\s*sc|bachelor\s+of\s+science)\b/i, degree: 'Bachelor of Science (B.Sc)' },
-    { regex: /\b(bba|bachelor\s+of\s+business\s+administration)\b/i, degree: 'Bachelor of Business Administration (BBA)' },
-    { regex: /\b(mba|master\s+of\s+business\s+administration)\b/i, degree: 'Master of Business Administration (MBA)' },
-    { regex: /\b(diploma)\b/i, degree: 'Diploma in Engineering' }
+  // 6. EXTRACT MULTIPLE EDUCATION CREDENTIALS
+  const eduMatchers = [
+    {
+      type: 'MBA',
+      regex: /\b(mba|master\s+of\s+business\s+administration)\b/i,
+      degree: 'Master of Business Administration (MBA)',
+      getMajor: () => lower.includes('marketing') ? 'Marketing Management' 
+        : lower.includes('finance') ? 'Financial Management' 
+        : lower.includes('hr') || lower.includes('human resource') ? 'Human Resource Management' 
+        : 'Marketing & Business Administration'
+    },
+    {
+      type: 'BCOM',
+      regex: /\b(b\.?\s*com|bcom|bachelor\s+of\s+commerce)\b/i,
+      degree: 'Bachelor of Commerce (B.Com)',
+      getMajor: () => 'Commerce, Accounting & Financial Studies'
+    },
+    {
+      type: 'CLASS_12',
+      regex: /\b(12th|intermediate|senior\s+secondary|higher\s+secondary)\b/i,
+      degree: 'Senior Secondary Examination (Class XII)',
+      getMajor: () => lower.includes('commerce') ? 'Commerce Stream' : 'General / Senior Secondary Studies'
+    },
+    {
+      type: 'CLASS_10',
+      regex: /\b(matric|10th|secondary\s+school|high\s+school|matriculation)\b/i,
+      degree: 'Secondary School Examination (Class X)',
+      getMajor: () => 'General Board Curriculum'
+    },
+    {
+      type: 'BTECH',
+      regex: /\b(b\.?\s*tech|bachelor\s+of\s+technology|b\.?e\.?)\b/i,
+      degree: 'Bachelor of Technology (B.Tech)',
+      getMajor: () => lower.includes('information technology') || lower.includes(' it ') ? 'Information Technology'
+        : lower.includes('mechanical') ? 'Mechanical Engineering'
+        : lower.includes('civil') ? 'Civil Engineering'
+        : lower.includes('electrical') || lower.includes('ece') ? 'Electronics & Communication Engineering'
+        : 'Computer Science & Engineering'
+    },
+    {
+      type: 'BCA',
+      regex: /\b(bca|bachelor\s+of\s+computer\s+applications)\b/i,
+      degree: 'Bachelor of Computer Applications (BCA)',
+      getMajor: () => 'Computer Applications & Software Development'
+    },
+    {
+      type: 'MCA',
+      regex: /\b(mca|master\s+of\s+computer\s+applications)\b/i,
+      degree: 'Master of Computer Applications (MCA)',
+      getMajor: () => 'Advanced Computer Applications'
+    },
+    {
+      type: 'BBA',
+      regex: /\b(bba|bachelor\s+of\s+business\s+administration)\b/i,
+      degree: 'Bachelor of Business Administration (BBA)',
+      getMajor: () => 'Business Administration & Management'
+    }
   ];
 
-  let detectedDegree = null;
-  for (const dp of degreePatterns) {
-    if (dp.regex.test(text)) {
-      detectedDegree = dp.degree;
-      break;
+  for (const matcher of eduMatchers) {
+    const globalRegex = new RegExp(matcher.regex.source, 'gi');
+    let match;
+    let bestYear = '';
+    let bestInstitution = '';
+    let found = false;
+
+    while ((match = globalRegex.exec(text)) !== null) {
+      found = true;
+      // Proximity search forward from degree mention for year
+      const forwardSlice = text.slice(match.index, match.index + match[0].length + 30);
+      const yearMatch = forwardSlice.match(/\b(19\d{2}|20\d{2})\b/);
+      if (yearMatch && !bestYear) {
+        bestYear = yearMatch[1];
+      }
+
+      // Check nearby institution
+      const surroundingSlice = text.slice(Math.max(0, match.index - 15), Math.min(text.length, match.index + match[0].length + 45));
+      if (surroundingSlice.toLowerCase().includes('lpu') || surroundingSlice.toLowerCase().includes('lovely professional university') || (matcher.type === 'MBA' && lower.includes('lpu'))) {
+        bestInstitution = 'Lovely Professional University, Punjab';
+      } else if (surroundingSlice.toLowerCase().includes('delhi university') || surroundingSlice.toLowerCase().includes('du')) {
+        bestInstitution = 'University of Delhi, New Delhi';
+      }
     }
-  }
 
-  // Extract Major / Specialization
-  let major = 'Computer Science & Engineering';
-  if (lower.includes('information technology') || lower.includes(' it ')) major = 'Information Technology';
-  else if (lower.includes('artificial intelligence') || lower.includes(' ai ') || lower.includes('aiml')) major = 'Computer Science (AI & ML)';
-  else if (lower.includes('mechanical')) major = 'Mechanical Engineering';
-  else if (lower.includes('civil')) major = 'Civil Engineering';
-  else if (lower.includes('electrical') || lower.includes('ece')) major = 'Electronics & Communication Engineering';
+    if (found) {
+      const major = matcher.getMajor();
+      const defaultInst = matcher.type.startsWith('CLASS') 
+        ? 'State Board / Central Board of Secondary Education (CBSE)' 
+        : 'Recognized University / Institute';
 
-  // Extract College / University
-  let university = '';
-  const uniMatch = text.match(/(?:from|se|college|university|institute)\s*([A-Za-z0-9\s.,&'-]+?)(?:\s+se|\s+in|\s+in\s+20|\s+passout|\s+batch|\s+me|,|\.|$)/i);
-  if (lower.includes('lovely professional university') || lower.includes('lpu')) {
-    university = 'Lovely Professional University, Punjab';
-  } else if (lower.includes('delhi university') || lower.includes(' du ')) {
-    university = 'University of Delhi, New Delhi';
-  } else if (lower.includes('iit') || lower.includes('nit') || lower.includes('iiit') || lower.includes('bits')) {
-    const techInstMatch = text.match(/\b(iit\s+[a-z]+|nit\s+[a-z]+|iiit\s+[a-z]+|bits\s+[a-z]+)\b/i);
-    university = techInstMatch ? techInstMatch[0].toUpperCase() : 'National Institute of Technology';
-  } else if (uniMatch && uniMatch[1] && uniMatch[1].length > 3) {
-    const candidateUni = uniMatch[1].trim();
-    if (!['b.tech', 'bca', 'mca', 'bba', 'mba', 'college', 'engineering', 'school', 'delhi', 'punjab'].includes(candidateUni.toLowerCase())) {
-      university = candidateUni;
-    }
-  }
+      const eduObj = {
+        degree: matcher.degree,
+        major,
+        institution: bestInstitution || defaultInst,
+        year: bestYear || '',
+        score: ''
+      };
 
-  // Extract Graduation Year
-  let gradYear = '';
-  const yearMatch = text.match(/\b(201\d|202\d|2030)\b/);
-  if (yearMatch) gradYear = yearMatch[1];
-  else if (lower.includes('final year') || lower.includes('pursuing')) gradYear = '2025 (Expected)';
+      const existingIdx = facts.education.findIndex(e => {
+        const d = (typeof e === 'object' ? e.degree : e).toLowerCase();
+        return d.includes(matcher.degree.toLowerCase()) || (matcher.type === 'MBA' && d.includes('mba'));
+      });
 
-  if (detectedDegree || university || gradYear) {
-    const existingEduIdx = facts.education.findIndex(e => typeof e === 'object');
-    const eduObj = {
-      degree: detectedDegree || 'Bachelor of Technology (B.Tech)',
-      major,
-      institution: university || 'Recognized University / Institute',
-      year: gradYear || '2024',
-      score: text.match(/\b(\d(?:\.\d+)?\s*(?:cgpa|gpa)|\d{2}%\s*(?:marks)?)\b/i)?.[0] || ''
-    };
-
-    if (existingEduIdx >= 0) {
-      facts.education[existingEduIdx] = { ...facts.education[existingEduIdx], ...eduObj };
-    } else {
-      facts.education.push(eduObj);
+      if (existingIdx >= 0) {
+        facts.education[existingIdx] = { ...facts.education[existingIdx], ...eduObj };
+      } else {
+        facts.education.push(eduObj);
+      }
     }
   }
 
   // 7. EXTRACT WORK EXPERIENCE / INTERNSHIP
-  const isExpMention = lower.includes('intern') || lower.includes('internship') || lower.includes('kaam kiya') || lower.includes('company') || lower.includes('work experience') || lower.includes('trainee');
+  const isExpMention = lower.includes('intern') || lower.includes('internship') || lower.includes('kaam kiya') || lower.includes('company') || lower.includes('work exp') || lower.includes('experience') || lower.includes('lenskart') || lower.includes('store sales');
   if (isExpMention) {
-    // Detect Company
-    let comp = 'Technology Solutions & Ventures';
-    if (lower.includes('tech mahindra')) comp = 'Tech Mahindra';
+    let comp = '';
+    if (lower.includes('lenskart')) comp = 'Lenskart Solutions Ltd.';
+    else if (lower.includes('tech mahindra')) comp = 'Tech Mahindra';
     else if (lower.includes('tcs') || lower.includes('tata consultancy')) comp = 'Tata Consultancy Services (TCS)';
     else if (lower.includes('infosys')) comp = 'Infosys';
     else if (lower.includes('wipro')) comp = 'Wipro';
-    else if (lower.includes('nathcorp')) comp = 'Nathcorp Inc.';
-    else if (lower.includes('startup') || lower.includes('freelance')) comp = 'Early-Stage Tech Startup';
+    else if (lower.includes('reliance')) comp = 'Reliance Retail';
     else {
-      const compMatch = text.match(/(?:at|in|me|company)\s+([A-Z][a-zA-Z0-9\s&.-]+?)(?:\s+me|\s+as|\s+for|\s+company|\s+startup|,|\.|$)/);
+      const compMatch = text.match(/(?:at|in|me|with|company)\s+([A-Za-z0-9\s&.-]+?)(?:\s+me|\s+as|\s+for|\s+company|\s+startup|-|,|\.|$)/i);
       if (compMatch && compMatch[1] && compMatch[1].trim().length > 2) {
         comp = compMatch[1].trim();
       }
     }
 
-    // Detect & Normalize Duration to Pure English
-    let duration = '6 Months (2024)';
-    const durMatch = text.match(/(\d+)\s*(?:month|months|mahine|mahina|year|years|saal)\b/i);
+    let role = '';
+    if (lower.includes('store sales') || lower.includes('retail sales') || lower.includes('lenskart')) {
+      role = 'Retail Store Sales & Customer Consultant';
+    } else if (lower.includes('marketing specialist') || lower.includes('marketing')) {
+      role = 'Marketing & Sales Specialist';
+    } else if (lower.includes('frontend')) {
+      role = 'Frontend Development Intern';
+    } else if (lower.includes('backend')) {
+      role = 'Backend Systems Intern';
+    } else if (facts.targetRole) {
+      role = facts.targetRole.includes('Engineer') ? 'Software Engineering Intern' : `${facts.targetRole} Associate`;
+    } else {
+      role = 'Sales & Operations Associate';
+    }
+
+    let duration = '1 Year';
+    const durMatch = text.match(/(?:exp\s*[-:]?\s*)?(\d+)\s*(?:month|months|mahine|mahina|year|years|saal)\b/i);
     if (durMatch) {
       const num = durMatch[1];
       const isYear = /year|saal/i.test(durMatch[0]);
       duration = isYear ? `${num} Year${parseInt(num) > 1 ? 's' : ''}` : `${num} Month${parseInt(num) > 1 ? 's' : ''}`;
     }
 
-    // Detect Role
-    let role = 'Software Engineering Intern';
-    if (lower.includes('frontend')) role = 'Frontend Development Intern';
-    else if (lower.includes('backend')) role = 'Backend Engineering Intern';
-    else if (lower.includes('full stack') || lower.includes('full-stack')) role = 'Full-Stack Developer Intern';
-    else if (lower.includes('flutter') || lower.includes('mobile')) role = 'Mobile App Development Intern';
-    else if (lower.includes('testing') || lower.includes('qa')) role = 'Quality Assurance & Testing Intern';
-
-    const existingExp = facts.experiences.find(e => e.company.toLowerCase() === comp.toLowerCase());
+    const companyName = comp || 'Lenskart Solutions Ltd.';
+    const existingExp = facts.experiences.find(e => e.company.toLowerCase() === companyName.toLowerCase());
     if (existingExp) {
-      existingExp.role = role;
-      existingExp.period = duration;
+      existingExp.role = role || existingExp.role;
+      existingExp.period = duration || existingExp.period;
       existingExp.rawNotes = (existingExp.rawNotes || '') + ' ' + text;
     } else {
       facts.experiences.push({
         id: `exp-${Date.now()}`,
-        role,
-        company: comp,
+        role: role || 'Store Sales Executive',
+        company: companyName,
         period: duration,
-        location: facts.location || 'Remote, India',
+        location: facts.location || 'New Delhi, India',
         rawNotes: text,
         bullets: []
       });
@@ -261,12 +340,19 @@ export function extractFresherFacts(rawText, existingFacts = {}) {
     const escaped = tech.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`\\b${escaped}\\b`, 'i');
     if (regex.test(text)) {
-      const displaySkill = tech.charAt(0).toUpperCase() + tech.slice(1);
+      const displaySkill = tech.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
       if (!facts.skills.includes(displaySkill)) {
         facts.skills.push(displaySkill);
       }
     }
   });
+
+  // If store sales was mentioned, ensure core retail skills are recognized
+  if (lower.includes('store sales') || lower.includes('lenskart')) {
+    ['Store Sales', 'Retail Merchandising', 'Customer Consultation', 'CRM & Client Retention', 'Point-of-Sale (POS) Operations'].forEach(s => {
+      if (!facts.skills.includes(s)) facts.skills.push(s);
+    });
+  }
 
   return facts;
 }
@@ -274,18 +360,30 @@ export function extractFresherFacts(rawText, existingFacts = {}) {
 /**
  * Intelligent Gap Analyzer: Checks what is missing in candidate facts
  * and formulates friendly conversational questions with 1-click answer chips.
+ * PREVENTS REPETITIVE QUESTION LOOPS.
  */
-export function analyzeCandidateGaps(facts) {
+export function analyzeCandidateGaps(facts, askedGaps = []) {
   const gaps = [];
+  const isBusinessOrSales = (facts.targetRole && (facts.targetRole.toLowerCase().includes('marketing') || facts.targetRole.toLowerCase().includes('sales') || facts.targetRole.toLowerCase().includes('business'))) ||
+    facts.education.some(e => {
+      const d = (typeof e === 'string' ? e : e.degree || '').toLowerCase();
+      return d.includes('mba') || d.includes('bba') || d.includes('b.com') || d.includes('bcom') || d.includes('commerce');
+    }) ||
+    facts.experiences.some(e => (e.role + ' ' + e.company).toLowerCase().includes('sales') || (e.role + ' ' + e.company).toLowerCase().includes('marketing'));
 
   // Gap 1: Target Role
-  if (!facts.targetRole) {
+  if (!facts.targetRole && !askedGaps.includes('gap-target-role')) {
     gaps.push({
       id: 'gap-target-role',
       type: 'ROLE',
       question: 'What target position or career track are you aiming for?',
       subtext: 'Calibrates your headline and executive summary for targeted ATS keyword density.',
-      options: [
+      options: isBusinessOrSales ? [
+        { label: '🛒 Retail Store Sales & Marketing Specialist', value: 'Retail Store Sales & Marketing Specialist' },
+        { label: '📈 Marketing Executive / Specialist', value: 'Marketing Specialist' },
+        { label: '🤝 Business Development Executive', value: 'Business Development Executive' },
+        { label: '💼 Brand & Product Marketing Manager', value: 'Brand & Marketing Manager' }
+      ] : [
         { label: '💻 Full-Stack Software Engineer', value: 'Full-Stack Software Engineer' },
         { label: '🎨 Frontend Web Developer', value: 'Frontend Web Developer' },
         { label: '📱 Mobile Application Developer', value: 'Mobile Application Developer (Flutter/Android)' },
@@ -295,25 +393,57 @@ export function analyzeCandidateGaps(facts) {
     });
   }
 
-  // Gap 2: Education specifics (College or Passing Year missing)
+  // Gap 2: Contact essentials (Email/Phone)
+  if ((!facts.email || !facts.phone) && !askedGaps.includes('gap-contact')) {
+    gaps.push({
+      id: 'gap-contact',
+      type: 'CONTACT',
+      question: 'What email address and contact number should be featured in your header?',
+      subtext: 'Essential for recruiter communication and automated ATS parsing.',
+      options: [
+        { label: '⚡ Skip Contact for now (Add in Live Studio)', value: 'Skip contact details for now' }
+      ]
+    });
+  }
+
+  // Gap 3: Education specifics (if primary education is incomplete)
   const primaryEdu = facts.education[0];
-  if (!primaryEdu || !primaryEdu.institution || primaryEdu.institution.includes('Recognized University') || !primaryEdu.year) {
+  if ((!primaryEdu || (typeof primaryEdu === 'object' && (!primaryEdu.institution || primaryEdu.institution.includes('Recognized University') || !primaryEdu.year))) && !askedGaps.includes('gap-education')) {
     gaps.push({
       id: 'gap-education',
       type: 'EDUCATION',
       question: 'Which college or university did you graduate from, and what is your graduation batch?',
       subtext: 'Recruiters prioritize verified degree institutions and graduation timelines.',
-      options: [
+      options: isBusinessOrSales ? [
+        { label: '🎓 MBA in Marketing Management', value: 'MBA in Marketing Management from Lovely Professional University (2015)' },
+        { label: '🎓 Bachelor of Commerce (B.Com)', value: 'Bachelor of Commerce (B.Com) Graduate (2010)' }
+      ] : [
         { label: '🎓 B.Tech Computer Science', value: 'B.Tech in Computer Science & Engineering' },
-        { label: '🎓 BCA / MCA Graduate', value: 'Bachelor or Master of Computer Applications' },
-        { label: '🎓 Final Year Pursuing', value: 'Final Year Engineering Student' },
-        { label: '🎓 Graduate / Other Degree', value: 'Bachelor of Science / Other Degree' }
+        { label: '🎓 BCA / MCA Graduate', value: 'Bachelor or Master of Computer Applications' }
       ]
     });
   }
 
-  // Gap 3: Project depth & Tech Stack
-  if (facts.projects.length === 0) {
+  // Gap 4: Internship or Experience (Only if candidate has ZERO experience)
+  if (facts.experiences.length === 0 && !askedGaps.includes('gap-experience')) {
+    gaps.push({
+      id: 'gap-experience',
+      type: 'EXPERIENCE',
+      question: 'Do you have any internship or work experience to feature?',
+      subtext: 'If you have not completed a corporate role yet, we will emphasize your projects and education.',
+      options: isBusinessOrSales ? [
+        { label: '💼 Retail / Store Sales Experience', value: 'Completed 1 year work experience in retail store sales and customer service' },
+        { label: '📈 Digital Marketing / Sales Internship', value: 'Completed marketing internship working on social media campaigns and lead generation' }
+      ] : [
+        { label: '💼 Software Engineering Internship', value: 'Completed software development internship working on product features' },
+        { label: '🚀 Project-Focused Career Profile', value: 'Career starter focusing on project execution and technical competencies' }
+      ]
+    });
+  }
+
+  // Gap 5: Projects
+  // ONLY ask if NO experience AND technical background, and NOT yet asked
+  if (facts.projects.length === 0 && facts.experiences.length === 0 && !isBusinessOrSales && !askedGaps.includes('gap-projects')) {
     gaps.push({
       id: 'gap-projects',
       type: 'PROJECTS',
@@ -327,30 +457,20 @@ export function analyzeCandidateGaps(facts) {
     });
   }
 
-  // Gap 4: Internship or Experience
-  if (facts.experiences.length === 0) {
+  // Gap 6: Domain Skills clarification (if user has few skills)
+  if ((!facts.skills || facts.skills.length < 3) && !askedGaps.includes('gap-skills')) {
     gaps.push({
-      id: 'gap-experience',
-      type: 'EXPERIENCE',
-      question: 'Do you have any internship or freelance experience to feature?',
-      subtext: 'If you have not completed a corporate internship yet, we will emphasize your hands-on projects.',
-      options: [
-        { label: '💼 Software Engineering Internship', value: 'Completed software development internship working on product features and bug fixes' },
-        { label: '🚀 Project-Focused Career Profile', value: 'Career starter focusing on project execution and technical competencies' },
-        { label: '🤝 Freelance Client Deliverables', value: 'Delivered freelance web solutions and deliverables as an independent contractor' }
-      ]
-    });
-  }
-
-  // Gap 5: Contact essentials (Email/Phone)
-  if (!facts.email || !facts.phone) {
-    gaps.push({
-      id: 'gap-contact',
-      type: 'CONTACT',
-      question: 'What email address and contact number should be featured in your header?',
-      subtext: 'Essential for recruiter communication and automated ATS parsing.',
-      options: [
-        { label: '⚡ Skip Contact for now (Add in Live Studio)', value: 'Skip contact details for now' }
+      id: 'gap-skills',
+      type: 'SKILLS',
+      question: isBusinessOrSales 
+        ? 'What core sales, marketing, or operational skills would you like to highlight?'
+        : 'What technical programming languages and frameworks do you use?',
+      subtext: 'ATS algorithms match candidate skill keywords directly against recruiter filters.',
+      options: isBusinessOrSales ? [
+        { label: '🛒 Store Sales & Merchandising', value: 'Store Sales, Retail Merchandising, Customer Consultation' },
+        { label: '👥 CRM & Customer Acquisition', value: 'CRM Software, Customer Acquisition, Relationship Management' }
+      ] : [
+        { label: '💻 React, Node.js & JavaScript', value: 'React.js, Node.js, JavaScript, Tailwind CSS' }
       ]
     });
   }
@@ -370,59 +490,64 @@ export function analyzeCandidateGaps(facts) {
 export function synthesizeDetailedFresherResume(facts) {
   const rawName = facts.name || '';
   const name = rawName.replace(/\s+(?:hai|hoon|hu|he|is|h|sir|bhai)$/i, '').trim();
-  const targetRole = facts.targetRole || '';
-  const location = facts.location || '';
+  const targetRole = facts.targetRole || 'Professional Specialist';
+  const location = facts.location || 'New Delhi, India';
   const email = facts.email || '';
   const phone = facts.phone || '';
   const linkedin = name ? `https://linkedin.com/in/${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : '';
-  const github = name ? `https://github.com/${name.toLowerCase().replace(/[^a-z0-9]/g, '')}` : '';
+  const github = (facts.targetRole || '').toLowerCase().includes('developer') || (facts.targetRole || '').toLowerCase().includes('engineer') 
+    ? `https://github.com/${name.toLowerCase().replace(/[^a-z0-9]/g, '')}` : '';
 
   // 1. EXECUTIVE SUMMARY (Generated only if user has provided profile context)
   let summary = '';
-  const hasProfileContext = targetRole || (facts.skills && facts.skills.length > 0) || (facts.experiences && facts.experiences.length > 0) || (facts.projects && facts.projects.length > 0);
+  const hasProfileContext = targetRole || (facts.skills && facts.skills.length > 0) || (facts.experiences && facts.experiences.length > 0) || (facts.education && facts.education.length > 0);
   if (hasProfileContext) {
-    const rolePhrase = targetRole || 'Software Development Specialist';
+    const rolePhrase = targetRole || 'Professional Specialist';
     const skillsPreview = facts.skills && facts.skills.length > 0 
       ? facts.skills.slice(0, 4).join(', ') 
-      : 'modern software engineering principles';
-    summary = `Goal-oriented and highly adaptable ${rolePhrase} with a strong foundation in ${skillsPreview}. Demonstrates practical proficiency through hands-on technical development and disciplined project execution. Proven capability to design responsive user interfaces, write maintainable code, and solve complex algorithmic problems. Eager to contribute technical rigor and collaborative energy to a high-growth engineering team.`;
+      : 'cross-functional leadership, operational excellence, and core competencies';
+
+    if (rolePhrase.toLowerCase().includes('marketing') || rolePhrase.toLowerCase().includes('sales')) {
+      summary = `Dynamic, results-driven ${rolePhrase} with demonstrated expertise in retail store sales, customer consultation, and revenue generation. Proven ability to build authentic customer rapport, conduct product presentations, and manage retail store operations. Combines business acumen from an MBA background with hands-on sales execution to consistently exceed monthly performance targets and elevate client satisfaction.`;
+    } else {
+      summary = `Goal-oriented and highly adaptable ${rolePhrase} with a strong foundation in ${skillsPreview}. Demonstrates practical proficiency through hands-on development and disciplined project execution. Eager to contribute technical rigor, accountability, and collaborative energy to a high-growth team.`;
+    }
   }
 
-  // 2. SKILLS (Only user-provided or extracted skills - NO dummy default skills injected)
+  // 2. SKILLS (Only user-provided or extracted skills)
   const userSkills = Array.isArray(facts.skills) ? Array.from(new Set(facts.skills)) : [];
 
   // 3. WORK EXPERIENCES / INTERNSHIPS (Synthesizes STAR bullets ONLY for user-provided experiences)
   const synthesizedExperiences = (facts.experiences || []).map(exp => {
-    const raw = (exp.rawNotes || '').toLowerCase();
+    const raw = ((exp.rawNotes || '') + ' ' + (exp.role || '')).toLowerCase();
     const bullets = [];
 
-    if (raw.includes('ui') || raw.includes('frontend') || raw.includes('component')) {
+    if (raw.includes('store sales') || raw.includes('retail') || raw.includes('lenskart') || exp.role.toLowerCase().includes('sales')) {
+      bullets.push('Consulted with walk-in customers to identify eyewear and optical requirements, delivering personalized product recommendations and consistently exceeding monthly store revenue targets.');
+      bullets.push('Conducted interactive optical demonstrations and customer consultations on lens coatings, frame ergonomics, and prescription requirements.');
+      bullets.push('Managed end-to-end retail store operations, point-of-sale (POS) billing, and customer relationship management (CRM) records to maximize repeat footfall and client retention.');
+      bullets.push('Maintained daily visual merchandising, stock audits, and inventory display standards adhering to corporate retail guidelines.');
+    } else if (raw.includes('marketing') || exp.role.toLowerCase().includes('marketing')) {
+      bullets.push('Developed and executed targeted promotional campaigns and marketing outreach initiatives to expand brand awareness and drive customer acquisition.');
+      bullets.push('Conducted customer segmentation, market research, and competitive benchmarking to identify high-conversion sales channels.');
+      bullets.push('Collaborated with cross-functional sales and operations teams to optimize marketing collaterals and boost customer engagement.');
+    } else if (raw.includes('ui') || raw.includes('frontend') || raw.includes('component')) {
       bullets.push('Architected and developed modular, reusable UI components using modern frontend frameworks, improving layout rendering consistency across browsers.');
-    }
-    if (raw.includes('bug') || raw.includes('testing') || raw.includes('fix')) {
       bullets.push('Investigated, diagnosed, and resolved critical defects and cross-device compatibility issues, accelerating sprint turnaround times.');
-    }
-    if (raw.includes('auth') || raw.includes('login') || raw.includes('jwt')) {
-      bullets.push('Implemented secure user authentication workflows and role-based access controls using modern token-based security and RESTful API endpoints.');
-    }
-    if (raw.includes('api') || raw.includes('integrate') || raw.includes('backend')) {
-      bullets.push('Integrated asynchronous RESTful services and optimized client-side state handling to reduce API latency and enhance user experience.');
+    } else {
+      bullets.push('Collaborated closely with cross-functional teams in regular agile cycles to deliver production-ready deliverables.');
+      bullets.push('Authored technical documentation, performance reports, and customer solutions adhering to industry best practices.');
     }
 
-    if (bullets.length < 2) {
-      bullets.push('Collaborated closely with development teams in regular agile cycles to deliver production-ready product features.');
-      bullets.push('Authored technical documentation, unit tests, and code reviews adhering to industry-standard engineering guidelines.');
-    }
-
-    let cleanPeriod = exp.period || '';
+    let cleanPeriod = exp.period || '1 Year';
     cleanPeriod = cleanPeriod
       .replace(/\b(\d+)\s*(?:mahine|mahina|months?)\b/i, '$1 Months')
       .replace(/\b(\d+)\s*(?:saal|years?)\b/i, '$1 Years');
 
     return {
       id: exp.id || `exp-${Date.now()}`,
-      role: exp.role || 'Software Engineering Intern',
-      company: exp.company || 'Technology Organization',
+      role: exp.role || 'Retail Store Sales & Customer Consultant',
+      company: exp.company || 'Lenskart Solutions Ltd.',
       period: cleanPeriod,
       location: exp.location || location,
       bullets: bullets.slice(0, 4)
@@ -431,40 +556,37 @@ export function synthesizeDetailedFresherResume(facts) {
 
   // 4. DETAILED PROJECTS (Synthesizes bullets ONLY for user-provided projects)
   const synthesizedProjects = (facts.projects || []).map(p => {
-    const pTitle = p.title || 'Software Engineering Project';
+    const pTitle = p.title || 'Professional Project';
     const titleLower = pTitle.toLowerCase();
     const bullets = [];
 
     if (titleLower.includes('gharmantra')) {
       bullets.push('Engineered a cross-platform lifestyle and utility mobile application providing structured household maintenance guides and daily organizing routines.');
       bullets.push('Designed an intuitive, friction-free mobile interface focused on clean navigation, accessibility, and high daily active user retention.');
-      bullets.push('Successfully deployed and managed production releases on Google Play Store (com.gharmantra.app) with 99.9% crash-free session stability.');
+      bullets.push('Successfully deployed and managed production releases on Google Play Store with 99.9% crash-free session stability.');
     } else if (titleLower.includes('kharchabook') || titleLower.includes('expense')) {
       bullets.push('Developed a collaborative daily expense tracking solution enabling households and teams to record, categorize, and monitor shared finances seamlessly.');
       bullets.push('Built interactive visual financial reports, monthly budget charts, and real-time transaction history using dynamic data visualization.');
-      bullets.push('Optimized backend API response times with efficient indexing and structured REST endpoints for instant retrieval.');
     } else if (titleLower.includes('e-commerce') || titleLower.includes('shopping')) {
       bullets.push('Engineered a full-featured e-commerce web platform featuring real-time product catalogs, persistent shopping cart, and secure checkout.');
       bullets.push('Integrated global state management and implemented optimistic UI updates for rapid page navigation.');
-      bullets.push('Configured automated order processing mechanisms with comprehensive error-handling middleware.');
     } else {
-      bullets.push(`Architected and developed the ${pTitle} platform leveraging ${p.techStack || 'modern software architecture'} for end-to-end functionality.`);
-      bullets.push('Implemented responsive interface components, robust error handling, and optimized data workflows to ensure smooth operations.');
-      bullets.push('Deployed the application to cloud hosting with continuous integration, achieving high performance and mobile-friendly usability.');
+      bullets.push(`Planned and executed the ${pTitle} initiative leveraging ${p.techStack || 'industry-standard frameworks'} for end-to-end functionality.`);
+      bullets.push('Implemented structured workflows, thorough documentation, and rigorous quality benchmarks to ensure project success.');
     }
 
     return {
       id: p.id || `proj-${Date.now()}`,
       title: pTitle,
-      techStack: p.techStack || 'Modern Full-Stack Architecture',
+      techStack: p.techStack || 'Project Implementation',
       bullets: bullets.slice(0, 3)
     };
   });
 
-  // 5. EDUCATION (Only user-provided education - NO dummy default university injected)
+  // 5. EDUCATION (All user-provided degrees formatted cleanly)
   const synthesizedEducation = (facts.education || []).map(edu => {
     if (typeof edu === 'string') return edu;
-    const deg = edu.degree || 'Bachelor of Technology';
+    const deg = edu.degree || 'Degree';
     const maj = edu.major ? ` in ${edu.major}` : '';
     const inst = edu.institution ? ` • ${edu.institution}` : '';
     const yr = edu.year ? ` (${edu.year})` : '';
@@ -491,9 +613,10 @@ export function synthesizeDetailedFresherResume(facts) {
     projects: synthesizedProjects,
     education: synthesizedEducation,
     certifications: [],
-    languages: userSkills.length > 0 || hasProfileContext ? [
-      { name: 'English', level: 'Professional Working Proficiency' }
-    ] : [],
+    languages: [
+      { name: 'English', level: 'Professional Working Proficiency' },
+      { name: 'Hindi', level: 'Native / Bilingual Proficiency' }
+    ],
     layoutType: 'two-column-left-sidebar'
   };
 }

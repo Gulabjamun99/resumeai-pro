@@ -21,6 +21,7 @@ import { parseUserIntentToChangePlan, executeChangePlan, verifyRequestedChange, 
 import { runCompleteValidationSuite } from './services/validationSuite';
 import { exportResumeToPdf, printResume, sanitizeCandidateFilename } from './utils/pdfExporter';
 import { exportResumeToDocx } from './utils/docxExporter';
+import { computeResumeDiff } from './utils/changeDiffDetector';
 import InteractiveLiveStudio from './components/InteractiveLiveStudio';
 import FreshCvBuilder from './components/FreshCvBuilder';
 import JdOptimizer from './components/JdOptimizer';
@@ -330,10 +331,13 @@ export default function App() {
   const handleApplyLiveRefinement = async (instruction) => {
     if (!currentCvState) return { success: false };
 
+    const previousSnapshot = JSON.parse(JSON.stringify(currentCvState));
     const plan = parseUserIntentToChangePlan(instruction, currentCvState, sourceResume);
     const { proposedCv } = executeChangePlan(currentCvState, plan);
     const locked = enforceContentLocks(sourceResume || currentCvState, currentCvState, proposedCv, plan);
     const finalCv = locked || proposedCv || currentCvState;
+
+    const stepDiff = computeResumeDiff(previousSnapshot, finalCv);
 
     const nextVer = versionHistory.length + 1;
     const summaryText = plan?.planSummary || instruction;
@@ -354,7 +358,10 @@ export default function App() {
     return { 
       success: true, 
       section: plan?.operations?.[0]?.targetSection || 'general',
-      planSummary: plan?.planSummary 
+      planSummary: plan?.planSummary,
+      stepDiff,
+      previousCv: previousSnapshot,
+      updatedCv: finalCv
     };
   };
 

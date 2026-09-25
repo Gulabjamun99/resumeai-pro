@@ -99,6 +99,10 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
     .filter(c => c.field === 'experiences.deleted')
     .map(c => (c.value || '').toLowerCase());
 
+  const replacedOrUpdatedExperiences = (changePlan?.authorizedChanges || [])
+    .filter(c => c.field === 'experiences.replaced' || c.field === 'experiences.updated')
+    .map(c => (c.value || '').toLowerCase());
+
   const deletedBullets = (changePlan?.authorizedChanges || [])
     .filter(c => c.field === 'experiences.deleted_bullet' || c.field === 'experiences.bullet.deleted')
     .map(c => (c.value || '').toLowerCase().trim());
@@ -108,6 +112,16 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
       const sourceCompLower = (sourceExp.company || '').toLowerCase();
       // Skip if this company was explicitly deleted by the user in this turn
       if (deletedCompanies.some(d => sourceCompLower.includes(d) || d.includes(sourceCompLower))) {
+        return;
+      }
+
+      // Skip if this experience was explicitly replaced or updated by the user in this turn
+      const isExplicitlyReplaced = replacedOrUpdatedExperiences.some(r => 
+        (sourceExp.id && sourceExp.id.toLowerCase() === r) ||
+        (sourceExp.role && sourceExp.role.toLowerCase().includes(r)) ||
+        (sourceCompLower && sourceCompLower.includes(r))
+      );
+      if (isExplicitlyReplaced) {
         return;
       }
 
@@ -124,7 +138,7 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
         (sourceExp.id && e.id === sourceExp.id) || 
         (e.role === sourceExp.role && e.company === sourceExp.company) ||
         (sourceExp.company && e.company === sourceExp.company)
-      ) || (output.experiences.length === master.experiences.length ? output.experiences[expIdx] : null);
+      ) || (output.experiences.length === master.experiences.length && !output.experiences[expIdx]?._isNewUserEntry ? output.experiences[expIdx] : null);
 
       const baseExp = base.experiences?.find(e => 
         (sourceExp.id && e.id === sourceExp.id) || 
@@ -134,13 +148,16 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
 
       if (targetExp) {
         // Enforce exact company, dates, and locations from master unless authorized
-        if (!authorizedFields.has(`experiences[${expIdx}].company`)) {
+        if (!authorizedFields.has(`experiences[${expIdx}].company`) && !authorizedFields.has('experiences.company')) {
           targetExp.company = sourceExp.company;
         }
-        if (!authorizedFields.has(`experiences[${expIdx}].period`)) {
+        if (!authorizedFields.has(`experiences[${expIdx}].role`) && !authorizedFields.has('experiences.role')) {
+          targetExp.role = sourceExp.role;
+        }
+        if (!authorizedFields.has(`experiences[${expIdx}].period`) && !authorizedFields.has('experiences.period')) {
           targetExp.period = sourceExp.period;
         }
-        if (!authorizedFields.has(`experiences[${expIdx}].location`)) {
+        if (!authorizedFields.has(`experiences[${expIdx}].location`) && !authorizedFields.has('experiences.location')) {
           targetExp.location = sourceExp.location;
         }
 
