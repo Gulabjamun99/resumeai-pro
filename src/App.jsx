@@ -346,6 +346,16 @@ export default function App() {
   const handleApplyLiveRefinement = async (instruction) => {
     if (!currentCvState) return { success: false };
 
+    // Support 1-page and 2-page density adjustments
+    const lower = (instruction || '').toLowerCase();
+    const isOnePage = /(?:1\s*page|one\s*page|single\s*page|ek\s*page|1-page)\b/i.test(lower);
+    const isTwoPage = /(?:2\s*page|two\s*page|do\s*page|2-page)\b/i.test(lower);
+    if (isOnePage) {
+      setDesignTheme(prev => ({ ...prev, density: 'compact' }));
+    } else if (isTwoPage) {
+      setDesignTheme(prev => ({ ...prev, density: 'normal' }));
+    }
+
     const previousSnapshot = JSON.parse(JSON.stringify(currentCvState));
     const plan = parseUserIntentToChangePlan(instruction, currentCvState, sourceResume);
     const { proposedCv } = executeChangePlan(currentCvState, plan);

@@ -190,8 +190,16 @@ export default function InteractiveLiveStudio({
             parts.push('');
           }
 
-          if (stepDiff.addedSkills?.length > 0) {
-            parts.push(`🔹 **Naye Skills Jode Gaye:** ${stepDiff.addedSkills.join(', ')}\n`);
+          if (stepDiff.removedEducation?.length > 0) {
+            parts.push(`🔹 **Education / Qualifications Removed (${stepDiff.removedEducation.length}):**`);
+            stepDiff.removedEducation.forEach(e => {
+              parts.push(`• ❌ Removed: "${e}"`);
+            });
+            parts.push('');
+          }
+
+          if (stepDiff.removedSkills?.length > 0) {
+            parts.push(`🔹 **Skills Removed:** ${stepDiff.removedSkills.join(', ')}\n`);
           }
 
           if (stepDiff.contactChanged && stepDiff.contactDiff) {

@@ -95,12 +95,34 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
     }
   };
 
-  const searchExps = targetExp ? [targetExp] : (Array.isArray(experiences) ? experiences : []);
+  // Universal Pass 0: Direct substring check across ALL experiences and education
+  const allExps = Array.isArray(experiences) ? experiences : [];
+  allExps.forEach((exp, expIdx) => {
+    (exp.bullets || []).forEach((b, bulletIdx) => {
+      const bLower = (b || '').toLowerCase().trim();
+      if (bLower.length >= 6 && pLower.includes(bLower)) {
+        addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
+      }
+    });
+  });
 
-  // Pass 1: Direct bullet substring check
+  if (Array.isArray(education)) {
+    education.forEach((edu, eduIdx) => {
+      const eduObj = typeof edu === 'object' && edu !== null ? edu : null;
+      const eStr = eduObj ? (eduObj.degree || eduObj.title || eduObj.name || eduObj.institution || '') : String(edu || '');
+      const eLower = eStr.toLowerCase().trim();
+      if (eLower.length >= 6 && pLower.includes(eLower)) {
+        addMatch({ section: 'education', eduIdx, bulletText: eStr });
+      }
+    });
+  }
+
+  const searchExps = targetExp ? [targetExp] : allExps;
+
+  // Pass 1: Direct bullet substring check on scoped experience if still not matched
   searchExps.forEach((exp, expIdx) => {
     (exp.bullets || []).forEach((b, bulletIdx) => {
-      const bLower = b.toLowerCase().trim();
+      const bLower = (b || '').toLowerCase().trim();
       if (bLower.length >= 6 && pLower.includes(bLower)) {
         addMatch({ section: 'experience', expIdx, bulletIdx, bulletText: b, targetCompany: exp.company || exp.role });
       }
@@ -260,6 +282,30 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     /(?:likh|likho|likhe|likhein)[a-z]*\b/.test(lower) ||
     /(?:shamil)[a-z]*\b/.test(lower)
   );
+
+  // 0.0 ONE-PAGE / TWO-PAGE INTENT CONVERSION
+  const isOnePageIntent = /(?:1\s*page|one\s*page|single\s*page|ek\s*page|1-page)\b/i.test(lower) && /(?:convert|bana|kar|fit|chahiye|me|into|layout|format|karo)/i.test(lower);
+  const isTwoPageIntent = /(?:2\s*page|two\s*page|do\s*page|2-page)\b/i.test(lower) && /(?:convert|bana|kar|chahiye|me|into|layout|format|karo)/i.test(lower);
+
+  if (isOnePageIntent) {
+    operations.push({
+      id: `op-1page-fit-${Date.now()}`,
+      operation: 'ONE_PAGE_FIT',
+      section: 'layout',
+      description: 'Optimize resume for strict 1-Page High-Density Executive Layout'
+    });
+    targetSections.add('layout');
+    summaries.push('Converted to 1-Page Executive Format');
+  } else if (isTwoPageIntent) {
+    operations.push({
+      id: `op-2page-fit-${Date.now()}`,
+      operation: 'TWO_PAGE_FIT',
+      section: 'layout',
+      description: 'Expand resume for 2-Page Comprehensive Executive Layout'
+    });
+    targetSections.add('layout');
+    summaries.push('Expanded to 2-Page Comprehensive Format');
+  }
 
   // 0. CANDIDATE NAME DETECTION
   const nameMatch = rawText.match(/(?:change\s*name\s*to|update\s*name\s*to|set\s*name\s*to)\s*[:"']?([A-Za-z\s.'-]{2,40})/i) ||
@@ -2342,6 +2388,36 @@ export function executeChangePlan(currentCvState, changePlan) {
             requestedFacts.push(op.description || `Added education: "${op.value}"`);
           }
         }
+        break;
+      }
+
+      case 'ONE_PAGE_FIT': {
+        proposedCv.pagePreference = '1-page';
+        if (proposedCv.header?.summary) {
+          const sentences = proposedCv.header.summary.split(/(?<=[.!?])\s+/);
+          if (sentences.length > 2) {
+            proposedCv.header.summary = sentences.slice(0, 2).join(' ');
+          }
+        }
+        if (Array.isArray(proposedCv.experiences)) {
+          proposedCv.experiences.forEach(e => {
+            if (Array.isArray(e.bullets) && e.bullets.length > 3) {
+              e.bullets = e.bullets.slice(0, 3);
+            }
+          });
+        }
+        if (Array.isArray(proposedCv.skills) && proposedCv.skills.length > 14) {
+          proposedCv.skills = proposedCv.skills.slice(0, 14);
+        }
+        appliedOperations.push(op);
+        requestedFacts.push('Optimized content structure for 1-Page fit');
+        break;
+      }
+
+      case 'TWO_PAGE_FIT': {
+        proposedCv.pagePreference = '2-page';
+        appliedOperations.push(op);
+        requestedFacts.push('Configured layout for 2-Page comprehensive depth');
         break;
       }
 

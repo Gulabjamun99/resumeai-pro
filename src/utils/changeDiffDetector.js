@@ -92,7 +92,10 @@ export function computeResumeDiff(sourceResume, currentCvState) {
         if (roleChanged) changes.push(`Role changed from "${match.role}" to "${ce.role}"`);
         if (periodChanged) changes.push(`Duration updated from "${match.period}" to "${ce.period}"`);
         if (bulletsCountDiff > 0) changes.push(`${bulletsCountDiff} new bullet point(s) added`);
+        else if (bulletsCountDiff < 0) changes.push(`${Math.abs(bulletsCountDiff)} bullet point(s) removed`);
         else if (bulletsModified) changes.push('Responsibilities / bullet points updated');
+
+        const deletedBullets = sourceBullets.filter(sb => !currentBullets.some(cb => norm(cb) === norm(sb)));
 
         modifiedCompanies.push({
           company: ce.company,
@@ -103,6 +106,7 @@ export function computeResumeDiff(sourceResume, currentCvState) {
           bulletsCountBefore: sourceBullets.length,
           bulletsCountAfter: currentBullets.length,
           newBullets: currentBullets.filter(cb => !sourceBullets.some(sb => norm(sb) === norm(cb))),
+          deletedBullets,
           changesSummary: changes.join('; ')
         });
       }
@@ -167,10 +171,11 @@ export function computeResumeDiff(sourceResume, currentCvState) {
     contactChanged = true;
   }
 
-  // 8. Education Additions
+  // 8. Education Additions & Removals
   const sEdu = (sourceResume.education || []).map(e => typeof e === 'string' ? e : e.degree || '');
   const cEdu = (currentCvState.education || []).map(e => typeof e === 'string' ? e : e.degree || '');
   const addedEducation = cEdu.filter(e => !sEdu.some(se => norm(se) === norm(e)));
+  const removedEducation = sEdu.filter(e => !cEdu.some(ce => norm(ce) === norm(e)));
 
   const totalChangesCount = 
     deletedCompanies.length + 
@@ -181,6 +186,7 @@ export function computeResumeDiff(sourceResume, currentCvState) {
     addedSkills.length + 
     removedSkills.length + 
     addedEducation.length +
+    removedEducation.length +
     (summaryChanged ? 1 : 0) + 
     (headlineChanged ? 1 : 0) + 
     (contactChanged ? 1 : 0);
@@ -195,6 +201,7 @@ export function computeResumeDiff(sourceResume, currentCvState) {
     addedSkills,
     removedSkills,
     addedEducation,
+    removedEducation,
     summaryChanged,
     summaryBefore,
     summaryAfter,
