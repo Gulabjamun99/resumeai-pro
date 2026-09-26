@@ -62,6 +62,38 @@ export {
 };
 
 /**
+ * Comprehensive Delete Intent Detection across Hindi, Hinglish, and English
+ */
+export function checkHasDeleteWord(text) {
+  if (!text || typeof text !== 'string') return false;
+  const lower = text.toLowerCase();
+  return (
+    lower.includes('delete') || lower.includes('remove') || lower.includes('drop') || lower.includes('omit') ||
+    /(?:hata|hta|htaa)[a-z]*\b/.test(lower) ||
+    /\bhta\b/.test(lower) ||
+    /\bhtaye\b/.test(lower) ||
+    /\bhtado\b/.test(lower) ||
+    /\bhtade\b/.test(lower) ||
+    /\bhtayein\b/.test(lower) ||
+    /\bhtao\b/.test(lower) ||
+    /\bhataye\b/.test(lower) ||
+    /\bhatayein\b/.test(lower) ||
+    /\bhataiye\b/.test(lower) ||
+    /\bhatado\b/.test(lower) ||
+    /\bhatade\b/.test(lower) ||
+    /(?:uda|ura)[a-z]*\s*(?:do|de|o)?/.test(lower) ||
+    /(?:nikal)[a-z]*\b/.test(lower) ||
+    /(?:mat\s+(?:rakh|rakho|rakhna|rakhein|daal|daalo|daalna|karo|karna))/.test(lower) ||
+    /(?:nahi\s+(?:chahiye|rakhna|hona|daalna))/.test(lower) ||
+    /(?:chahiye\s+nahi)/.test(lower) ||
+    /(?:khatam\s+(?:karo|kar|kardo))/.test(lower) ||
+    /(?:chhod\s+(?:do|de|na))/.test(lower) ||
+    /[=_-]?(?:hata|hta)[a-z]*/.test(lower) ||
+    lower.includes('del ') || lower.includes('del-') || lower.includes('del_')
+  );
+}
+
+/**
  * Synthesizes a high-impact, professional executive summary from verified CV facts
  */
 export function synthesizeExecutiveSummary(cv) {
@@ -113,10 +145,18 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
   const matchedBulletsSet = new Set();
 
   const addMatch = (match) => {
-    if (!matchedBulletsSet.has(match.bulletText)) {
-      matchedBulletsSet.add(match.bulletText);
+    const key = `${match.section || 'exp'}:${match.bulletText}:${match.targetCompany || ''}`;
+    if (!matchedBulletsSet.has(key)) {
+      matchedBulletsSet.add(key);
       matches.push(match);
     }
+  };
+
+  const isMatched = (section, text) => {
+    for (const k of matchedBulletsSet) {
+      if (k.startsWith(`${section}:`) && k.includes(text)) return true;
+    }
+    return false;
   };
 
   // Universal Pass 0: Direct substring check across ALL experiences and education
@@ -191,7 +231,7 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
 
     searchExps.forEach((exp, expIdx) => {
       (exp.bullets || []).forEach((b, bulletIdx) => {
-        if (matchedBulletsSet.has(b)) return;
+        if (isMatched('experience', b)) return;
         const bLower = b.toLowerCase().trim();
 
         for (const seg of segments) {
@@ -220,7 +260,7 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
       education.forEach((edu, eduIdx) => {
         const eduObj = typeof edu === 'object' && edu !== null ? edu : null;
         const eStr = eduObj ? (eduObj.degree || eduObj.title || eduObj.name || eduObj.institution || '') : String(edu || '');
-        if (!eStr || matchedBulletsSet.has(eStr)) return;
+        if (!eStr || isMatched('education', eStr)) return;
         const eLower = eStr.toLowerCase().trim();
         if (pLower.includes(eLower)) {
           addMatch({ section: 'education', eduIdx, bulletText: eStr });
@@ -283,19 +323,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     };
   }
 
-  const hasDeleteWord = (
-    lower.includes('delete') || lower.includes('remove') || lower.includes('drop') || lower.includes('omit') ||
-    /(?:hata|hta|htaa)[a-z]*\b/.test(lower) ||
-    /(?:uda|ura)[a-z]*\s*(?:do|de|o)?/.test(lower) ||
-    /(?:nikal)[a-z]*\b/.test(lower) ||
-    /(?:mat\s+(?:rakh|rakho|rakhna|rakhein|daal|daalo|daalna|karo|karna))/.test(lower) ||
-    /(?:nahi\s+(?:chahiye|rakhna|hona|daalna))/.test(lower) ||
-    /(?:chahiye\s+nahi)/.test(lower) ||
-    /(?:khatam\s+(?:karo|kar|kardo))/.test(lower) ||
-    /(?:chhod\s+(?:do|de|na))/.test(lower) ||
-    /[=_-]?(?:hata|hta)[a-z]*/.test(lower) ||
-    lower.includes('del ') || lower.includes('del-') || lower.includes('del_')
-  );
+  const hasDeleteWord = checkHasDeleteWord(rawText);
   const hasBulletWord = lower.includes('point') || lower.includes('bullet') || lower.includes('pointer') || lower.includes('pointers') ||
                         lower.includes('statement') ||
                         (/\b(?:first|last|ye|yeh|woh|this)?\s*lines?\b/i.test(lower) && !/\b\d+\s*lines?\b/i.test(lower));
@@ -1725,8 +1753,7 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
 
   // 4. HOLISTIC MULTI-BULLET / MULTI-DEGREE DELETION CHECK:
   // If the prompt contains a deletion/removal directive AND matches bullets across the whole text,
-  // do NOT break multi-line bullet lists into isolated chunks where earlier lines lose their deletion action!
-  const hasDeleteWord = /(?:delete|remove|hata|hatao|hataye|hatayein|hataiye|hatado|hatade|hta\s*de|hta\s*do|htao|htaye|htado|htade|nikal|drop|chhod|omit|uda|ura|mat\s*rakho|nahi\s*chahiye)/i.test(rawText);
+  const hasDeleteWord = checkHasDeleteWord(rawText);
   if (hasDeleteWord) {
     const cvExps = currentCvState?.experiences || currentCvState?.experience || sourceMaster?.experiences || sourceMaster?.experience || [];
     const cvSum = currentCvState?.header?.summary || currentCvState?.summary || sourceMaster?.header?.summary || sourceMaster?.summary || '';
@@ -2351,6 +2378,18 @@ export function executeChangePlan(currentCvState, changePlan) {
               }
             });
           }
+          // Dual Protection: If targetBullet is an academic degree or matches education, also remove from education
+          const isAcademicDegree = /(?:mba|bba|btech|mtech|bachelor|master|phd|diploma|university|college|school)\b/i.test(targetText);
+          if (Array.isArray(proposedCv.education) && isAcademicDegree) {
+            const initialEduCount = proposedCv.education.length;
+            proposedCv.education = proposedCv.education.filter(e => {
+              const eLow = (typeof e === 'string' ? e : e?.degree || '').toLowerCase().trim();
+              return !(eLow.includes(targetText) || targetText.includes(eLow));
+            });
+            if (proposedCv.education.length < initialEduCount) {
+              deleted = true;
+            }
+          }
           if (proposedCv.header?.summary && (!op.targetCompany || op.section === 'summary')) {
             const sumLow = proposedCv.header.summary.toLowerCase();
             if (sumLow.includes(targetText)) {
@@ -2476,6 +2515,24 @@ export function executeChangePlan(currentCvState, changePlan) {
             appliedOperations.push(op);
             requestedFacts.push(op.description || `Removed education: "${op.value}"`);
           }
+        }
+        // Dual Protection: Also remove matching degree bullets if misfiled in any experience bullets
+        if (op.value && Array.isArray(proposedCv.experiences)) {
+          const valLow = op.value.toLowerCase().trim();
+          const valTokens = valLow.split(/\s+/).filter(t => t.length >= 3 && !['from', 'in', 'and', 'with', 'the', 'dono', 'hataye', 'hata', 'karo'].includes(t));
+          proposedCv.experiences.forEach(exp => {
+            if (Array.isArray(exp.bullets)) {
+              exp.bullets = exp.bullets.filter(b => {
+                const bLow = b.toLowerCase().trim();
+                if (bLow === valLow || bLow.includes(valLow) || valLow.includes(bLow)) return false;
+                if (valTokens.length >= 2) {
+                  const matchedTokens = valTokens.filter(t => bLow.includes(t));
+                  if (matchedTokens.length === valTokens.length || (valTokens.length >= 3 && matchedTokens.length / valTokens.length >= 0.6)) return false;
+                }
+                return true;
+              });
+            }
+          });
         }
         break;
       }
