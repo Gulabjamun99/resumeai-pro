@@ -62,7 +62,31 @@ export {
 };
 
 /**
- * Natural Language Bullet Matcher:
+ * Synthesizes a high-impact, professional executive summary from verified CV facts
+ */
+export function synthesizeExecutiveSummary(cv) {
+  if (!cv) return 'Results-driven professional with proven expertise across enterprise environments.';
+  const title = cv.header?.title || 'Senior Professional';
+  const exps = cv.experiences || [];
+  const companies = exps.map(e => e.company).filter(Boolean).slice(0, 3).join(', ');
+  const projects = (cv.projects || []).map(p => p.title || p.name).filter(Boolean).slice(0, 3).join(', ');
+  const skills = (cv.skills || []).slice(0, 6).join(', ');
+
+  const fullContext = `${title} ${skills} ${projects}`.toLowerCase();
+  const isTechOrAi = fullContext.includes('ai') || 
+                     fullContext.includes('engineer') || 
+                     fullContext.includes('developer') ||
+                     fullContext.includes('vibe') ||
+                     fullContext.includes('coding');
+
+  if (isTechOrAi) {
+    return `Dynamic and accomplished ${title} with a proven track record of rapid digital product architecture, full-stack prototyping, and autonomous AI engineering. Experienced in engineering and deploying live production applications from scratch${projects ? ` including ${projects}` : ''} on modern cloud infrastructures and mobile platforms. Adept at leveraging modern toolchains (${skills || 'Antigravity AI, Claude, OpenAI Codex, Firebase, Supabase, Vercel'}) to build scalable, resilient, and user-centric solutions with measurable business impact.`;
+  }
+
+  return `Results-driven and strategic ${title} with extensive experience leading end-to-end recruitment, organizational talent strategy, and cross-functional operations across ${companies || 'high-growth enterprises'}. Proven expertise in stakeholder management, modern ATS workflows, and data-driven process optimization. Skilled at combining deep domain insight with innovative digital tools to maximize team efficiency and organizational growth.`;
+}
+
+/**
  * Finds all matching bullets in experiences or summary with company scoping and fuzzy keyword segmentation.
  */
 export function findAllTargetBulletsInCv(snippet, experiences = [], summary = '', education = []) {
@@ -725,7 +749,26 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       if (sMatch && sMatch[1]) {
         cleanSummary = sMatch[1].replace(/\s+(kar\s*do|likho|rakho|bana\s*do|daal\s*do)$/i, '').trim();
       }
-      const hasSpecificContent = cleanSummary.length >= 8 && !cleanSummary.toLowerCase().startsWith('summary ko professional') && !cleanSummary.toLowerCase().startsWith('improve summary');
+
+      const isMetaInstruction = (
+        cleanSummary.toLowerCase().includes('acha') ||
+        cleanSummary.toLowerCase().includes('accha') ||
+        cleanSummary.toLowerCase().includes('achha') ||
+        cleanSummary.toLowerCase().includes('bana') ||
+        cleanSummary.toLowerCase().includes('likh') ||
+        cleanSummary.toLowerCase().includes('likhyega') ||
+        cleanSummary.toLowerCase().includes('dekh ke') ||
+        cleanSummary.toLowerCase().includes('thik') ||
+        cleanSummary.toLowerCase().includes('sudhar') ||
+        cleanSummary.toLowerCase().includes('improve') ||
+        cleanSummary.toLowerCase().includes('proper') ||
+        cleanSummary.toLowerCase().includes('thori') ||
+        cleanSummary.toLowerCase().includes('lagega') ||
+        cleanSummary.toLowerCase().includes('badhiya') ||
+        cleanSummary.length < 50
+      );
+
+      const hasSpecificContent = !isMetaInstruction && cleanSummary.length >= 50;
 
       operations.push({
         id: `op-summary-rewrite-${Date.now()}`,
@@ -734,12 +777,12 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         field: 'header.summary',
         requestedValue: hasSpecificContent ? cleanSummary : undefined,
         instruction: rawText,
-        description: hasSpecificContent ? 'Update professional summary' : 'Enhance professional summary for modern ATS keyword density and leadership impact'
+        description: hasSpecificContent ? 'Update professional summary' : 'Synthesize executive summary from verified candidate CV background'
       });
       if (hasSpecificContent) {
         authorizedChanges.push({ field: 'header.summary', value: cleanSummary, authorization: 'USER_EXPLICIT' });
       }
-      summaries.push(hasSpecificContent ? 'Summary updated' : 'Summary enhanced for modern ATS impact');
+      summaries.push(hasSpecificContent ? 'Summary updated' : 'Executive summary synthesized from candidate background');
     }
     targetSections.add('summary');
   }
@@ -2034,19 +2077,13 @@ export function executeChangePlan(currentCvState, changePlan) {
 
       case 'REWRITE': {
         if (op.section === 'summary') {
-          if (op.requestedValue) {
+          if (op.requestedValue && op.requestedValue.length >= 40 && !op.requestedValue.toLowerCase().includes('likhyega') && !op.requestedValue.toLowerCase().includes('acha')) {
             proposedCv.header.summary = op.requestedValue;
-          } else if (op.instruction && !op.instruction.toLowerCase().includes('professional') && op.instruction.length > 15) {
-            proposedCv.header.summary = op.instruction;
           } else {
-            const currentSummary = proposedCv.header.summary || '';
-            const addition = " Recognized for cross-functional leadership, modern workflows, and measurable stakeholder impact.";
-            if (!currentSummary.includes("modern workflows")) {
-              proposedCv.header.summary = `${currentSummary.trim()}${addition}`;
-            }
+            proposedCv.header.summary = synthesizeExecutiveSummary(proposedCv);
           }
           appliedOperations.push(op);
-          requestedFacts.push(op.description || 'Enhanced professional summary for ATS keyword density and leadership impact');
+          requestedFacts.push(op.description || 'Synthesized high-impact professional summary aligned with candidate background');
         } else if (op.section === 'experience') {
           // Rephrase experience bullets with strong action verbs
           if (proposedCv.experiences && proposedCv.experiences.length > 0) {

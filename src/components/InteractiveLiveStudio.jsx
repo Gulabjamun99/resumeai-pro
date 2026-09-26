@@ -220,6 +220,20 @@ export default function InteractiveLiveStudio({
           console.warn("Gemini chat explanation fallback:", gemErr.message);
         }
 
+        // If user asked to improve/rewrite summary and Gemini generated a draft, sync it directly to the canvas!
+        if (geminiExplanation && (trimmed.toLowerCase().includes('summary') || trimmed.toLowerCase().includes('profile'))) {
+          const quotedMatch = geminiExplanation.match(/(?:summary|profile\s*summary)[\s\S]*?["“]([^"”]{60,600})["”]/i) ||
+                              geminiExplanation.match(/["“]([A-Z][^"”]{70,600})["”]/);
+          if (quotedMatch && quotedMatch[1] && onApplyRefinement) {
+            const extractedSummary = quotedMatch[1].trim();
+            if (!extractedSummary.toLowerCase().includes('acha banaye') && !extractedSummary.toLowerCase().includes('likhyega')) {
+              try {
+                await onApplyRefinement(`summary: ${extractedSummary}`);
+              } catch (_) {}
+            }
+          }
+        }
+
         const finalText = geminiExplanation 
           ? `${geminiExplanation}\n\n---\n${aiResponseText}` 
           : aiResponseText;
