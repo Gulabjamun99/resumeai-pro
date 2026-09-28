@@ -125,18 +125,50 @@ export function synthesizeExecutiveSummary(cv) {
   const projects = (cv.projects || []).map(p => p.title || p.name).filter(Boolean).slice(0, 3).join(', ');
   const skills = (cv.skills || []).slice(0, 6).join(', ');
 
-  const fullContext = `${title} ${skills} ${projects}`.toLowerCase();
-  const isTechOrAi = fullContext.includes('ai') || 
-                     fullContext.includes('engineer') || 
-                     fullContext.includes('developer') ||
-                     fullContext.includes('vibe') ||
-                     fullContext.includes('coding');
+  const fullContext = `${title} ${skills} ${projects} ${exps.map(e => `${e.role || ''} ${e.company || ''}`).join(' ')}`.toLowerCase();
 
-  if (isTechOrAi) {
-    return `Dynamic and accomplished ${title} with a proven track record of rapid digital product architecture, full-stack prototyping, and autonomous AI engineering. Experienced in engineering and deploying live production applications from scratch${projects ? ` including ${projects}` : ''} on modern cloud infrastructures and mobile platforms. Adept at leveraging modern toolchains (${skills || 'Antigravity AI, Claude, OpenAI Codex, Firebase, Supabase, Vercel'}) to build scalable, resilient, and user-centric solutions with measurable business impact.`;
+  const isTechOrAi = /ai|engineer|developer|software|vibe|coding|full-stack|frontend|backend|cloud/i.test(title) ||
+                     (/ai|engineer|developer|coding/i.test(fullContext) && !/recruiter|talent/i.test(title));
+  const isHrOrTalent = /talent|recruit|hr|human resource|staffing|people ops/i.test(title) ||
+                       (/talent|recruit|hr|human resource/i.test(fullContext) && !isTechOrAi);
+  const isSalesOrMarketing = /sales|marketing|business development|account executive|growth|commercial/i.test(fullContext);
+  const isFinanceOrAccounting = /finance|accountant|accounting|audit|tax|banking|financial|treasury/i.test(fullContext);
+  const isHealthcareOrMedical = /medical|healthcare|clinical|doctor|physician|nurse|pharmac|patient/i.test(fullContext);
+  const isOperationsOrLogistics = /operations|supply chain|logistics|procurement|warehouse|operational/i.test(fullContext);
+
+  // Hybrid Career Pivot (e.g. HR/TA -> AI / Software)
+  const hasHrExp = exps.some(e => /talent|recruit|hr|human resource/i.test(e.role || e.company));
+  const hasTechExp = isTechOrAi || exps.some(e => /engineer|developer|coding|ai/i.test(e.role || e.company));
+
+  if (hasHrExp && hasTechExp) {
+    return `Dynamic and accomplished ${title} combining a robust enterprise foundation in Talent Acquisition and Human Capital with hands-on AI product architecture and rapid digital prototyping. Proven track record of developing and deploying user-centric production applications${projects ? ` including ${projects}` : ''} while optimizing stakeholder workflows through modern AI toolchains. Adept at bridging strategic business operations with modern software engineering to drive measurable enterprise impact.`;
   }
 
-  return `Results-driven and strategic ${title} with extensive experience leading end-to-end recruitment, organizational talent strategy, and cross-functional operations across ${companies || 'high-growth enterprises'}. Proven expertise in stakeholder management, modern ATS workflows, and data-driven process optimization. Skilled at combining deep domain insight with innovative digital tools to maximize team efficiency and organizational growth.`;
+  if (isTechOrAi) {
+    return `Dynamic and accomplished ${title} with a proven track record of rapid digital product architecture, full-stack prototyping, and autonomous AI engineering. Experienced in engineering and deploying live production applications from scratch${projects ? ` including ${projects}` : ''} on modern cloud infrastructures and mobile platforms. Adept at leveraging modern toolchains (${skills || 'modern frameworks, cloud platforms, and developer toolchains'}) to build scalable, resilient, and user-centric solutions with measurable business impact.`;
+  }
+
+  if (isSalesOrMarketing) {
+    return `Results-driven and strategic ${title} with proven expertise in driving revenue growth, customer acquisition, and strategic brand positioning across ${companies || 'high-growth enterprises'}. Skilled in market penetration, stakeholder relationship management, and data-driven pipeline optimization to consistently exceed performance targets.`;
+  }
+
+  if (isFinanceOrAccounting) {
+    return `Meticulous and results-oriented ${title} with demonstrated experience managing financial planning, corporate reporting, and compliance operations across ${companies || 'leading corporate environments'}. Proven expertise in fiscal governance, variance analysis, risk mitigation, and strategic resource allocation to enhance enterprise profitability.`;
+  }
+
+  if (isHealthcareOrMedical) {
+    return `Dedicated and empathetic ${title} with comprehensive experience delivering exceptional patient-centered care and clinical excellence across ${companies || 'healthcare facilities'}. Recognized for diagnostic accuracy, multidisciplinary collaboration, and adherence to rigorous healthcare safety and compliance standards.`;
+  }
+
+  if (isOperationsOrLogistics) {
+    return `Efficient and process-focused ${title} with extensive expertise in end-to-end operational execution, supply chain optimization, and workflow scaling across ${companies || 'enterprise organizations'}. Skilled at streamlining logistics, reducing operational overhead, and enhancing team productivity through lean methodologies.`;
+  }
+
+  if (isHrOrTalent) {
+    return `Results-driven and strategic ${title} with extensive experience leading end-to-end recruitment, organizational talent strategy, and cross-functional operations across ${companies || 'high-growth enterprises'}. Proven expertise in stakeholder management, modern ATS workflows, and data-driven process optimization to build high-performing global teams.`;
+  }
+
+  return `Results-driven and strategic ${title} with extensive experience delivering operational excellence and high-impact outcomes across ${companies || 'high-growth enterprises'}. Proven expertise in cross-functional leadership, stakeholder alignment, and data-driven execution to consistently accelerate organizational growth.`;
 }
 
 /**
@@ -1354,8 +1386,8 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         period: 'Jan 2025 – Present',
         location: 'San Francisco, CA',
         bullets: [
-          "Since January 2025, leading enterprise LLM orchestration and AI agent product strategies.",
-          "Architecting multi-agent workflow automation platforms for AI NextGen Labs."
+          "Leading enterprise LLM orchestration and multi-agent workflow automation product strategies.",
+          "Architecting scalable multi-agent workflow automation platforms for AI NextGen Labs."
         ],
         description: 'Add Lead Product Manager role at AI NextGen Labs (Jan 2025 – Present)'
       });
@@ -1494,7 +1526,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
           section: 'experience',
           targetId: targetExistingExp.id,
           newBullets: [
-            `Delivered targeted strategic consulting milestones aligned with client requirements since ${periodStr.split('–')[0].trim()}.`,
+            `Delivered targeted strategic consulting milestones and high-impact deliverables aligned with client specifications.`,
             `Streamlined operations and milestone deliverables leveraging modern tools and agile workflows.`
           ],
           description: `Augment existing ${targetExistingExp.role} with consulting milestones`
@@ -1512,7 +1544,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
           period: periodStr,
           location: 'Remote',
           bullets: [
-            `Delivered targeted strategic consulting milestones aligned with client requirements since ${periodStr.split('–')[0].trim()}.`,
+            `Delivered targeted strategic consulting milestones and high-impact deliverables aligned with client specifications.`,
             `Streamlined operations and milestone deliverables leveraging modern tools and agile workflows.`
           ],
           description: `Add Independent Consulting role (${periodStr})`

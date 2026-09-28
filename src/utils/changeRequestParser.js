@@ -428,19 +428,28 @@ export function parseConsultantAndVibeCodingRequest(promptText, currentCvState) 
     lower.includes('vercel')
   );
 
+  // If prompt is critiquing the timeline or asking if "since..." is necessary/should be removed, bypass holistic consultant adder
+  const isSummaryDateCritique = (
+    lower.includes('since') &&
+    (lower.includes('jaruri') || lower.includes('hata') || lower.includes('hta') || lower.includes('remove') || lower.includes('professional') || lower.includes('suit nhi') || lower.includes('suit nahi'))
+  );
+  if (isSummaryDateCritique) {
+    return null;
+  }
+
   if (!hasConsultantOrVibe || !hasProjectsOrTools) {
     return null;
   }
 
   // 1. Extract Period
-  let period = 'April 2015 - Present';
+  let period = 'May 2025 - Present';
   const m1 = rawText.match(/(?:(\d{4})\s*(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?\s*se)/i);
   const m2 = rawText.match(/(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s*(\d{4})\s*se)/i);
   const m3 = rawText.match(/(?:since|from)\s*(?:(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+)?(\d{4})/i);
 
   if (m1) {
     const yr = m1[1];
-    const mo = m1[2] ? m1[2].charAt(0).toUpperCase() + m1[2].slice(1).toLowerCase() : 'April';
+    const mo = m1[2] ? m1[2].charAt(0).toUpperCase() + m1[2].slice(1).toLowerCase() : 'May';
     period = `${mo} ${yr} - Present`;
   } else if (m2) {
     const mo = m2[1].charAt(0).toUpperCase() + m2[1].slice(1).toLowerCase();
@@ -602,7 +611,7 @@ export function parseConsultantAndVibeCodingRequest(promptText, currentCvState) 
   };
 
   // 5. Synthesize Professional Corporate Executive Summary
-  const executiveSummary = `Accomplished Independent Consultant and Full-Stack AI Vibe Developer since ${period.split(' - ')[0]} with a proven track record of engineering digital products from scratch and publishing live applications to the Google Play Store (${playStoreApps.join(', ') || 'Gharmantra, Lensdraft'}) and cloud platforms (${cloudApps.concat(upcomingApps).join(', ') || 'Jyotish Connect, Mausam Veda, KharchaBook, ResumeAI Pro'}). Expertise in rapid AI-accelerated development utilizing Claude, Codex, ChatGPT, and Antigravity, coupled with robust cloud infrastructure across Supabase, Firebase, and Vercel. Adept at transforming visionary product concepts into scalable, user-centric production software.`;
+  const executiveSummary = `Accomplished Independent Consultant and Full-Stack AI Vibe Developer with a proven track record of engineering digital products from scratch and publishing live applications to the Google Play Store (${playStoreApps.join(', ') || 'Gharmantra, Lensdraft'}) and cloud platforms (${cloudApps.concat(upcomingApps).join(', ') || 'Jyotish Connect, Mausam Veda, KharchaBook, ResumeAI Pro'}). Expertise in rapid AI-accelerated development utilizing Claude, Codex, ChatGPT, and Antigravity, coupled with robust cloud infrastructure across Supabase, Firebase, and Vercel. Adept at transforming visionary product concepts into scalable, user-centric production software.`;
 
   // 6. Build Atomic Operations & Authorized Changes
   const operations = [];
