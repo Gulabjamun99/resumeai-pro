@@ -38,6 +38,24 @@ export function isSectionHeaderLine(line) {
   return Object.values(SECTION_HEADER_PATTERNS).some(pattern => pattern.test(trimmed));
 }
 
+export function isInvalidTitleOrValue(text) {
+  if (!text || typeof text !== 'string') return true;
+  const lower = text.toLowerCase().trim();
+  if (lower.length < 2 || lower.length > 80) return true;
+  return (
+    lower.includes('suit nhi') || lower.includes('suit nahi') || lower.includes('suit') ||
+    lower.includes('change kr') || lower.includes('change kar') || lower.includes('badal do') ||
+    lower.includes('bhi to krte') || lower.includes('bhi krte') || lower.includes('bhi karte') ||
+    lower.includes('ke hisab se') || lower.includes('nhi kr rha') || lower.includes('nahi kar raha') ||
+    lower.includes('kya matlab') || lower.includes('pareshan') || lower.includes('faltu') ||
+    lower.includes('ye role') || lower.includes('ye designation') || lower.includes('ye title') ||
+    lower.includes('hona chahiye') || lower.includes('likh do') || lower.includes('bana do') ||
+    lower.includes('thik karo') || lower.includes('theek karo') || lower.includes('acha banaye') ||
+    lower.includes('accha banaye') || lower.includes('kuch bhi') || lower.includes('dekh ke') ||
+    /\b(?:karo|krye|kijiye|kar do|kar de|karna)\b/i.test(lower)
+  );
+}
+
 /**
  * Cleans and converts colloquial Hinglish bullet phrases into polished English action bullets
  */
@@ -273,7 +291,9 @@ export function extractProfileDetails(lines, rawPrompt = '') {
     if (titleMatch && !profile.title) {
       let t = titleMatch[1].replace(/^(ko|to|karke|as|is)\s+/i, '').trim();
       t = t.replace(/\s+(kar\s*do|likho|rakho|bana\s*do|hai)$/i, '').trim();
-      if (t.length >= 2 && !['change', 'karo', 'do', 'update'].includes(t.toLowerCase())) profile.title = t;
+      if (t.length >= 2 && !['change', 'karo', 'do', 'update'].includes(t.toLowerCase()) && !isInvalidTitleOrValue(t)) {
+        profile.title = t;
+      }
     }
 
     // Summary
@@ -708,6 +728,15 @@ export function parseConsultantAndVibeCodingRequest(promptText, currentCvState) 
 export function parseComprehensiveChangeRequest(promptText, currentCvState, sourceMaster) {
   const rawText = (promptText || '').trim();
   if (!rawText) return null;
+
+  // Delegate conversational role/designation critique to specialized handler in atsEngine
+  const isRoleCritiqueIntent = (
+    (rawText.toLowerCase().includes('designation') || rawText.toLowerCase().includes('role') || rawText.toLowerCase().includes('title')) &&
+    (rawText.toLowerCase().includes('suit nhi') || rawText.toLowerCase().includes('suit nahi') || rawText.toLowerCase().includes('change krye') || rawText.toLowerCase().includes('change kijiye') || rawText.toLowerCase().includes('change karo') || rawText.toLowerCase().includes('badal do') || rawText.toLowerCase().includes('thik karo'))
+  );
+  if (isRoleCritiqueIntent) {
+    return null;
+  }
 
   // Holistic Consultant / Freelancer & Vibe Coding Prompt Check
   const consultantPlan = parseConsultantAndVibeCodingRequest(rawText, currentCvState);

@@ -94,6 +94,27 @@ export function checkHasDeleteWord(text) {
 }
 
 /**
+ * Guard against meta-conversational text or user critique being accidentally set as candidate title or name
+ */
+export function isInvalidTitleOrValue(text) {
+  if (!text || typeof text !== 'string') return true;
+  const lower = text.toLowerCase().trim();
+  if (lower.length < 2 || lower.length > 80) return true;
+  return (
+    lower.includes('suit nhi') || lower.includes('suit nahi') || lower.includes('suit') ||
+    lower.includes('change kr') || lower.includes('change kar') || lower.includes('badal do') ||
+    lower.includes('bhi to krte') || lower.includes('bhi krte') || lower.includes('bhi karte') ||
+    lower.includes('ke hisab se') || lower.includes('nhi kr rha') || lower.includes('nahi kar raha') ||
+    lower.includes('kya matlab') || lower.includes('pareshan') || lower.includes('faltu') ||
+    lower.includes('ye role') || lower.includes('ye designation') || lower.includes('ye title') ||
+    lower.includes('hona chahiye') || lower.includes('likh do') || lower.includes('bana do') ||
+    lower.includes('thik karo') || lower.includes('theek karo') || lower.includes('acha banaye') ||
+    lower.includes('accha banaye') || lower.includes('kuch bhi') || lower.includes('dekh ke') ||
+    /\b(?:karo|krye|kijiye|kar do|kar de|karna)\b/i.test(lower)
+  );
+}
+
+/**
  * Synthesizes a high-impact, professional executive summary from verified CV facts
  */
 export function synthesizeExecutiveSummary(cv) {
@@ -381,11 +402,83 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
     }
   }
 
-  // 1. HEADLINE / TITLE DETECTION
-  const headlineMatch = rawText.match(/(?:headline|title|designation)\s*(?:ko|to|change\s*karke|as|is)?\s*[:"']?([^"',.\n]+?)(?:["']|\s*kar\s*do|\s*bana\s*do|\s*rakho|\s*aur|\s*and|$)/i);
+  // 1.0 ROLE & DESIGNATION CONVERSATIONAL REFINEMENT / CRITIQUE
+  const isRoleCritique = (
+    (lower.includes('designation') || lower.includes('role') || lower.includes('title')) &&
+    (lower.includes('suit nhi') || lower.includes('suit nahi') || lower.includes('change krye') || lower.includes('change kijiye') || lower.includes('change karo') || lower.includes('badal do') || lower.includes('thik karo') || lower.includes('sahi karo'))
+  );
+
+  if (isRoleCritique) {
+    const currentExps = currentCvState?.experiences || sourceMaster?.experiences || [];
+    const quotedMatch = rawText.match(/["“']([^"”']{4,80})["”']/);
+    const quotedStr = quotedMatch ? quotedMatch[1].toLowerCase().trim() : '';
+
+    let targetExp = null;
+    if (quotedStr) {
+      targetExp = currentExps.find(e => (e.role && e.role.toLowerCase().includes(quotedStr)) || quotedStr.includes((e.role || '').toLowerCase()));
+    }
+    if (!targetExp) {
+      targetExp = currentExps.find(e => 
+        (e.role && (e.role.toLowerCase().includes('consultant') || e.role.toLowerCase().includes('talent acquisition') || e.role.toLowerCase().includes('freelance'))) ||
+        (e.period && e.period.toLowerCase().includes('present'))
+      ) || currentExps[0];
+    }
+
+    if (targetExp) {
+      const hasTa = lower.includes('ta') || lower.includes('talent acquisition') || lower.includes('recruitment') || lower.includes('recruiter');
+      const hasVibeOrAi = lower.includes('vibe') || lower.includes('ai') || lower.includes('coding') || lower.includes('developer') || lower.includes('engineer');
+
+      let newRole = targetExp.role;
+      let newHeadline = currentCvState?.header?.title || targetExp.role;
+
+      if (hasTa && hasVibeOrAi) {
+        newRole = 'Independent Consultant | Talent Acquisition & AI Vibe Developer';
+        newHeadline = 'Independent Consultant & Full-Stack AI Engineer | Talent Acquisition & Vibe Prototyping';
+      } else if (hasVibeOrAi) {
+        newRole = 'Independent Consultant & Full-Stack AI Engineer (Freelance)';
+        newHeadline = 'Full-Stack AI Developer & Vibe Coder | Rapid Prototyping Specialist';
+      } else if (hasTa) {
+        newRole = 'Lead Talent Acquisition Consultant (Freelance)';
+        newHeadline = 'Senior Talent Acquisition Specialist & Recruitment Strategist';
+      }
+
+      const newSubtitle = 'AI Automation, Agent Systems & Full-Stack Vibe Coding';
+
+      operations.push({
+        id: `op-role-update-${targetExp.id || 'exp1'}`,
+        operation: 'UPDATE_EXPERIENCE',
+        section: 'experience',
+        targetId: targetExp.id,
+        targetRole: targetExp.role,
+        targetCompany: targetExp.company,
+        role: newRole,
+        subtitle: newSubtitle,
+        description: `Updated role from "${targetExp.role}" to "${newRole}" to reflect combined domain & AI vibe coding expertise`
+      });
+      authorizedChanges.push({ field: `experiences[0].role`, value: newRole, authorization: 'USER_EXPLICIT' });
+      authorizedChanges.push({ field: 'experiences.role', value: newRole, authorization: 'USER_EXPLICIT' });
+      authorizedChanges.push({ field: 'experiences.updated', value: targetExp.id, authorization: 'USER_EXPLICIT' });
+      targetSections.add('experience');
+
+      operations.push({
+        id: `op-headline-update-${Date.now()}`,
+        operation: 'REPLACE',
+        section: 'headline',
+        field: 'header.title',
+        requestedValue: newHeadline,
+        description: `Updated Headline to: "${newHeadline}"`
+      });
+      authorizedChanges.push({ field: 'header.title', value: newHeadline, authorization: 'USER_EXPLICIT' });
+      targetSections.add('headline');
+      summaries.push(`Updated designation and headline to "${newRole}"`);
+    }
+  }
+
+  // 1. HEADLINE / TITLE DETECTION (Guarded against meta-instructions and conversational critique)
+  const headlineMatch = !operations.some(op => op.section === 'headline') && rawText.match(/(?:headline|title|designation)\s*(?:ko|to|change\s*karke|as|is)?\s*[:"']?([^"',.\n]+?)(?:["']|\s*kar\s*do|\s*bana\s*do|\s*rakho|\s*aur|\s*and|$)/i);
   if (headlineMatch && headlineMatch[1] && !lower.includes('experience') && !lower.includes('job') && !lower.includes('name') && !hasBulletWord) {
     const val = headlineMatch[1].replace(/^(ko|to|karke|as|is)\s+/i, '').trim();
-    if (val.length > 2) {
+    if (val.length > 2 && !isInvalidTitleOrValue(val)) {
       operations.push({
         id: `op-headline-${Date.now()}`,
         operation: 'REPLACE',
@@ -1762,6 +1855,15 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     if (matchedBullets.length > 0) {
       return parseSingleDirectiveToChangePlan(rawText, currentCvState, sourceMaster);
     }
+  }
+
+  // 4.1 ROLE & DESIGNATION CONVERSATIONAL REFINEMENT CHECK:
+  const isRoleCritiqueIntent = (
+    (rawText.toLowerCase().includes('designation') || rawText.toLowerCase().includes('role') || rawText.toLowerCase().includes('title')) &&
+    (rawText.toLowerCase().includes('suit nhi') || rawText.toLowerCase().includes('suit nahi') || rawText.toLowerCase().includes('change krye') || rawText.toLowerCase().includes('change kijiye') || rawText.toLowerCase().includes('change karo') || rawText.toLowerCase().includes('badal do') || rawText.toLowerCase().includes('thik karo'))
+  );
+  if (isRoleCritiqueIntent) {
+    return parseSingleDirectiveToChangePlan(rawText, currentCvState, sourceMaster);
   }
 
   // Check if multiple directives are present (split by newlines, semicolons, or numbered list)
