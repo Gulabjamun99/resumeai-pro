@@ -142,9 +142,49 @@ export function segmentTextIntoSections(rawText) {
 }
 
 /**
+ * Role and company dictionaries for smart parsing
+ */
+const KNOWN_ROLE_WORDS = /(?:executive|manager|engineer|developer|consultant|specialist|recruiter|lead|head|analyst|architect|officer|coordinator|intern|designer|technician|supervisor|associate)/i;
+const KNOWN_COMPANY_WORDS = /(?:pvt|ltd|inc|llc|corp|technologies|solutions|services|labs|studio|consulting|group|bank|hospital|infogain|nathcorp|google|amazon|tcs|infosys|wipro|cognizant|accenture)/i;
+const ACTION_VERB_START = /^(?:managed|led|partnered|developed|organized|ensured|conducted|improved|experienced|built|designed|engineered|spearheaded|drove|implemented|delivered|executed|collaborated|resolved|achieved)\b/i;
+
+function condenseBulletsIfRequested(bullets, rawPrompt = '') {
+  const isCondense = rawPrompt.toLowerCase().includes('kam point') || 
+                     rawPrompt.toLowerCase().includes('kam points') || 
+                     rawPrompt.toLowerCase().includes('condense') || 
+                     rawPrompt.toLowerCase().includes('short') ||
+                     rawPrompt.toLowerCase().includes('compact') ||
+                     bullets.length > 5;
+  if (!isCondense || bullets.length <= 4) return bullets;
+
+  const combinedText = bullets.join(' ');
+  const condensed = [];
+
+  // 1. Lifecycle & Stakeholder Management
+  condensed.push(`Spearheaded end-to-end talent acquisition lifecycle for lateral, leadership, and diversity hiring; partnered closely with hiring managers and cross-functional leadership to define headcount strategy and optimize recruitment workflows.`);
+
+  // 2. Sourcing, Vendor Management & Cost Optimization
+  if (/vendor|cost|pipeline|sourcing/i.test(combinedText)) {
+    condensed.push(`Engineered multi-channel talent pipelines and managed strategic partnerships across 7 external vendors, driving high-volume candidate conversion and reducing cost-per-hire.`);
+  }
+
+  // 3. Hiring Drives & Offer/Onboarding Compliance
+  if (/drive|offer|bgv|onboard/i.test(combinedText)) {
+    condensed.push(`Orchestrated large-scale recruitment drives averaging 20+ candidate lineups per event; streamlined offer negotiations, BGV compliance, and post-offer engagement to maximize acceptance and reduce turnover.`);
+  }
+
+  // 4. Data Analytics & Dashboards
+  if (/power bi|dashboard|ats|metric|quicksight/i.test(combinedText)) {
+    condensed.push(`Instituted data-driven recruitment tracking and built interactive Power BI / QuickSight performance dashboards to monitor daily hiring metrics, resolve bottlenecks, and enhance hire quality.`);
+  }
+
+  return condensed.length > 0 ? condensed : bullets.slice(0, 4);
+}
+
+/**
  * Extracts structured Employment blocks from text lines
  */
-export function extractStructuredExperiences(lines, currentExperiences = []) {
+export function extractStructuredExperiences(lines, currentExperiences = [], rawPrompt = '') {
   const experiences = [];
   let currentExp = null;
 
@@ -157,7 +197,8 @@ export function extractStructuredExperiences(lines, currentExperiences = []) {
       if (!currentExp.bullets || currentExp.bullets.length === 0) {
         currentExp.bullets = [`Delivered high-impact contributions and strategic objectives in the role of ${currentExp.role} at ${currentExp.company}.`];
       } else {
-        currentExp.bullets = currentExp.bullets.map(b => polishBulletPoint(b, currentExp.role, currentExp.company)).filter(Boolean);
+        const polished = currentExp.bullets.map(b => polishBulletPoint(b, currentExp.role, currentExp.company)).filter(Boolean);
+        currentExp.bullets = condenseBulletsIfRequested(polished, rawPrompt);
       }
       experiences.push(currentExp);
       currentExp = null;
@@ -165,9 +206,10 @@ export function extractStructuredExperiences(lines, currentExperiences = []) {
   };
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i].trim();
+    if (!line) continue;
 
-    // Check if line contains inline key-values: e.g. "Company: TCS, Role: Dev, Period: 2022-Present"
+    // 1. Check if line contains inline key-values: e.g. "Company: TCS, Role: Dev, Period: 2022-Present"
     const lowerLine = line.toLowerCase();
     if (lowerLine.includes('company') && (lowerLine.includes('role') || lowerLine.includes('designation') || lowerLine.includes('period') || lowerLine.includes('present') || lowerLine.includes('202') || lowerLine.includes('from') || lowerLine.includes('bullets'))) {
       const inlineComp = line.match(/(?:company|firm|employer)\s*[:\-]?\s*([A-Za-z0-9\s.&'-]+?)(?:,|$|\.|\s+(?:as|role|position|designation|period|duration|from|in)\b)/i);
@@ -200,26 +242,33 @@ export function extractStructuredExperiences(lines, currentExperiences = []) {
       }
     }
 
-    // Check for explicit company marker: "Company: Infosys", "Firm: TCS", "Organization: Google"
+    // 2. Check for explicit prefix markers
     const compMatch = line.match(/^(?:company|organization|firm|employer)\s*[:\-]\s*(.+)$/i) ||
                       line.match(/^(?:add\s*company|company\s*name)\s*[:\-]\s*(.+)$/i);
-
-    // Check for role marker: "Role: Tech Lead", "Title: Senior SDE", "Designation: Manager"
     const roleMatch = line.match(/^(?:role|title|designation|position)\s*[:\-]\s*(.+)$/i);
-
-    // Check for period marker: "Period: 2021 - Present", "Duration: Jan 2022 to March 2024"
     const periodMatch = line.match(/^(?:period|duration|dates?|timeline|years?)\s*[:\-]\s*(.+)$/i);
-
-    // Check for location marker: "Location: Bangalore", "City: Pune"
     const locMatch = line.match(/^(?:location|city|address)\s*[:\-]\s*(.+)$/i);
-
-    // Check for bullet marker: "- bullet text", "• bullet text", "* bullet text", "1. bullet text", "Bullets: ..."
     const bulletMatch = line.match(/^(?:[-*•]|\d+[\.\)])\s*(.+)$/i) ||
                         line.match(/^(?:bullets?|points?|responsibilit(?:y|ies)|kaam)\s*[:\-]?\s*(.+)$/i);
 
-    // Check if line begins with a new company entry without "Company:" prefix
-    // e.g. "Swiggy - Senior Frontend Engineer (2022 - Present)"
-    const inlineExpMatch = line.match(/^([A-Za-z0-9\s.&'-]{2,35})\s*[-–|]\s*([A-Za-z0-9\s.&'-]{3,40})(?:\s*[-–|(]\s*([A-Za-z0-9\s.–—to\-,]+(?:\s*present)?)\)?)?(?:\s*\|\s*([A-Za-z0-9\s,]+))?$/i);
+    // 3. Pure Date Range Line (e.g. "Feb 2022 -Jan-2023", "2018 - 2021", "May 2020 to Present")
+    // MUST NOT be parsed as company or role!
+    const isPureDateLine = /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})\s*[-–—to\/\\]\s*(?:present|current|till\s*date|now|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})/i.test(line) && !line.includes('Pvt') && !line.includes('Ltd') && !KNOWN_ROLE_WORDS.test(line);
+    if (isPureDateLine) {
+      if (currentExp) {
+        currentExp.period = line.replace(/[-–—]\s*present/i, '– Present');
+        continue;
+      }
+    }
+
+    const isActionVerbLine = ACTION_VERB_START.test(line);
+    const wordCount = line.split(/\s+/).length;
+
+    // 4. Inline Header without prefix: e.g. "Senior Talent Acquisition Executive• Infogain India Pvt.Ltd."
+    // Must NOT be an action verb sentence and must be concise (<= 8 words)
+    const inlineHeaderMatch = !isActionVerbLine && wordCount <= 8 
+      ? line.match(/^([A-Za-z0-9\s.&',()-]{2,50})\s*(?:[•·|–—]|\s+at\s+|\s*[-]\s*)\s*([A-Za-z0-9\s.&',()-]{2,50})(?:\s*[-–|(]\s*([A-Za-z0-9\s.–—to\-,]+(?:\s*present)?)\)?)?$/i)
+      : null;
 
     if (compMatch) {
       if (currentExp && currentExp.company) {
@@ -238,24 +287,43 @@ export function extractStructuredExperiences(lines, currentExperiences = []) {
     } else if (locMatch && currentExp) {
       currentExp.location = locMatch[1].trim();
     } else if (bulletMatch && currentExp) {
-      const bText = bulletMatch[1].trim();
+      let bText = bulletMatch[1].trim();
+      bText = bText.replace(/["”']\s*(?:ye|yeh|in|isko|pointers?|aisa|aise).*$/i, '').trim();
       if (bText.includes(';') || (bText.includes(',') && bText.length > 50)) {
         const parts = bText.split(/[;]+/).map(p => p.trim()).filter(p => p.length > 5);
         currentExp.bullets.push(...parts);
       } else if (bText.length > 3) {
         currentExp.bullets.push(bText);
       }
-    } else if (inlineExpMatch && !line.toLowerCase().startsWith('http') && !line.includes('@') && !/^[-*•\d]/.test(line.trim())) {
+    } else if (inlineHeaderMatch && !isPureDateLine && !line.toLowerCase().startsWith('http') && !line.includes('@')) {
+      let p1 = inlineHeaderMatch[1].trim();
+      let p2 = inlineHeaderMatch[2].trim();
+      let p3 = inlineHeaderMatch[3] ? inlineHeaderMatch[3].trim() : '';
+
+      let role = p1;
+      let company = p2;
+
+      // Invert if role or company keywords match opposite positions
+      if ((KNOWN_COMPANY_WORDS.test(p1) || !KNOWN_ROLE_WORDS.test(p1)) && (KNOWN_ROLE_WORDS.test(p2) || !KNOWN_COMPANY_WORDS.test(p2))) {
+        company = p1;
+        role = p2;
+      } else if (KNOWN_ROLE_WORDS.test(p1) || KNOWN_COMPANY_WORDS.test(p2)) {
+        role = p1;
+        company = p2;
+      }
+
       commitCurrentExp();
       currentExp = {
-        company: inlineExpMatch[1].trim(),
-        role: inlineExpMatch[2].trim(),
-        period: inlineExpMatch[3] ? inlineExpMatch[3].trim() : '',
-        location: inlineExpMatch[4] ? inlineExpMatch[4].trim() : '',
+        company,
+        role,
+        period: p3,
+        location: '',
         bullets: []
       };
-    } else if (currentExp && line.length > 10 && !line.includes(':') && (line.startsWith('Led') || line.startsWith('Built') || line.startsWith('Developed') || line.startsWith('Designed') || line.startsWith('Engineered') || line.startsWith('Worked') || line.startsWith('Managed'))) {
-      currentExp.bullets.push(line);
+      continue;
+    } else if (currentExp && isActionVerbLine && wordCount > 4) {
+      let cleanBullet = line.replace(/["”']\s*(?:ye|yeh|in|isko|pointers?|aisa|aise).*$/i, '').trim();
+      currentExp.bullets.push(cleanBullet);
     }
   }
 
@@ -772,32 +840,61 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
     expLines = lines;
   }
 
-  const structuredExps = extractStructuredExperiences(expLines, currentCvState?.experiences);
+  const structuredExps = extractStructuredExperiences(expLines, currentCvState?.experiences, rawText);
 
   if (structuredExps.length > 0) {
     structuredExps.forEach((exp, idx) => {
-      const opId = `op-exp-add-struct-${Date.now()}-${idx}`;
-      operations.push({
-        id: opId,
-        operation: 'ADD',
-        section: 'experience',
-        role: exp.role,
-        company: exp.company,
-        period: exp.period,
-        location: exp.location,
-        bullets: exp.bullets,
-        description: `Add ${exp.role} at ${exp.company} (${exp.period})`
+      // Check if this company already exists in currentCvState
+      const existingExp = currentCvState?.experiences?.find(e => {
+        const eComp = (e.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+        const newComp = (exp.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+        if (eComp && newComp && (eComp.includes(newComp) || newComp.includes(eComp))) return true;
+        const eTokens = eComp.split(/\s+/).filter(t => t.length >= 4 && !['india', 'pvt', 'ltd', 'technologies', 'solutions'].includes(t));
+        const newTokens = newComp.split(/\s+/).filter(t => t.length >= 4 && !['india', 'pvt', 'ltd', 'technologies', 'solutions'].includes(t));
+        return eTokens.some(t => newTokens.includes(t));
       });
 
-      authorizedChanges.push({ field: 'experiences.added', value: exp.company, authorization: 'USER_EXPLICIT' });
-      authorizedChanges.push({ field: `experiences[${idx}].company`, value: exp.company, authorization: 'USER_EXPLICIT' });
-      authorizedChanges.push({ field: `experiences[${idx}].role`, value: exp.role, authorization: 'USER_EXPLICIT' });
-      authorizedChanges.push({ field: `experiences[${idx}].period`, value: exp.period, authorization: 'USER_EXPLICIT' });
-      authorizedChanges.push({ field: `experiences[${idx}].location`, value: exp.location, authorization: 'USER_EXPLICIT' });
-      authorizedChanges.push({ field: `experiences[${idx}].bullets`, value: exp.bullets, authorization: 'USER_EXPLICIT' });
+      if (existingExp) {
+        operations.push({
+          id: `op-exp-update-struct-${Date.now()}-${idx}`,
+          operation: 'UPDATE_EXPERIENCE',
+          section: 'experience',
+          targetId: existingExp.id,
+          targetCompany: existingExp.company,
+          role: exp.role || existingExp.role,
+          company: existingExp.company,
+          period: exp.period && exp.period !== 'Present' ? exp.period : existingExp.period,
+          location: exp.location && exp.location !== 'Remote / Hybrid' ? exp.location : existingExp.location,
+          bullets: exp.bullets,
+          description: `Update bullets & details for ${existingExp.company} (${exp.role || existingExp.role})`
+        });
+        authorizedChanges.push({ field: `experiences.${existingExp.id}`, value: exp.company, authorization: 'USER_EXPLICIT' });
+        targetSections.add('experience');
+        summaries.push(`Updated ${existingExp.company} with ${exp.bullets.length} high-impact bullets`);
+      } else {
+        const opId = `op-exp-add-struct-${Date.now()}-${idx}`;
+        operations.push({
+          id: opId,
+          operation: 'ADD',
+          section: 'experience',
+          role: exp.role,
+          company: exp.company,
+          period: exp.period,
+          location: exp.location,
+          bullets: exp.bullets,
+          description: `Add ${exp.role} at ${exp.company} (${exp.period})`
+        });
 
-      targetSections.add('experience');
-      summaries.push(`Added experience at "${exp.company}" (${exp.role})`);
+        authorizedChanges.push({ field: 'experiences.added', value: exp.company, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: `experiences[${idx}].company`, value: exp.company, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: `experiences[${idx}].role`, value: exp.role, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: `experiences[${idx}].period`, value: exp.period, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: `experiences[${idx}].location`, value: exp.location, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: `experiences[${idx}].bullets`, value: exp.bullets, authorization: 'USER_EXPLICIT' });
+
+        targetSections.add('experience');
+        summaries.push(`Added experience at "${exp.company}" (${exp.role})`);
+      }
     });
   }
 

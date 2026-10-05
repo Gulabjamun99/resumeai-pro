@@ -117,3 +117,62 @@ Respond to the user naturally:`;
 
   return await callGeminiApi(prompt, systemInstruction);
 }
+
+/**
+ * Direct End-to-End AI Resume Refiner (ChatGPT / Claude / Gemini style)
+ * Directly transforms the CV JSON based on the user's natural language instruction,
+ * preserving facts while condensing, enhancing, or restructuring content.
+ */
+export async function refineCvWithAi(userInstruction, currentCv) {
+  if (!userInstruction || !currentCv) return null;
+
+  const systemInstruction = `You are the lead AI Resume Architect and Career Mentor at ResumeAI Pro.
+You operate exactly like ChatGPT, Claude, or Gemini when a user gives instructions to edit, refine, add to, or rewrite parts of their resume.
+
+INPUT:
+1. Current CV JSON state
+2. User's instruction in natural language (may be English, Hindi, or Hinglish)
+
+RULES:
+1. Intelligently understand the user's intention:
+   - If the user provides a work experience (e.g. Infogain India Pvt. Ltd., Senior Talent Acquisition Executive, Feb 2022 - Jan 2023) and says to condense pointers ("kam points me sab kuch cover ho jaye"):
+     * Company MUST be "Infogain India Pvt. Ltd.", Role MUST be "Senior Talent Acquisition Executive", Period MUST be "Feb 2022 - Jan 2023".
+     * NEVER confuse dates with company names!
+     * Condense their bullets into 3-4 powerful STAR-method corporate English ATS bullets covering all key aspects (lifecycle, vendor management, cost reduction, drives, compliance, Power BI dashboards).
+     * If Infogain already exists in the 'experiences' array, update it; otherwise add it at the correct chronological position.
+   - If the user asks to remove specific points (e.g. MBA from Lovely Professional University or BBA from BIT Mesra from Nathcorp or education), remove them cleanly.
+   - If the user asks to update or rewrite the summary, headline, or skills, update them cleanly without hallucinating fake dates.
+   - Preserve existing verified companies, dates, degrees, and bullets unless the user explicitly requested changes to them.
+2. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences or conversational text outside the JSON object.
+{
+  "updatedCv": <complete updated CV object with all sections>,
+  "planSummary": "<brief 1-line English summary of what was updated>",
+  "explanation": "<friendly, clear conversational explanation in Hinglish/English explaining what was done and why, highlighting ATS benefits and recruiter value>"
+}`;
+
+  const promptText = `User Instruction:
+"""${userInstruction}"""
+
+Current CV State:
+${JSON.stringify(currentCv, null, 2)}
+
+Apply the user instruction and return the updated CV JSON:`;
+
+  try {
+    const rawResult = await callGeminiApi(promptText, systemInstruction);
+    if (!rawResult) return null;
+
+    // Clean JSON response (handling possible \`\`\`json ... \`\`\` wrapper)
+    const jsonMatch = rawResult.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (parsed.updatedCv && (parsed.updatedCv.header || parsed.updatedCv.experiences)) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn("refineCvWithAi LLM error, falling back to local engine:", err.message);
+  }
+
+  return null;
+}

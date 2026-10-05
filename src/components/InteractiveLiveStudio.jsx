@@ -212,12 +212,14 @@ export default function InteractiveLiveStudio({
           aiResponseText = `✅ ${result?.planSummary || `Instruction "${trimmed}" live apply ho gaya hai.`}\n\nPreview canvas me update check kijiye!`;
         }
 
-        // Call Gemini 2.5 Flash for natural, conversational mentor response
-        let geminiExplanation = null;
-        try {
-          geminiExplanation = await getGeminiChatResponse(trimmed, result?.updatedCv || resume, aiResponseText);
-        } catch (gemErr) {
-          console.warn("Gemini chat explanation fallback:", gemErr.message);
+        // Use AI Explanation from direct refiner or call Gemini 2.5 Flash mentor
+        let geminiExplanation = result?.aiExplanation || null;
+        if (!geminiExplanation) {
+          try {
+            geminiExplanation = await getGeminiChatResponse(trimmed, result?.updatedCv || resume, aiResponseText);
+          } catch (gemErr) {
+            console.warn("Gemini chat explanation fallback:", gemErr.message);
+          }
         }
 
         // If user asked to improve/rewrite summary and Gemini generated a draft, sync it directly to the canvas!

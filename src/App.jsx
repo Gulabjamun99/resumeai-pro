@@ -22,6 +22,7 @@ import { runCompleteValidationSuite } from './services/validationSuite';
 import { exportResumeToPdf, printResume, sanitizeCandidateFilename } from './utils/pdfExporter';
 import { exportResumeToDocx } from './utils/docxExporter';
 import { computeResumeDiff } from './utils/changeDiffDetector';
+import { refineCvWithAi } from './services/geminiService';
 import InteractiveLiveStudio from './components/InteractiveLiveStudio';
 import FreshCvBuilder from './components/FreshCvBuilder';
 import JdOptimizer from './components/JdOptimizer';
@@ -357,15 +358,35 @@ export default function App() {
     }
 
     const previousSnapshot = JSON.parse(JSON.stringify(currentCvState));
-    const plan = parseUserIntentToChangePlan(instruction, currentCvState, sourceResume);
-    const { proposedCv } = executeChangePlan(currentCvState, plan);
-    const locked = enforceContentLocks(sourceResume || currentCvState, currentCvState, proposedCv, plan);
-    const finalCv = locked || proposedCv || currentCvState;
+    let finalCv = null;
+    let planSummary = null;
+    let aiExplanation = null;
+
+    // 1. Direct AI Refiner (ChatGPT / Claude / Gemini style)
+    try {
+      const aiResult = await refineCvWithAi(instruction, currentCvState);
+      if (aiResult && aiResult.updatedCv && (aiResult.updatedCv.header || aiResult.updatedCv.experiences)) {
+        finalCv = aiResult.updatedCv;
+        planSummary = aiResult.planSummary;
+        aiExplanation = aiResult.explanation;
+      }
+    } catch (aiErr) {
+      console.warn("AI refinement error, routing to local engine:", aiErr.message);
+    }
+
+    // 2. Deterministic Local Engine Fallback (guaranteed offline stability)
+    if (!finalCv) {
+      const plan = parseUserIntentToChangePlan(instruction, currentCvState, sourceResume);
+      const { proposedCv } = executeChangePlan(currentCvState, plan);
+      const locked = enforceContentLocks(sourceResume || currentCvState, currentCvState, proposedCv, plan);
+      finalCv = locked || proposedCv || currentCvState;
+      planSummary = plan?.planSummary;
+    }
 
     const stepDiff = computeResumeDiff(previousSnapshot, finalCv);
 
     const nextVer = versionHistory.length + 1;
-    const summaryText = plan?.planSummary || instruction;
+    const summaryText = planSummary || instruction;
     const newVersionSnapshot = {
       version: nextVer,
       id: `v${nextVer}`,
@@ -382,11 +403,12 @@ export default function App() {
 
     return { 
       success: true, 
-      section: plan?.operations?.[0]?.targetSection || 'general',
-      planSummary: plan?.planSummary,
+      section: 'general',
+      planSummary: planSummary || 'Update applied',
       stepDiff,
       previousCv: previousSnapshot,
-      updatedCv: finalCv
+      updatedCv: finalCv,
+      aiExplanation
     };
   };
 
