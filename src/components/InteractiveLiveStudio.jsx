@@ -40,8 +40,8 @@ export default function InteractiveLiveStudio({
   const latestVersionSnapshot = versionHistory.length > 0 ? versionHistory[versionHistory.length - 1] : null;
   const isPostChangeVersion = currentVersion > 1 || (versionHistory.length > 1);
 
-  // Main Studio Tabs: 'chat' (if a change request was executed) | 'templates' (if fresh load)
-  const [activeTab, setActiveTab] = useState(isPostChangeVersion ? 'chat' : 'templates');
+  // Main Studio Tabs: Default to 'chat' like ChatGPT / Claude
+  const [activeTab, setActiveTab] = useState('chat');
   
   const [promptInput, setPromptInput] = useState('');
   const [quickPromptInput, setQuickPromptInput] = useState('');
@@ -57,8 +57,8 @@ export default function InteractiveLiveStudio({
   const diffReport = computeResumeDiff(sourceResume, resume);
 
   const initialGreetingText = isPostChangeVersion && latestVersionSnapshot?.summary
-    ? `✅ Successfully applied your change request (Version ${currentVersion}): "${latestVersionSnapshot.summary}". Your live canvas on the right has been updated. You can ask for more changes anytime!`
-    : 'Your resume is loaded and ready! Select any executive template from the left gallery, or describe custom refinements in the AI prompt bar below.';
+    ? `✅ Version ${currentVersion} update applied: "${latestVersionSnapshot.summary}". Live canvas updated! Aap koi aur change bol sakte hain.`
+    : 'Aapka resume live canvas par loaded hai! ChatGPT/Gemini ki tarah kisi bhi language (Hindi, Hinglish, English) me batayein — kya add karna hai, kya change karna hai, ya kaisa resume banana hai.';
 
   const [chatLog, setChatLog] = useState([
     {
@@ -236,9 +236,7 @@ export default function InteractiveLiveStudio({
           }
         }
 
-        const finalText = geminiExplanation 
-          ? `${geminiExplanation}\n\n---\n${aiResponseText}` 
-          : aiResponseText;
+        const finalText = geminiExplanation || aiResponseText;
 
         setChatLog(prev => [
           ...prev,

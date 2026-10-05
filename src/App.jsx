@@ -120,7 +120,7 @@ export default function App() {
       setCurrentVersion(1);
       setSelectedTemplateId('source-template');
       setPromptText("");
-      setScreen(2);
+      setScreen(7); // Jump directly to Live Studio (like ChatGPT / Claude)
     } catch (err) {
       console.error("CV Upload/Parsing Error:", err);
       setErrorMessage(err.message || "Failed to process uploaded CV document. Please ensure the file is readable.");
@@ -484,8 +484,8 @@ export default function App() {
       {/* Main Container */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 flex flex-col gap-6">
         
-        {/* Guided 8-Screen Stepper */}
-        <Stepper currentScreen={currentScreen} setScreen={handleNavigateScreen} />
+        {/* Guided Stepper (hidden on Screen 7 for a clean, modern studio workspace) */}
+        {currentScreen !== 7 && <Stepper currentScreen={currentScreen} setScreen={handleNavigateScreen} />}
 
         {/* Ambiguous Request Resolution Modal */}
         <ClarificationModal 

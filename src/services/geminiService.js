@@ -14,6 +14,7 @@ const GEMINI_MODEL = 'gemini-2.5-flash';
 
 function getApiKey() {
   return (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) || 
+         (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) || 
          (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || '';
 }
 
