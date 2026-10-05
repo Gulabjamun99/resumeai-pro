@@ -364,7 +364,7 @@ export default function App() {
 
     // 1. Direct AI Refiner (ChatGPT / Claude / Gemini style)
     try {
-      const aiResult = await refineCvWithAi(instruction, currentCvState);
+      const aiResult = await refineCvWithAi(instruction, currentCvState, sourceResume);
       if (aiResult && aiResult.updatedCv && (aiResult.updatedCv.header || aiResult.updatedCv.experiences)) {
         finalCv = aiResult.updatedCv;
         planSummary = aiResult.planSummary;

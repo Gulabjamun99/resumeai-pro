@@ -124,7 +124,7 @@ Respond to the user naturally:`;
  * Directly transforms the CV JSON based on the user's natural language instruction,
  * preserving facts while condensing, enhancing, or restructuring content.
  */
-export async function refineCvWithAi(userInstruction, currentCv) {
+export async function refineCvWithAi(userInstruction, currentCv, sourceMaster = null) {
   if (!userInstruction || !currentCv) return null;
 
   const systemInstruction = `You are the lead AI Resume Architect and Career Mentor at ResumeAI Pro.
@@ -132,16 +132,22 @@ You operate exactly like ChatGPT, Claude, or Gemini when a user gives instructio
 
 INPUT:
 1. Current CV JSON state
-2. User's instruction in natural language (may be English, Hindi, or Hinglish)
+2. Baseline Reference CV JSON (original master facts)
+3. User's instruction in natural language (may be English, Hindi, or Hinglish)
 
 RULES:
 1. Intelligently understand the user's intention:
+   - If the user asks why education or any section was removed, or asks to restore / put back removed details ("kyu hata diye", "wapas rkhye", "wapas lao", "restore education", "undo"):
+     * IMMEDIATELY RESTORE the complete original education array (e.g. MBA from Lovely Professional University, BBA from Birla Institute of Technology) or experiences from the Baseline Reference CV!
+     * DO NOT leave the section empty!
+   - If the user asks to remove specific points from a specific company (e.g. "ye dono point nathcorp employment se hataye"):
+     * ONLY remove those points from that specific company!
+     * DO NOT remove the candidate's actual degrees from the Education section!
    - If the user provides a work experience (e.g. Infogain India Pvt. Ltd., Senior Talent Acquisition Executive, Feb 2022 - Jan 2023) and says to condense pointers ("kam points me sab kuch cover ho jaye"):
      * Company MUST be "Infogain India Pvt. Ltd.", Role MUST be "Senior Talent Acquisition Executive", Period MUST be "Feb 2022 - Jan 2023".
      * NEVER confuse dates with company names!
      * Condense their bullets into 3-4 powerful STAR-method corporate English ATS bullets covering all key aspects (lifecycle, vendor management, cost reduction, drives, compliance, Power BI dashboards).
      * If Infogain already exists in the 'experiences' array, update it; otherwise add it at the correct chronological position.
-   - If the user asks to remove specific points (e.g. MBA from Lovely Professional University or BBA from BIT Mesra from Nathcorp or education), remove them cleanly.
    - If the user asks to update or rewrite the summary, headline, or skills, update them cleanly without hallucinating fake dates.
    - Preserve existing verified companies, dates, degrees, and bullets unless the user explicitly requested changes to them.
 2. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences or conversational text outside the JSON object.
@@ -156,6 +162,9 @@ RULES:
 
 Current CV State:
 ${JSON.stringify(currentCv, null, 2)}
+
+Baseline Reference CV:
+${JSON.stringify(sourceMaster || currentCv, null, 2)}
 
 Apply the user instruction and return the updated CV JSON:`;
 

@@ -190,6 +190,14 @@ export default function InteractiveLiveStudio({
             parts.push('');
           }
 
+          if (stepDiff.addedEducation?.length > 0) {
+            parts.push(`🔹 **Education / Qualifications Restored (${stepDiff.addedEducation.length}):**`);
+            stepDiff.addedEducation.forEach(e => {
+              parts.push(`• 🎓 Restored: "${e}"`);
+            });
+            parts.push('');
+          }
+
           if (stepDiff.removedEducation?.length > 0) {
             parts.push(`🔹 **Education / Qualifications Removed (${stepDiff.removedEducation.length}):**`);
             stepDiff.removedEducation.forEach(e => {

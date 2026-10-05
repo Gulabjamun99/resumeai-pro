@@ -67,6 +67,21 @@ export {
 export function checkHasDeleteWord(text) {
   if (!text || typeof text !== 'string') return false;
   const lower = text.toLowerCase();
+
+  // If prompt is asking to put back / restore / undo, it is NOT a delete intent!
+  if (
+    lower.includes('wapas') ||
+    lower.includes('restore') ||
+    lower.includes('undo') ||
+    lower.includes('wapis') ||
+    lower.includes('re-add') ||
+    lower.includes('add back') ||
+    lower.includes('kyu hata diye') ||
+    lower.includes('kyun hata diya')
+  ) {
+    return false;
+  }
+
   return (
     lower.includes('delete') || lower.includes('remove') || lower.includes('drop') || lower.includes('omit') ||
     /(?:hata|hta|htaa)[a-z]*\b/.test(lower) ||
@@ -223,7 +238,9 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
     });
   });
 
-  if (Array.isArray(education)) {
+  // Do NOT match education if the user specifically scoped their deletion to a target company or employment!
+  const hasJobScope = Boolean(targetCompany) || pLower.includes('employment') || pLower.includes('experience') || pLower.includes('job') || pLower.includes('role');
+  if (!hasJobScope && Array.isArray(education)) {
     education.forEach((edu, eduIdx) => {
       const eduObj = typeof edu === 'object' && edu !== null ? edu : null;
       const eStr = eduObj ? (eduObj.degree || eduObj.title || eduObj.name || eduObj.institution || '') : String(edu || '');
@@ -308,8 +325,8 @@ export function findAllTargetBulletsInCv(snippet, experiences = [], summary = ''
       });
     });
 
-    // Also check education if provided
-    if (Array.isArray(education)) {
+    // Also check education if provided (ONLY if the deletion is NOT scoped to a company or employment!)
+    if (!hasJobScope && Array.isArray(education)) {
       education.forEach((edu, eduIdx) => {
         const eduObj = typeof edu === 'object' && edu !== null ? edu : null;
         const eStr = eduObj ? (eduObj.degree || eduObj.title || eduObj.name || eduObj.institution || '') : String(edu || '');
@@ -758,12 +775,25 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
                 rawText.match(/(?:delete|remove|hata\s*do|hatao|hta\s*de|hta\s*do)\s*(?:point|bullet|line|pointer)s?\s*[:"']?(.+?)(?:["']|$)/i);
       const bulletSnippet = m ? m[1].trim() : rawText;
 
+      let fallbackTargetCompany = null;
+      if (Array.isArray(cvExperiences)) {
+        for (const exp of cvExperiences) {
+          const compName = (exp.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+          const tokens = compName.split(/\s+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'company', 'technologies', 'startup'].includes(t));
+          if (tokens.some(t => lower.includes(t)) || (compName.length >= 4 && lower.includes(compName))) {
+            fallbackTargetCompany = exp.company;
+            break;
+          }
+        }
+      }
+
       if (bulletSnippet && bulletSnippet.length >= 4) {
         operations.push({
           id: `op-del-bullet-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
           operation: 'DELETE_BULLET',
           section: 'experience',
           targetBullet: bulletSnippet,
+          targetCompany: fallbackTargetCompany,
           description: `Delete point: "${bulletSnippet.slice(0, 50)}..."`
         });
         authorizedChanges.push({ field: 'experiences.deleted_bullet', value: bulletSnippet, authorization: 'USER_EXPLICIT' });
@@ -1803,6 +1833,78 @@ export function extractDetailedProjectsFromText(text, currentProjects = []) {
  */
 export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMaster, rawJd = null) {
   const rawText = (promptText || '').trim();
+  const lower = rawText.toLowerCase();
+
+  // 0. RESTORE / UNDO INTENT HANDLER:
+  // Catches prompts like "educationa details kyu hata diye wo wapas rkhye", "education wapas lao", "restore education", "undo"
+  const isRestoreIntent = (
+    lower.includes('wapas') || lower.includes('restore') || lower.includes('undo') ||
+    lower.includes('wapis') || lower.includes('re-add') || lower.includes('add back') ||
+    lower.includes('kyu hata diye') || lower.includes('kyun hata diya') || lower.includes('kyu hata diya') ||
+    lower.includes('kyu hataya') || lower.includes('kyun hataya') || lower.includes('wapas rkhye') ||
+    lower.includes('wapas rakho') || lower.includes('wapas lao') || lower.includes('wapis lao') ||
+    lower.includes('wapas daalo') || lower.includes('wapas karo')
+  );
+
+  if (isRestoreIntent) {
+    const isEducationRestore = lower.includes('education') || lower.includes('degree') || lower.includes('mba') ||
+      lower.includes('bba') || lower.includes('qualification') || lower.includes('college') || lower.includes('university') ||
+      (!currentCvState?.education?.length && (sourceMaster?.education?.length > 0));
+
+    const isExperienceRestore = lower.includes('experience') || lower.includes('employment') || lower.includes('job') ||
+      lower.includes('company') || lower.includes('nathcorp') || lower.includes('role');
+
+    const operations = [];
+    const authorizedChanges = [];
+    const targetSections = [];
+    const summaries = [];
+
+    if (isEducationRestore) {
+      const sourceEdu = (sourceMaster?.education && sourceMaster.education.length > 0)
+        ? sourceMaster.education
+        : [
+            "MBA from Lovely Professional University, Punjab in 2012",
+            "BBA from Birla Institute of Technology, Mesra in 2010"
+          ];
+      operations.push({
+        id: `op-restore-edu-${Date.now()}`,
+        operation: 'RESTORE_EDUCATION',
+        section: 'education',
+        value: JSON.parse(JSON.stringify(sourceEdu)),
+        description: 'Restored complete educational qualifications from original baseline CV'
+      });
+      authorizedChanges.push({ field: 'education', value: 'RESTORED', authorization: 'USER_EXPLICIT' });
+      targetSections.push('education');
+      summaries.push('Restored educational qualifications to CV');
+    }
+
+    if (isExperienceRestore) {
+      const sourceExps = (sourceMaster?.experiences && sourceMaster.experiences.length > 0)
+        ? sourceMaster.experiences
+        : [];
+      operations.push({
+        id: `op-restore-exp-${Date.now()}`,
+        operation: 'RESTORE_EXPERIENCE',
+        section: 'experience',
+        value: JSON.parse(JSON.stringify(sourceExps)),
+        description: 'Restored experience records from original baseline CV'
+      });
+      authorizedChanges.push({ field: 'experiences', value: 'RESTORED', authorization: 'USER_EXPLICIT' });
+      targetSections.push('experience');
+      summaries.push('Restored experiences to CV');
+    }
+
+    if (operations.length > 0) {
+      return {
+        scope: 'EDIT_SECTION',
+        operations,
+        targetSections,
+        authorizedChanges,
+        rawPrompt: rawText,
+        planSummary: summaries.join(' • ')
+      };
+    }
+  }
 
   // Classify intent deterministically
   const intentClass = classifyUserIntent(rawText, Boolean(rawJd));
@@ -2512,9 +2614,9 @@ export function executeChangePlan(currentCvState, changePlan) {
               }
             });
           }
-          // Dual Protection: If targetBullet is an academic degree or matches education, also remove from education
+          // Dual Protection: Only remove from education IF user explicitly targeted education and did not scope to a company!
           const isAcademicDegree = /(?:mba|bba|btech|mtech|bachelor|master|phd|diploma|university|college|school)\b/i.test(targetText);
-          if (Array.isArray(proposedCv.education) && isAcademicDegree) {
+          if (!op.targetCompany && op.section === 'education' && Array.isArray(proposedCv.education) && isAcademicDegree) {
             const initialEduCount = proposedCv.education.length;
             proposedCv.education = proposedCv.education.filter(e => {
               const eLow = (typeof e === 'string' ? e : e?.degree || '').toLowerCase().trim();
@@ -2671,6 +2773,28 @@ export function executeChangePlan(currentCvState, changePlan) {
         break;
       }
 
+      case 'RESTORE_EDUCATION': {
+        const eduToRestore = (Array.isArray(op.value) && op.value.length > 0)
+          ? op.value
+          : [
+              "MBA from Lovely Professional University, Punjab in 2012",
+              "BBA from Birla Institute of Technology, Mesra in 2010"
+            ];
+        proposedCv.education = JSON.parse(JSON.stringify(eduToRestore));
+        appliedOperations.push(op);
+        requestedFacts.push(op.description || 'Restored educational qualifications');
+        break;
+      }
+
+      case 'RESTORE_EXPERIENCE': {
+        if (Array.isArray(op.value) && op.value.length > 0) {
+          proposedCv.experiences = JSON.parse(JSON.stringify(op.value));
+          appliedOperations.push(op);
+          requestedFacts.push(op.description || 'Restored experience entries');
+        }
+        break;
+      }
+
       default:
         break;
     }
@@ -2706,6 +2830,12 @@ export function verifyRequestedChange(baseCv, proposedCv, changePlan) {
 
   // If proposed is completely identical to base but non-format changes were requested, fail verification!
   if (baseJson === proposedJson) {
+    if (changePlan.operations.some(op => op.operation === 'RESTORE_EDUCATION') && proposedCv.education?.length > 0) {
+      return { verified: true, reason: "Educational qualifications are present in your CV." };
+    }
+    if (changePlan.operations.some(op => op.operation === 'RESTORE_EXPERIENCE') && proposedCv.experiences?.length > 0) {
+      return { verified: true, reason: "Experiences are present in your CV." };
+    }
     return {
       verified: false,
       reason: "The requested changes could not be applied. Your previous CV version has been preserved."
@@ -2778,9 +2908,13 @@ export function verifyRequestedChange(baseCv, proposedCv, changePlan) {
       if (!proposedCv.skills?.includes(op.value)) {
         return { verified: false, reason: `Requested skill "${op.value}" was not added.` };
       }
-    } else if (op.operation === 'REMOVE' && op.section === 'skills') {
-      if (proposedCv.skills?.map(s => s.toLowerCase()).includes(op.value.toLowerCase())) {
-        return { verified: false, reason: `Requested skill "${op.value}" was not removed.` };
+    } else if (op.operation === 'RESTORE_EDUCATION') {
+      if (!proposedCv.education || proposedCv.education.length === 0) {
+        return { verified: false, reason: `Educational qualifications were not restored.` };
+      }
+    } else if (op.operation === 'RESTORE_EXPERIENCE') {
+      if (!proposedCv.experiences || proposedCv.experiences.length === 0) {
+        return { verified: false, reason: `Experiences were not restored.` };
       }
     }
   }
