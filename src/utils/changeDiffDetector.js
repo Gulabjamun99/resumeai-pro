@@ -260,6 +260,130 @@ export function isJdOptimizationRequest(text) {
 }
 
 /**
+ * Checks if the user is asking for options, critique improvements, or suggestions:
+ * e.g. "ye acha nhi lag rha hai koi tarike se ache bnao", "options do", "tarika show kro"
+ */
+export function isImprovementOrOptionsRequest(text) {
+  if (!text || typeof text !== 'string') return false;
+  const lower = text.toLowerCase().trim();
+  return (
+    lower.includes('acha nhi lag rha') || lower.includes('accha nahi lag raha') || lower.includes('acha nahi') ||
+    lower.includes('ache bnao') || lower.includes('acche banao') || lower.includes('theek se banao') || lower.includes('thik se banao') ||
+    lower.includes('tarike show') || lower.includes('tarika show') || lower.includes('options do') || lower.includes('option do') ||
+    lower.includes('point add kr skte') || lower.includes('points add kar sakte') || lower.includes('kya add kar sakte') ||
+    lower.includes('suit nhi kar rha') || lower.includes('suit nahi kar raha') ||
+    lower.includes('be happy') || lower.includes('khush ho jaye') || lower.includes('better banao') ||
+    lower.includes('elevate') || lower.includes('suggest points') || lower.includes('recommend points') ||
+    lower.includes('kaise kaise kya hoga') || lower.includes('kya kya add kar sakte')
+  );
+}
+
+/**
+ * Generates rich, domain-aware alternative tracks and points for candidate satisfaction.
+ */
+export function generateDomainImprovementOptions(currentCv) {
+  const title = currentCv?.header?.title || '';
+  const exps = currentCv?.experiences || [];
+  const skills = currentCv?.skills || [];
+  const context = `${title} ${skills.join(' ')} ${exps.map(e => `${e.role || ''} ${e.company || ''}`).join(' ')}`.toLowerCase();
+
+  const isTechOrAi = /ai|engineer|developer|software|vibe|coding|full-stack|frontend|backend|cloud/i.test(context);
+  const isHrOrTa = /talent|recruit|hr|human resource|staffing|people ops/i.test(context);
+
+  if (isTechOrAi && isHrOrTa) {
+    return [
+      {
+        id: 'opt-hybrid-ai',
+        label: 'Option 1: Full-Stack AI & Rapid Prototyping Track',
+        title: 'Full-Stack AI & Rapid Prototyping Track',
+        icon: '🚀',
+        tag: 'Technical Track',
+        description: 'Highlights live Play Store apps (Gharmantra, Lensdraft), cloud services (Jyotish Connect, Mausam Veda), and modern AI toolchain (Antigravity AI, Claude, Supabase).',
+        actionPrompt: 'Apply Option 1: AI Vibe Coding & Rapid Prototyping Track (Focus on live apps, GitHub, and full-stack cloud projects)'
+      },
+      {
+        id: 'opt-hybrid-exec',
+        label: 'Option 2: Executive Talent Acquisition & Leadership Track',
+        title: 'Executive Talent Acquisition & Leadership Track',
+        icon: '💼',
+        tag: 'Leadership Track',
+        description: 'Focuses on 9+ years enterprise recruitment, vendor portfolio management, cost-per-hire reduction, and strategic headcount planning.',
+        actionPrompt: 'Apply Option 2: Executive Talent Acquisition Leadership Track (Focus on vendor governance, cost reduction, and hiring velocity)'
+      },
+      {
+        id: 'opt-hybrid-balanced',
+        label: 'Option 3: Strategic Dual-Power Hybrid Track',
+        title: 'Strategic Dual-Power Hybrid Track',
+        icon: '🎯',
+        tag: 'ATS Optimized',
+        description: 'Combines senior HR strategic acumen with modern AI automation tools (Power BI dashboards, ATS automation, workflow optimization).',
+        actionPrompt: 'Apply Option 3: Balanced AI Product & Talent Operations Track (Dual HR leadership and AI workflow automation)'
+      }
+    ];
+  } else if (isTechOrAi) {
+    return [
+      {
+        id: 'opt-tech-arch',
+        label: 'Option 1: System Architecture & Cloud Scale',
+        title: 'System Architecture & High-Scale Systems',
+        icon: '⚡',
+        tag: 'Architecture Track',
+        description: 'Emphasizes cloud infrastructure, microservices, low latency, CI/CD automation, and high concurrency.',
+        actionPrompt: 'Apply Option 1: Cloud Architecture & High-Scale Systems focus'
+      },
+      {
+        id: 'opt-tech-ai',
+        label: 'Option 2: Generative AI & Rapid Product Innovation',
+        title: 'Generative AI & Modern Full-Stack Innovation',
+        icon: '🤖',
+        tag: 'GenAI Track',
+        description: 'Focuses on LLM integrations, modern frontends, rapid MVP ship velocity, and live applications.',
+        actionPrompt: 'Apply Option 2: Generative AI & Rapid Product Innovation focus'
+      },
+      {
+        id: 'opt-tech-lead',
+        label: 'Option 3: Engineering Leadership & Delivery Velocity',
+        title: 'Engineering Leadership & Agile Velocity',
+        icon: '🏆',
+        tag: 'Leadership Track',
+        description: 'Focuses on mentoring, sprint delivery, code review standards, and cross-functional team alignment.',
+        actionPrompt: 'Apply Option 3: Engineering Leadership & Delivery Velocity focus'
+      }
+    ];
+  } else {
+    return [
+      {
+        id: 'opt-biz-exec',
+        label: 'Option 1: Revenue Growth & Measurable KPI Scale',
+        title: 'Revenue Growth & Measurable KPI Scale',
+        icon: '📈',
+        tag: 'P&L Track',
+        description: 'Puts measurable percentages, revenue growth, cost efficiency, and ROI at the forefront.',
+        actionPrompt: 'Apply Option 1: Revenue Growth & Measurable KPI Scale focus'
+      },
+      {
+        id: 'opt-biz-ops',
+        label: 'Option 2: Operational Excellence & Workflow Optimization',
+        title: 'Operational Excellence & Workflow Optimization',
+        icon: '⚙️',
+        tag: 'Operations Track',
+        description: 'Emphasizes streamlining operations, eliminating bottlenecks, and cross-functional leadership.',
+        actionPrompt: 'Apply Option 2: Operational Excellence & Workflow Optimization focus'
+      },
+      {
+        id: 'opt-biz-strat',
+        label: 'Option 3: Strategic Partnerships & Market Expansion',
+        title: 'Strategic Partnerships & Relationship Management',
+        icon: '🤝',
+        tag: 'Strategy Track',
+        description: 'Focuses on enterprise stakeholder management, client retention, and market expansion.',
+        actionPrompt: 'Apply Option 3: Strategic Partnerships & Market Expansion focus'
+      }
+    ];
+  }
+}
+
+/**
  * Formats a comprehensive Before vs After explanation for the user in conversational Hinglish/English.
  */
 export function formatDiffAsExplanation(diffReport, currentVersion = 2) {

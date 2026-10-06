@@ -946,6 +946,122 @@ export function parseConsultantAndVibeCodingRequest(promptText, currentCvState) 
 }
 
 /**
+ * Handles explicit selection of suggested tracks (Option 1, Option 2, Option 3)
+ */
+export function parseOptionSelectionRequest(promptText, currentCvState) {
+  const rawText = (promptText || '').trim();
+  if (!rawText) return null;
+  const lower = rawText.toLowerCase();
+
+  const isOpt1 = (
+    lower.includes('option 1') || lower.includes('opt 1') ||
+    lower.includes('vibe coding & rapid prototyping track') || lower.includes('full-stack ai & rapid prototyping track') ||
+    lower.includes('system architecture & cloud scale') || lower.includes('revenue growth & measurable')
+  );
+  const isOpt2 = (
+    lower.includes('option 2') || lower.includes('opt 2') ||
+    lower.includes('executive talent acquisition & leadership track') || lower.includes('generative ai & modern') ||
+    lower.includes('operational excellence & workflow')
+  );
+  const isOpt3 = (
+    lower.includes('option 3') || lower.includes('opt 3') ||
+    lower.includes('strategic dual-power hybrid track') || lower.includes('engineering leadership & delivery') ||
+    lower.includes('strategic partnerships & market')
+  );
+
+  if (!isOpt1 && !isOpt2 && !isOpt3) {
+    return null;
+  }
+
+  const operations = [];
+  const authorizedChanges = [];
+  const summaries = [];
+
+  if (isOpt1) {
+    const title = 'Independent Consultant & Full-Stack AI Engineer | Vibe Coding & Rapid Prototyping';
+    operations.push({
+      id: `op-title-${Date.now()}`,
+      operation: 'REPLACE',
+      section: 'headline',
+      field: 'header.title',
+      requestedValue: title,
+      description: `Updated Headline to: "${title}"`
+    });
+    authorizedChanges.push({ field: 'header.title', value: title, authorization: 'USER_EXPLICIT' });
+
+    const summary = 'Accomplished Independent Consultant and Full-Stack AI Vibe Developer with a proven track record of engineering digital products from scratch and publishing live applications across mobile and cloud platforms. Combines strong full-lifecycle delivery with modern AI toolchains (Antigravity AI, Claude, OpenAI Codex, ChatGPT) to rapidly architect, test, and ship responsive enterprise solutions.';
+    operations.push({
+      id: `op-summary-${Date.now()}`,
+      operation: 'REWRITE',
+      section: 'summary',
+      field: 'header.summary',
+      requestedValue: summary,
+      instruction: summary,
+      description: 'Applied Option 1: Full-Stack AI & Rapid Prototyping Summary'
+    });
+    authorizedChanges.push({ field: 'header.summary', value: summary, authorization: 'USER_EXPLICIT' });
+    summaries.push('Applied Option 1 (Full-Stack AI & Rapid Prototyping Track)');
+  } else if (isOpt2) {
+    const title = 'Lead Talent Acquisition Specialist & Recruitment Operations Strategist';
+    operations.push({
+      id: `op-title-${Date.now()}`,
+      operation: 'REPLACE',
+      section: 'headline',
+      field: 'header.title',
+      requestedValue: title,
+      description: `Updated Headline to: "${title}"`
+    });
+    authorizedChanges.push({ field: 'header.title', value: title, authorization: 'USER_EXPLICIT' });
+
+    const summary = 'Strategic Talent Acquisition Leader with 9+ years of comprehensive experience orchestrating end-to-end recruitment operations, lateral leadership hiring, and vendor governance. Proven expertise in reducing cost-per-hire through direct sourcing pipelines, managing large-scale recruitment drives, and partnering with executive stakeholders to fulfill aggressive corporate hiring roadmaps.';
+    operations.push({
+      id: `op-summary-${Date.now()}`,
+      operation: 'REWRITE',
+      section: 'summary',
+      field: 'header.summary',
+      requestedValue: summary,
+      instruction: summary,
+      description: 'Applied Option 2: Executive Talent Acquisition Leadership Summary'
+    });
+    authorizedChanges.push({ field: 'header.summary', value: summary, authorization: 'USER_EXPLICIT' });
+    summaries.push('Applied Option 2 (Executive Talent Acquisition Track)');
+  } else if (isOpt3) {
+    const title = 'Talent Acquisition & AI Automation Consultant | Operations & Product Prototyping';
+    operations.push({
+      id: `op-title-${Date.now()}`,
+      operation: 'REPLACE',
+      section: 'headline',
+      field: 'header.title',
+      requestedValue: title,
+      description: `Updated Headline to: "${title}"`
+    });
+    authorizedChanges.push({ field: 'header.title', value: title, authorization: 'USER_EXPLICIT' });
+
+    const summary = 'Dynamic Talent Acquisition and AI Automation Consultant bridging 9+ years of enterprise human capital management with hands-on AI workflow engineering. Adept at designing interactive Power BI analytics dashboards, streamlining ATS recruitment funnels, and deploying modern cloud solutions to drive measurable organizational transformation.';
+    operations.push({
+      id: `op-summary-${Date.now()}`,
+      operation: 'REWRITE',
+      section: 'summary',
+      field: 'header.summary',
+      requestedValue: summary,
+      instruction: summary,
+      description: 'Applied Option 3: Strategic Dual-Power Hybrid Summary'
+    });
+    authorizedChanges.push({ field: 'header.summary', value: summary, authorization: 'USER_EXPLICIT' });
+    summaries.push('Applied Option 3 (Strategic Dual-Power Hybrid Track)');
+  }
+
+  return {
+    scope: 'REWRITE_FULL',
+    operations,
+    targetSections: ['headline', 'summary'],
+    authorizedChanges,
+    rawPrompt: rawText,
+    planSummary: summaries.join(' • ')
+  };
+}
+
+/**
  * Master Comprehensive Change Request Parser
  * Evaluates any user input holistically and returns an atomic Change Plan.
  */
@@ -960,6 +1076,12 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
   );
   if (isRoleCritiqueIntent) {
     return null;
+  }
+
+  // Option Selection Request Check
+  const optionPlan = parseOptionSelectionRequest(rawText, currentCvState);
+  if (optionPlan) {
+    return optionPlan;
   }
 
   // Holistic Consultant / Freelancer & Vibe Coding Prompt Check

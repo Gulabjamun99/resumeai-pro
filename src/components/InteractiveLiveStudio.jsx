@@ -11,7 +11,7 @@ import { exportResumeToPdf } from '../utils/pdfExporter';
 import { exportResumeToDocx } from '../utils/docxExporter';
 import { RESUME_TEMPLATES_CATALOG, TEMPLATE_TAG_FILTERS } from '../data/templateCatalog';
 import { COLOR_PALETTES, FONT_FAMILIES, DENSITY_OPTIONS, DEFAULT_DESIGN_THEME } from '../data/themePresets';
-import { computeResumeDiff, isDiffInquiry, formatDiffAsExplanation, isJdOptimizationRequest } from '../utils/changeDiffDetector';
+import { computeResumeDiff, isDiffInquiry, formatDiffAsExplanation, isJdOptimizationRequest, isImprovementOrOptionsRequest, generateDomainImprovementOptions } from '../utils/changeDiffDetector';
 import { getGeminiChatResponse } from '../services/geminiService';
 
 /**
@@ -140,7 +140,27 @@ export default function InteractiveLiveStudio({
       return;
     }
 
-    // 2. RESUME REFINEMENT / JD TAILORING INTENT
+    // 2. SUGGESTIONS & MULTI-TRACK OPTIONS INTENT (e.g. "ye acha nhi lag rha hai koi tarike se ache bnao")
+    if (isImprovementOrOptionsRequest(trimmed)) {
+      const options = generateDomainImprovementOptions(resume);
+      const optionsText = `Bilkul! Jab aapko lagta hai ki resume me aur impact chahiye, toh hum aapke career profile ke hisaab se 3 tailored tracks offer karte hain:\n\n` +
+        options.map((opt) => `🔹 **${opt.title}:**\n${opt.description}`).join('\n\n') +
+        `\n\n👇 **Neeche diye gaye kisi bhi track par click karke aap ise turant live canvas par apply kar sakte hain:**`;
+
+      setChatLog(prev => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: optionsText,
+          options: options,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+      setIsProcessing(false);
+      return;
+    }
+
+    // 3. RESUME REFINEMENT / JD TAILORING INTENT
     try {
       if (onApplyRefinement) {
         const result = await onApplyRefinement(trimmed);
@@ -678,7 +698,36 @@ export default function InteractiveLiveStudio({
                           : 'bg-slate-850 text-slate-200 border border-slate-700/80 rounded-bl-none'
                       }`}
                     >
-                      {msg.text}
+                      <div>{msg.text}</div>
+
+                      {msg.options && msg.options.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-slate-700/60 flex flex-col gap-2 w-full text-left">
+                          <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider">
+                            ⚡ Select a track to apply instantly to your live canvas:
+                          </span>
+                          <div className="flex flex-col gap-2">
+                            {msg.options.map((opt, oIdx) => (
+                              <button
+                                key={oIdx}
+                                onClick={() => handleSendPrompt(opt.actionPrompt || opt.title)}
+                                className="text-left p-2.5 rounded-xl bg-slate-900 hover:bg-sky-950/80 border border-slate-700/80 hover:border-sky-500/80 transition flex flex-col gap-1 cursor-pointer group shadow-sm"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-bold text-sky-300 group-hover:text-sky-200 text-xs flex items-center gap-1.5">
+                                    <span>{opt.icon || '✨'}</span> {opt.title}
+                                  </span>
+                                  <span className="text-[9.5px] bg-sky-900/40 text-sky-300 px-2 py-0.5 rounded border border-sky-700/40 font-semibold group-hover:bg-sky-500 group-hover:text-white transition">
+                                    1-Click Apply ➔
+                                  </span>
+                                </div>
+                                <span className="text-[10.5px] text-slate-400 group-hover:text-slate-300 leading-snug">
+                                  {opt.description}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <span className="text-[9.5px] text-slate-500 mt-1 px-1">
                       {msg.timestamp}
