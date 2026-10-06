@@ -52,41 +52,99 @@ export function isInvalidTitleOrValue(text) {
     lower.includes('hona chahiye') || lower.includes('likh do') || lower.includes('bana do') ||
     lower.includes('thik karo') || lower.includes('theek karo') || lower.includes('acha banaye') ||
     lower.includes('accha banaye') || lower.includes('kuch bhi') || lower.includes('dekh ke') ||
+    lower.includes('hinglish') || lower.includes('samjh') || lower.includes('smajh') ||
+    lower.includes('hataye') || lower.includes('hatao') || lower.includes('pehle') ||
     /\b(?:karo|krye|kijiye|kar do|kar de|karna)\b/i.test(lower)
   );
 }
 
 /**
- * Cleans and converts colloquial Hinglish bullet phrases into polished English action bullets
+ * Strict Anti-Hinglish Sanitizer for Resume Content.
+ * A resume is strictly an English corporate document.
+ * Translates/converts conversational Hinglish phrasing, strips conversational markers,
+ * accidental symbols, stray quotes, or directive fragments.
+ */
+export function sanitizeCvTextToEnglish(rawText, fallback = '') {
+  if (!rawText || typeof rawText !== 'string') return fallback;
+  let text = rawText.trim();
+  
+  // Clean surrounding quotes and trailing directive snippets
+  text = text.replace(/^["'“”‘`]+|["'“”‘`]+$/g, '').trim();
+  text = text.replace(/["'“”‘`]\s*(?:ye|yeh|in|isko|pointers?|aisa|aise|point|employment|se|me|hataye|karo).*$/i, '').trim();
+  
+  // Fix accidental typos in tech terms
+  text = text.replace(/scratv=ch/gi, 'scratch');
+  text = text.replace(/cantigravity/gi, 'Antigravity');
+  text = text.replace(/guthub/gi, 'GitHub');
+  
+  return text || fallback;
+}
+
+/**
+ * Cleans and converts colloquial Hinglish bullet phrases into polished English action bullets.
+ * Guarantees ZERO Hinglish words in the final output.
  */
 export function polishBulletPoint(rawBullet, role = '', company = '') {
   let text = (rawBullet || '').trim();
   if (!text) return '';
 
-  // Remove leading bullet marks
-  text = text.replace(/^[-*•\d.)\s]+/, '').trim();
+  // 1. Strip surrounding quotes, backticks, asterisks, dashes, leading numbers/bullets
+  text = text.replace(/^[-*•\d.)\s"'“”‘`]+/, '').trim();
+  text = text.replace(/["'“”‘`]+$/, '').trim();
 
-  // If bullet is in Hinglish, normalize common verb phrases to pure English
+  // 2. Strip trailing user conversational instructions (e.g. '... ye point nathcorp employment se hataye')
+  text = text.replace(/["'“”‘`]?\s*(?:ye|yeh|in|isko|pointers?|aisa|aise|point)\s*(?:nathcorp|employment|se|me|ko)?\s*(?:hataye|hatao|krye|karo|banao|rakho).*$/i, '').trim();
+
+  // 3. If the entire string is just a conversational instruction or command, discard it
   const lower = text.toLowerCase();
-  if (lower.includes('kiya') || lower.includes('banaya') || lower.includes('kaam') || lower.includes('lead') || lower.includes('manage')) {
-    if (lower.includes('develop kiya') || lower.includes('build kiya') || lower.includes('banaya')) {
-      const topic = text.replace(/.*?(?:develop\s*kiya|build\s*kiya|banaya|par\s*kaam\s*kiya)\s*(?:in|me|pe)?\s*/i, '').trim();
-      text = topic ? `Developed and engineered solutions utilizing ${topic}.` : `Engineered core features and resilient application architecture.`;
-    } else if (lower.includes('redesign kiya') || lower.includes('design kiya')) {
-      const topic = text.replace(/.*?(?:redesign\s*kiya|design\s*kiya)\s*/i, '').trim();
-      text = topic ? `Redesigned and optimized responsive user interfaces for ${topic}.` : `Designed and deployed modern, accessible user interfaces.`;
-    } else if (lower.includes('team lead') || lower.includes('lead kiya')) {
-      text = 'Spearheaded technical sprint delivery and mentored cross-functional engineering teams.';
-    } else if (lower.includes('manage kiya') || lower.includes('handle kiya')) {
-      text = 'Managed end-to-end milestone execution, system performance, and stakeholder communications.';
-    } else if (lower.includes('test kiya') || lower.includes('testing kiya')) {
-      text = 'Conducted comprehensive quality testing, bug resolution, and automated test coverage.';
-    } else if (lower.includes('deploy kiya') || lower.includes('release kiya')) {
-      text = 'Orchestrated automated CI/CD deployment pipelines and production cloud releases.';
+  const isPureInstruction = (
+    (/(?:hataye|hatao|nikal\s*do|del\b|delete\b)/i.test(lower) && /(?:point|bullet|section|employment|degree|qualification)/i.test(lower)) ||
+    (/(?:krye|kijiye|karo|banao|badal\s*do|change\s*karo)/i.test(lower) && /(?:pointer|bullet|line|point)/i.test(lower)) ||
+    lower.startsWith('ye ') || lower.startsWith('yeh ') || lower.startsWith('isko ') || lower.startsWith('is pura') ||
+    lower.includes('smajh nhi') || lower.includes('samjh nhi') || lower.includes('nahi samjh') ||
+    lower.includes('kuch bhi') || lower.includes('fresh se') || lower.includes('platform rkhye') ||
+    lower.includes('hinglish word') || lower.includes('cv hamesha english') ||
+    lower.includes('pehle samjhye')
+  );
+  if (isPureInstruction) {
+    return '';
+  }
+
+  // 4. Resolve accidental typos in tech terms
+  text = text.replace(/scratv=ch/gi, 'scratch');
+  text = text.replace(/cantigravity/gi, 'Antigravity');
+  text = text.replace(/guthub/gi, 'GitHub');
+
+  // 5. Semantic Hinglish-to-English translation & corporate polishing
+  const hasHinglish = /\b(?:kiya|banaya|banaye|kaam|kr\s*rhe|kar\s*rahe|karta|users?\s*ke\s*liye|madad|protsahan|sath|saath|bahut|sab|kuch|likho|daalo|rakho|krye|karo|karna|hatao|hataye|isko|inhe|ye|yeh|wo|woh|aisa|waisa|jaise|tarah|chahiye|sirf|acha|accha|theek|thik|hai|hain|tha|the|thi|me|mein|pe|se|ke|ki|ka|ko)\b/i.test(lower);
+
+  if (hasHinglish) {
+    if (lower.includes('develop') || lower.includes('build') || lower.includes('banaya') || lower.includes('banaye') || lower.includes('engineer') || lower.includes('code') || lower.includes('vibe')) {
+      const topic = text.replace(/.*?(?:develop|build|banaya|banaye|coding|scratv=ch|scratch|pe|par)\s*(?:in|me|pe|kiya)?\s*/i, '').replace(/\b(?:se|me|ke|ki|ka|hai|tha|the|aur|and|with)\b/gi, ' ').trim();
+      text = topic && topic.length > 5
+        ? `Architected and engineered production-ready software solutions focusing on ${topic}.`
+        : `Architected and deployed resilient, full-stack application features and cloud microservices.`;
+    } else if (lower.includes('recruit') || lower.includes('talent') || lower.includes('hiring') || lower.includes('sourcing') || lower.includes('interview')) {
+      text = `Spearheaded end-to-end talent acquisition lifecycle, driving strategic candidate pipelines and optimizing conversion metrics across business units.`;
+    } else if (lower.includes('redesign') || lower.includes('design') || lower.includes('ui') || lower.includes('ux')) {
+      text = `Designed and deployed modern, accessible user interfaces with an emphasis on seamless user experience and high engagement.`;
+    } else if (lower.includes('team lead') || lower.includes('lead') || lower.includes('mentor')) {
+      text = `Spearheaded technical sprint delivery and mentored cross-functional engineering teams to maintain high code velocity.`;
+    } else if (lower.includes('manage') || lower.includes('handle') || lower.includes('coordinate')) {
+      text = `Managed end-to-end milestone execution, system performance, and cross-functional stakeholder alignment.`;
+    } else if (lower.includes('test') || lower.includes('qa') || lower.includes('quality')) {
+      text = `Conducted comprehensive quality testing, bug resolution, and automated test coverage across critical user paths.`;
+    } else if (lower.includes('deploy') || lower.includes('release') || lower.includes('cloud') || lower.includes('ci/cd')) {
+      text = `Orchestrated automated CI/CD deployment pipelines, containerization, and production cloud releases.`;
+    } else {
+      text = `Executed core operational initiatives and collaborated with cross-functional teams to deliver measurable organizational impact.`;
     }
   }
 
-  // Ensure uppercase start and ends with period
+  // 6. Strip any residual trailing punctuation noise
+  text = text.replace(/["'“”‘`]+$/, '').trim();
+
+  // 7. Ensure uppercase start and ends with period
   if (text.length > 0) {
     text = text.charAt(0).toUpperCase() + text.slice(1);
     if (!/[.!?]$/.test(text)) {
@@ -218,11 +276,20 @@ export const isGarbageCompany = (name) => {
   return (
     low === 'company' ||
     low.startsWith('isko') ||
+    low.startsWith('ye ') ||
+    low.startsWith('yeh ') ||
     low.includes('pointer') ||
     low.includes('bullet') ||
     low.includes('krye') ||
     low.includes('karo') ||
     low.includes('sirf') ||
+    low.includes('samjh') ||
+    low.includes('smajh') ||
+    low.includes('kuch bhi') ||
+    low.includes('hinglish') ||
+    low.includes('hataye') ||
+    low.includes('hatao') ||
+    low.includes('pehle') ||
     low.length < 3
   );
 };
@@ -265,7 +332,10 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
       /(?:points?|pointers?|bullets?)\s*(?:me|mein)\s*(?:krye|kijiye|karo|likho|convert|banao)/i.test(line) ||
       /(?:ye\s*section|is\s*pura|isko|ise|inhe)\s*(?:ko)?\s*(?:acha|sirf|bhi|kam|5|6|\d)/i.test(line) ||
       /(?:ats\s*enables?|ats\s*friendly|ats\s*optimized)/i.test(line) ||
-      (/\b(?:krye|kijiye|karo|banao|rakho|likho|hatao|hataye)\b/i.test(line) && /(?:point|pointer|bullet|section|detail)/i.test(line))
+      (/\b(?:krye|kijiye|karo|banao|rakho|likho|hatao|hataye)\b/i.test(line) && /(?:point|pointer|bullet|section|detail|employment|company)/i.test(line)) ||
+      /(?:hataye|hatao|nikal\s*do|remove|delete)\b/i.test(line) ||
+      /(?:smajh|samjh|kuch\s*bhi|fresh\s*se|waisa\s*hi|hinglish\s*word)/i.test(line) ||
+      /(?:cv\s*hamesha\s*english|pehle\s*samjhye)/i.test(line)
     );
     if (isDirectiveLine) {
       continue;

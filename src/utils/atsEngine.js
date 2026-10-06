@@ -125,6 +125,8 @@ export function isInvalidTitleOrValue(text) {
     lower.includes('hona chahiye') || lower.includes('likh do') || lower.includes('bana do') ||
     lower.includes('thik karo') || lower.includes('theek karo') || lower.includes('acha banaye') ||
     lower.includes('accha banaye') || lower.includes('kuch bhi') || lower.includes('dekh ke') ||
+    lower.includes('hinglish') || lower.includes('samjh') || lower.includes('smajh') ||
+    lower.includes('hataye') || lower.includes('hatao') || lower.includes('pehle') ||
     /\b(?:karo|krye|kijiye|kar do|kar de|karna)\b/i.test(lower)
   );
 }
@@ -2814,7 +2816,7 @@ export function executeChangePlan(currentCvState, changePlan) {
     }
   });
 
-  // Sanitize experiences: remove any spurious or garbage company entries
+  // Sanitize experiences: remove any spurious or garbage company entries and clean stray quotes
   if (Array.isArray(proposedCv.experiences)) {
     proposedCv.experiences = proposedCv.experiences.filter(exp => {
       const cLow = (exp.company || '').toLowerCase().trim();
@@ -2822,13 +2824,33 @@ export function executeChangePlan(currentCvState, changePlan) {
         cLow &&
         cLow !== 'company' &&
         !cLow.startsWith('isko') &&
+        !cLow.startsWith('ye ') &&
+        !cLow.startsWith('yeh ') &&
         !cLow.includes('pointer') &&
         !cLow.includes('bullet') &&
         !cLow.includes('krye') &&
         !cLow.includes('karo') &&
         !cLow.includes('sirf') &&
+        !cLow.includes('hinglish') &&
+        !cLow.includes('samjh') &&
+        !cLow.includes('smajh') &&
+        !cLow.includes('kuch bhi') &&
+        !cLow.includes('hataye') &&
+        !cLow.includes('hatao') &&
+        !cLow.includes('pehle') &&
         cLow.length >= 3
       );
+    });
+
+    proposedCv.experiences.forEach(exp => {
+      if (Array.isArray(exp.bullets)) {
+        exp.bullets = exp.bullets.map(b => {
+          if (!b || typeof b !== 'string') return '';
+          let cleanB = b.replace(/^["'“”‘`]+|["'“”‘`]+$/g, '').trim();
+          cleanB = cleanB.replace(/["'“”‘`]\s*(?:ye|yeh|in|isko|pointers?|aisa|aise|point|employment|se|me|hataye|karo).*$/i, '').trim();
+          return cleanB;
+        }).filter(b => b.length > 5);
+      }
     });
   }
 

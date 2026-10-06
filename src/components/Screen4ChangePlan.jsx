@@ -11,17 +11,15 @@ import { Layers, CheckCircle2, Edit3, XCircle, ShieldCheck, ArrowRight, Sparkles
  * - Protected baseline lock enforcer preview
  */
 export default function Screen4ChangePlan({ changePlan, currentVersion, onApprove, onEdit, onCancel }) {
-  if (!changePlan) return null;
-
-  const operations = changePlan.operations || [];
-  const targetSections = changePlan.targetSections || [];
-  const fullStats = changePlan.counts || {
+  const operations = changePlan?.operations || [];
+  const targetSections = changePlan?.targetSections || [];
+  const fullStats = changePlan?.counts || {
     KEEP: 18,
     OPTIMIZE: operations.length,
     REWRITE: operations.filter(o => o.operation === 'REWRITE').length,
     REORDER: operations.filter(o => o.operation === 'FORMAT').length,
     GRAMMAR_FIX: 2,
-    BLOCKED: changePlan.blockedActions?.length || 0,
+    BLOCKED: changePlan?.blockedActions?.length || 0,
     NO_CHANGE_REQUIRED: 16
   };
 
@@ -34,6 +32,8 @@ export default function Screen4ChangePlan({ changePlan, currentVersion, onApprov
     education: false,
     blocked: true
   });
+
+  if (!changePlan) return null;
 
   const handleToggleOperation = (opId) => {
     if (selectedOpIds.includes(opId)) {

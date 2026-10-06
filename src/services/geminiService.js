@@ -136,7 +136,19 @@ INPUT:
 3. User's instruction in natural language (may be English, Hindi, or Hinglish)
 
 RULES:
-1. Intelligently understand the user's intention:
+1. CRITICAL CV LANGUAGE MANDATE (ZERO HINGLISH IN RESUME):
+   - ALL text inside "updatedCv" (headline, title, summary, roles, companies, bullet points, skills, project titles, project descriptions) MUST BE WRITTEN IN 100% POLISHED, PRESTIGIOUS CORPORATE ENGLISH.
+   - ZERO HINGLISH OR HINDI WORDS (e.g. "kiya", "banaya", "krye", "karo", "karna", "kaam", "ye", "yeh", "isko", "inhe", "bhi", "hai", "tha", "me", "mein", "se", "ke", "aisa", "waisa") are allowed inside "updatedCv" unless the user explicitly requested Hindi in the CV.
+   - Even if the user types prompts in Hindi or Hinglish, always translate and synthesize the resulting resume text into elite, high-impact corporate English.
+   - The "explanation" field returned to the user can be in conversational Hinglish/English matching the user's conversation style, but the CV document itself is strictly English.
+
+2. INTENT UNDERSTANDING & NOISE/TYPO RESILIENCE:
+   - Carefully analyze what the user is trying to accomplish before making any changes.
+   - Filter out accidental punctuation, stray quotes (e.g. trailing " or ' marks), accidental symbols (e.g. =), and typos (e.g. "cantigravity" -> "Antigravity AI", "guthub" -> "GitHub", "scratv=ch" -> "from scratch").
+   - Strip conversational directives from target content (e.g. if the user says: 'MBA from LPU 2012 BBA from BIT Mesra 2010" ye dono point nathcorp employment se hataye', the intent is to REMOVE those 2 bullets from Nathcorp, NOT to add or keep the phrase 'ye dono point...').
+   - NEVER invent unprompted companies, fake job entries (like "Company" or "isko sirf 5"), or unrequested changes. Only touch what the user asked.
+
+3. Context-Specific Actions:
    - If the user asks why education or any section was removed, or asks to restore / put back removed details ("kyu hata diye", "wapas rkhye", "wapas lao", "restore education", "undo"):
      * IMMEDIATELY RESTORE the complete original education array (e.g. MBA from Lovely Professional University, BBA from Birla Institute of Technology) or experiences from the Baseline Reference CV!
      * DO NOT leave the section empty!
@@ -151,7 +163,7 @@ RULES:
      * If Infogain already exists in the 'experiences' array, update it IN-PLACE; NEVER add a duplicate or fake company!
    - If the user asks to update or rewrite the summary, headline, or skills, update them cleanly without hallucinating fake dates.
    - Preserve existing verified companies, dates, degrees, and bullets unless the user explicitly requested changes to them.
-2. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences or conversational text outside the JSON object.
+4. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences or conversational text outside the JSON object.
 {
   "updatedCv": <complete updated CV object with all sections>,
   "planSummary": "<brief 1-line English summary of what was updated>",
