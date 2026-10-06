@@ -1173,7 +1173,17 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
         if (eComp && newComp && (eComp.includes(newComp) || newComp.includes(eComp))) return true;
         const eTokens = eComp.split(/\s+/).filter(t => t.length >= 4 && !['india', 'pvt', 'ltd', 'technologies', 'solutions'].includes(t));
         const newTokens = newComp.split(/\s+/).filter(t => t.length >= 4 && !['india', 'pvt', 'ltd', 'technologies', 'solutions'].includes(t));
-        return eTokens.some(t => newTokens.includes(t));
+        if (eTokens.length > 0 && eTokens.some(t => newTokens.includes(t))) return true;
+
+        // Check if raw prompt mentions this existing company
+        if (eComp && rawText.toLowerCase().includes(eComp)) return true;
+
+        // Check role match
+        const eRole = (e.role || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+        const newRole = (exp.role || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+        if (eRole && newRole && (eRole.includes(newRole) || newRole.includes(eRole))) return true;
+
+        return false;
       });
 
       if (existingExp) {
