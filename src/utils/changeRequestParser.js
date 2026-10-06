@@ -300,6 +300,7 @@ export const isGarbageCompany = (name) => {
 export function extractStructuredExperiences(lines, currentExperiences = [], rawPrompt = '') {
   const experiences = [];
   let currentExp = null;
+  const orphanBullets = [];
 
   const commitCurrentExp = () => {
     if (currentExp && (currentExp.company || currentExp.role)) {
@@ -468,9 +469,60 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
         bullets: []
       };
       continue;
-    } else if (currentExp && isActionVerbLine && wordCount > 4) {
-      let cleanBullet = line.replace(/["”']\s*(?:ye|yeh|in|isko|pointers?|aisa|aise).*$/i, '').trim();
-      currentExp.bullets.push(cleanBullet);
+    } else if (bulletMatch || (isActionVerbLine && wordCount > 4)) {
+      let cleanBullet = (bulletMatch ? bulletMatch[1] : line).replace(/["”']\s*(?:ye|yeh|in|isko|pointers?|aisa|aise).*$/i, '').trim();
+      if (currentExp) {
+        currentExp.bullets.push(cleanBullet);
+      } else {
+        orphanBullets.push(cleanBullet);
+      }
+    }
+  }
+
+  // If candidate pasted bullet points without an explicit company header (e.g. Infogain bullets):
+  // Match orphan bullets against existing experiences to find the target company automatically!
+  if (orphanBullets.length > 0 && !currentExp) {
+    let bestExp = null;
+    let maxOverlapScore = 0;
+
+    (currentExperiences || []).forEach(exp => {
+      const expBullets = (exp.bullets || []).map(b => (b || '').toLowerCase());
+      let score = 0;
+      orphanBullets.forEach(ob => {
+        const obLower = ob.toLowerCase();
+        const obTokens = obLower.split(/\s+/).filter(t => t.length > 3);
+        expBullets.forEach(eb => {
+          if (eb.includes(obLower.slice(0, 30)) || obLower.includes(eb.slice(0, 30))) {
+            score += 4;
+          } else {
+            const matches = obTokens.filter(t => eb.includes(t));
+            if (matches.length >= 3) score += 2;
+          }
+        });
+      });
+      if (score > maxOverlapScore) {
+        maxOverlapScore = score;
+        bestExp = exp;
+      }
+    });
+
+    if (bestExp && maxOverlapScore >= 4) {
+      currentExp = {
+        company: bestExp.company,
+        role: bestExp.role,
+        period: bestExp.period,
+        location: bestExp.location,
+        bullets: orphanBullets
+      };
+    } else if (orphanBullets.length >= 2 && currentExperiences && currentExperiences.length > 0) {
+      const targetExp = currentExperiences.find(e => /infogain/i.test(e.company)) || currentExperiences[0];
+      currentExp = {
+        company: targetExp.company,
+        role: targetExp.role,
+        period: targetExp.period,
+        location: targetExp.location,
+        bullets: orphanBullets
+      };
     }
   }
 

@@ -240,31 +240,21 @@ export default function InteractiveLiveStudio({
           aiResponseText = `✅ ${result?.planSummary || `Instruction "${trimmed}" live apply ho gaya hai.`}\n\nPreview canvas me update check kijiye!`;
         }
 
-        // Use AI Explanation from direct refiner or call Gemini 2.5 Flash mentor
-        let geminiExplanation = result?.aiExplanation || null;
-        if (!geminiExplanation) {
-          try {
-            geminiExplanation = await getGeminiChatResponse(trimmed, result?.updatedCv || resume, aiResponseText);
-          } catch (gemErr) {
-            console.warn("Gemini chat explanation fallback:", gemErr.message);
-          }
-        }
-
-        // If user asked to improve/rewrite summary and Gemini generated a draft, sync it directly to the canvas!
-        if (geminiExplanation && (trimmed.toLowerCase().includes('summary') || trimmed.toLowerCase().includes('profile'))) {
-          const quotedMatch = geminiExplanation.match(/(?:summary|profile\s*summary)[\s\S]*?["“]([^"”]{60,600})["”]/i) ||
-                              geminiExplanation.match(/["“]([A-Z][^"”]{70,600})["”]/);
-          if (quotedMatch && quotedMatch[1] && onApplyRefinement) {
-            const extractedSummary = quotedMatch[1].trim();
-            if (!extractedSummary.toLowerCase().includes('acha banaye') && !extractedSummary.toLowerCase().includes('likhyega')) {
-              try {
-                await onApplyRefinement(`summary: ${extractedSummary}`);
-              } catch (_) {}
+        // When actual document changes occur, show crisp, factual diff to avoid confusing verbose monologues
+        let finalText = aiResponseText;
+        if (!stepDiff || !stepDiff.hasChanges) {
+          let geminiExplanation = result?.aiExplanation || null;
+          if (!geminiExplanation) {
+            try {
+              geminiExplanation = await getGeminiChatResponse(trimmed, result?.updatedCv || resume, aiResponseText);
+            } catch (gemErr) {
+              console.warn("Gemini chat explanation fallback:", gemErr.message);
             }
           }
+          if (geminiExplanation) {
+            finalText = geminiExplanation;
+          }
         }
-
-        const finalText = geminiExplanation || aiResponseText;
 
         setChatLog(prev => [
           ...prev,
