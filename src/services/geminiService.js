@@ -143,11 +143,12 @@ RULES:
    - If the user asks to remove specific points from a specific company (e.g. "ye dono point nathcorp employment se hataye"):
      * ONLY remove those points from that specific company!
      * DO NOT remove the candidate's actual degrees from the Education section!
-   - If the user provides a work experience (e.g. Infogain India Pvt. Ltd., Senior Talent Acquisition Executive, Feb 2022 - Jan 2023) and says to condense pointers ("kam points me sab kuch cover ho jaye"):
-     * Company MUST be "Infogain India Pvt. Ltd.", Role MUST be "Senior Talent Acquisition Executive", Period MUST be "Feb 2022 - Jan 2023".
-     * NEVER confuse dates with company names!
-     * Condense their bullets into 3-4 powerful STAR-method corporate English ATS bullets covering all key aspects (lifecycle, vendor management, cost reduction, drives, compliance, Power BI dashboards).
-     * If Infogain already exists in the 'experiences' array, update it; otherwise add it at the correct chronological position.
+   - If the user provides a work experience (e.g. Infogain India Pvt. Ltd., Senior Talent Acquisition Executive, Feb 2022 - Jan 2023) and says to condense pointers ("kam points me sab kuch cover ho jaye", "isko sirf 5-6 pointers me krye", "6 pointers me krye", "ye section ko acha se 5-6 point me krye"):
+     * Company MUST be "Infogain India Pvt.Ltd.", Role MUST be "Senior Talent Acquisition Executive", Period MUST be "Feb 2022 - Jan 2023".
+     * NEVER treat instruction phrases like "isko sirf 5-6 pointers me krye" as a company or role!
+     * NEVER add a fake company like "isko sirf 5" or "Company"!
+     * Condense their bullets into the EXACT requested number of powerful STAR-method corporate English ATS bullets (e.g. 5-6 bullets covering lifecycle, vendor management, cost reduction, drives, compliance, Power BI dashboards).
+     * If Infogain already exists in the 'experiences' array, update it IN-PLACE; NEVER add a duplicate or fake company!
    - If the user asks to update or rewrite the summary, headline, or skills, update them cleanly without hallucinating fake dates.
    - Preserve existing verified companies, dates, degrees, and bullets unless the user explicitly requested changes to them.
 2. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences or conversational text outside the JSON object.

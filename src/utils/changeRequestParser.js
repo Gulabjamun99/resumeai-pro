@@ -149,37 +149,83 @@ const KNOWN_COMPANY_WORDS = /(?:pvt|ltd|inc|llc|corp|technologies|solutions|serv
 const ACTION_VERB_START = /^(?:managed|led|partnered|developed|organized|ensured|conducted|improved|experienced|built|designed|engineered|spearheaded|drove|implemented|delivered|executed|collaborated|resolved|achieved)\b/i;
 
 function condenseBulletsIfRequested(bullets, rawPrompt = '') {
-  const isCondense = rawPrompt.toLowerCase().includes('kam point') || 
-                     rawPrompt.toLowerCase().includes('kam points') || 
-                     rawPrompt.toLowerCase().includes('condense') || 
-                     rawPrompt.toLowerCase().includes('short') ||
-                     rawPrompt.toLowerCase().includes('compact') ||
+  const pLower = (rawPrompt || '').toLowerCase();
+  const isCondense = pLower.includes('kam point') || 
+                     pLower.includes('kam points') || 
+                     pLower.includes('condense') || 
+                     pLower.includes('short') ||
+                     pLower.includes('compact') ||
+                     pLower.includes('pointers me') ||
+                     pLower.includes('point me') ||
+                     pLower.includes('points me') ||
+                     pLower.includes('sirf') ||
                      bullets.length > 5;
   if (!isCondense || bullets.length <= 4) return bullets;
 
-  const combinedText = bullets.join(' ');
-  const condensed = [];
+  // Extract explicit requested count if given (e.g. "5-6 pointers" -> 6, "6 pointers" -> 6, "5 pointers" -> 5)
+  const rangeMatch = pLower.match(/(?:sirf|acha\s*se)?\s*(\d+)\s*[-–to\s]+\s*(\d+)\s*(?:points?|pointers?|bullets?)/i);
+  const singleMatch = pLower.match(/(?:sirf|around|exactly)?\s*(\d+)\s*(?:points?|pointers?|bullets?)/i);
 
-  // 1. Lifecycle & Stakeholder Management
-  condensed.push(`Spearheaded end-to-end talent acquisition lifecycle for lateral, leadership, and diversity hiring; partnered closely with hiring managers and cross-functional leadership to define headcount strategy and optimize recruitment workflows.`);
+  let targetCount = 6;
+  if (rangeMatch) {
+    targetCount = parseInt(rangeMatch[2], 10);
+  } else if (singleMatch) {
+    targetCount = parseInt(singleMatch[1], 10);
+  } else if (pLower.includes('kam point') || pLower.includes('short')) {
+    targetCount = 4;
+  }
+
+  const combinedText = bullets.join(' ');
+  const pool = [];
+
+  // 1. Full-Lifecycle & Headcount Strategy
+  pool.push(`Spearheaded end-to-end talent acquisition lifecycle for lateral, leadership, and diversity hiring; partnered closely with hiring managers and cross-functional leadership to define headcount strategy, calibrate job descriptions, and optimize recruitment workflows.`);
 
   // 2. Sourcing, Vendor Management & Cost Optimization
   if (/vendor|cost|pipeline|sourcing/i.test(combinedText)) {
-    condensed.push(`Engineered multi-channel talent pipelines and managed strategic partnerships across 7 external vendors, driving high-volume candidate conversion and reducing cost-per-hire.`);
+    pool.push(`Engineered multi-channel talent pipelines and managed strategic partnerships across 7 external staffing vendors, driving high-volume candidate conversion and reducing cost-per-hire.`);
   }
 
-  // 3. Hiring Drives & Offer/Onboarding Compliance
-  if (/drive|offer|bgv|onboard/i.test(combinedText)) {
-    condensed.push(`Orchestrated large-scale recruitment drives averaging 20+ candidate lineups per event; streamlined offer negotiations, BGV compliance, and post-offer engagement to maximize acceptance and reduce turnover.`);
+  // 3. High-Volume Hiring Drives & Lineup Velocity
+  if (/drive|lineup|event|volume|20\+/i.test(combinedText) || targetCount >= 5) {
+    pool.push(`Organized and executed large-scale recruitment drives averaging 20+ candidate lineups per event to accelerate hiring velocity and meet aggressive headcount targets.`);
   }
 
-  // 4. Data Analytics & Dashboards
+  // 4. Offer Governance, Negotiations & BGV Compliance
+  if (/offer|bgv|onboard|negotiat|engagement/i.test(combinedText)) {
+    pool.push(`Directed end-to-end offer management workflow, securing compensation approvals, negotiating competitive packages, ensuring strict BGV compliance, and orchestrating proactive post-offer engagement to maximize joining ratio.`);
+  }
+
+  // 5. Quality of Hire & Structured Screening
+  if (/quality|screening|turnover|selection|scorecard/i.test(combinedText) || targetCount >= 5) {
+    pool.push(`Elevated overall hire quality and reduced employee turnover rates by standardizing structured screening, interview scorecards, and competency-based assessment frameworks across technical and corporate business units.`);
+  }
+
+  // 6. Analytics, ATS & BI / QuickSight Dashboards
   if (/power bi|dashboard|ats|metric|quicksight/i.test(combinedText)) {
-    condensed.push(`Instituted data-driven recruitment tracking and built interactive Power BI / QuickSight performance dashboards to monitor daily hiring metrics, resolve bottlenecks, and enhance hire quality.`);
+    pool.push(`Instituted data-driven recruitment tracking and built interactive Power BI / AWS QuickSight dashboards to monitor daily hiring metrics, resolve bottlenecks, and enhance recruitment efficiency.`);
   }
 
-  return condensed.length > 0 ? condensed : bullets.slice(0, 4);
+  if (pool.length >= targetCount) {
+    return pool.slice(0, targetCount);
+  }
+  return pool.length > 0 ? pool : bullets.slice(0, targetCount);
 }
+
+export const isGarbageCompany = (name) => {
+  if (!name || typeof name !== 'string') return true;
+  const low = name.toLowerCase().trim();
+  return (
+    low === 'company' ||
+    low.startsWith('isko') ||
+    low.includes('pointer') ||
+    low.includes('bullet') ||
+    low.includes('krye') ||
+    low.includes('karo') ||
+    low.includes('sirf') ||
+    low.length < 3
+  );
+};
 
 /**
  * Extracts structured Employment blocks from text lines
@@ -190,8 +236,12 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
 
   const commitCurrentExp = () => {
     if (currentExp && (currentExp.company || currentExp.role)) {
-      if (!currentExp.company) currentExp.company = 'Enterprise Solutions';
-      if (!currentExp.role) currentExp.role = 'Specialist';
+      if (isGarbageCompany(currentExp.company)) {
+        currentExp = null;
+        return;
+      }
+      if (!currentExp.company) currentExp = 'Enterprise Solutions';
+      if (!currentExp.role || isGarbageCompany(currentExp.role)) currentExp.role = 'Specialist';
       if (!currentExp.period) currentExp.period = 'Present';
       if (!currentExp.location) currentExp.location = 'Remote / Hybrid';
       if (!currentExp.bullets || currentExp.bullets.length === 0) {
@@ -208,6 +258,18 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
+
+    // Check if line is a user instruction / directive rather than an employment data line
+    const isDirectiveLine = (
+      /(?:sirf|\bme\b|\bmein\b|\bko\b|\bse\b)\s*(?:\d+[\s\-]*(?:to|\-)?\s*\d*|\w+)?\s*(?:point|pointer|bullet)/i.test(line) ||
+      /(?:points?|pointers?|bullets?)\s*(?:me|mein)\s*(?:krye|kijiye|karo|likho|convert|banao)/i.test(line) ||
+      /(?:ye\s*section|is\s*pura|isko|ise|inhe)\s*(?:ko)?\s*(?:acha|sirf|bhi|kam|5|6|\d)/i.test(line) ||
+      /(?:ats\s*enables?|ats\s*friendly|ats\s*optimized)/i.test(line) ||
+      (/\b(?:krye|kijiye|karo|banao|rakho|likho|hatao|hataye)\b/i.test(line) && /(?:point|pointer|bullet|section|detail)/i.test(line))
+    );
+    if (isDirectiveLine) {
+      continue;
+    }
 
     // 1. Check if line contains inline key-values: e.g. "Company: TCS, Role: Dev, Period: 2022-Present"
     const lowerLine = line.toLowerCase();
@@ -265,9 +327,10 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
     const wordCount = line.split(/\s+/).length;
 
     // 4. Inline Header without prefix: e.g. "Senior Talent Acquisition Executive• Infogain India Pvt.Ltd."
-    // Must NOT be an action verb sentence and must be concise (<= 8 words)
-    const inlineHeaderMatch = !isActionVerbLine && wordCount <= 8 
-      ? line.match(/^([A-Za-z0-9\s.&',()-]{2,50})\s*(?:[•·|–—]|\s+at\s+|\s*[-]\s*)\s*([A-Za-z0-9\s.&',()-]{2,50})(?:\s*[-–|(]\s*([A-Za-z0-9\s.–—to\-,]+(?:\s*present)?)\)?)?$/i)
+    // Must NOT be an action verb sentence, must be concise (<= 8 words), and must NOT split on number ranges like 5-6!
+    const hasNumberRangeHyphen = /\d+\s*[-–]\s*\d+/.test(line);
+    const inlineHeaderMatch = !isActionVerbLine && wordCount <= 8 && !hasNumberRangeHyphen
+      ? line.match(/^([A-Za-z0-9\s.&',()]{2,50})\s*(?:[•·|–—]|\s+at\s+|\s+[-]\s+)\s*([A-Za-z0-9\s.&',()]{2,50})(?:\s*[-–|(]\s*([A-Za-z0-9\s.–—to\-,]+(?:\s*present)?)\)?)?$/i)
       : null;
 
     if (compMatch) {
@@ -300,16 +363,30 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
       let p2 = inlineHeaderMatch[2].trim();
       let p3 = inlineHeaderMatch[3] ? inlineHeaderMatch[3].trim() : '';
 
+      // Validate that at least ONE part is a recognizable role or recognizable company!
+      const isRole1 = KNOWN_ROLE_WORDS.test(p1);
+      const isRole2 = KNOWN_ROLE_WORDS.test(p2);
+      const isComp1 = KNOWN_COMPANY_WORDS.test(p1) || currentExperiences?.some(e => (e.company || '').toLowerCase().includes(p1.toLowerCase()));
+      const isComp2 = KNOWN_COMPANY_WORDS.test(p2) || currentExperiences?.some(e => (e.company || '').toLowerCase().includes(p2.toLowerCase()));
+
+      if (!isRole1 && !isRole2 && !isComp1 && !isComp2) {
+        continue;
+      }
+
       let role = p1;
       let company = p2;
 
       // Invert if role or company keywords match opposite positions
-      if ((KNOWN_COMPANY_WORDS.test(p1) || !KNOWN_ROLE_WORDS.test(p1)) && (KNOWN_ROLE_WORDS.test(p2) || !KNOWN_COMPANY_WORDS.test(p2))) {
+      if ((isComp1 || !isRole1) && (isRole2 || !isComp2)) {
         company = p1;
         role = p2;
-      } else if (KNOWN_ROLE_WORDS.test(p1) || KNOWN_COMPANY_WORDS.test(p2)) {
+      } else if (isRole1 || isComp2) {
         role = p1;
         company = p2;
+      }
+
+      if (isGarbageCompany(company)) {
+        continue;
       }
 
       commitCurrentExp();
@@ -844,6 +921,7 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
 
   if (structuredExps.length > 0) {
     structuredExps.forEach((exp, idx) => {
+      if (isGarbageCompany(exp.company)) return;
       // Check if this company already exists in currentCvState
       const existingExp = currentCvState?.experiences?.find(e => {
         const eComp = (e.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
@@ -869,6 +947,8 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
           description: `Update bullets & details for ${existingExp.company} (${exp.role || existingExp.role})`
         });
         authorizedChanges.push({ field: `experiences.${existingExp.id}`, value: exp.company, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: 'experiences.updated', value: existingExp.company, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: 'experiences.replaced', value: existingExp.id, authorization: 'USER_EXPLICIT' });
         targetSections.add('experience');
         summaries.push(`Updated ${existingExp.company} with ${exp.bullets.length} high-impact bullets`);
       } else {

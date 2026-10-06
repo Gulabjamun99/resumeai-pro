@@ -2424,22 +2424,36 @@ export function executeChangePlan(currentCvState, changePlan) {
             requestedFacts.push(`Added skill: "${op.value}"`);
           }
         } else if (op.section === 'experience') {
-          if (!proposedCv.experiences) proposedCv.experiences = [];
-          const newExpEntity = {
-            id: op.id || `exp-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-            _isNewUserEntry: true,
-            role: op.role || 'Specialist',
-            company: op.company || 'Enterprise Solutions',
-            period: op.period || 'Present',
-            location: op.location || 'Remote',
-            bullets: op.bullets || []
-          };
-          
-          const isDuplicate = proposedCv.experiences.some(e => e.role === op.role && e.company === op.company);
-          if (!isDuplicate) {
-            proposedCv.experiences.unshift(newExpEntity);
-            appliedOperations.push(op);
-            requestedFacts.push(op.description || `Added ${op.role} role at ${op.company}`);
+          const compLow = (op.company || '').toLowerCase().trim();
+          const isGarbage = 
+            !op.company ||
+            compLow === 'company' ||
+            compLow.startsWith('isko') ||
+            compLow.includes('pointer') ||
+            compLow.includes('bullet') ||
+            compLow.includes('krye') ||
+            compLow.includes('karo') ||
+            compLow.includes('sirf') ||
+            compLow.length < 3;
+
+          if (!isGarbage) {
+            if (!proposedCv.experiences) proposedCv.experiences = [];
+            const newExpEntity = {
+              id: op.id || `exp-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+              _isNewUserEntry: true,
+              role: op.role || 'Specialist',
+              company: op.company || 'Enterprise Solutions',
+              period: op.period || 'Present',
+              location: op.location || 'Remote',
+              bullets: op.bullets || []
+            };
+            
+            const isDuplicate = proposedCv.experiences.some(e => e.role === op.role && e.company === op.company);
+            if (!isDuplicate) {
+              proposedCv.experiences.unshift(newExpEntity);
+              appliedOperations.push(op);
+              requestedFacts.push(op.description || `Added ${op.role} role at ${op.company}`);
+            }
           }
         } else if (op.section === 'projects') {
           if (!proposedCv.projects) proposedCv.projects = [];
@@ -2799,6 +2813,24 @@ export function executeChangePlan(currentCvState, changePlan) {
         break;
     }
   });
+
+  // Sanitize experiences: remove any spurious or garbage company entries
+  if (Array.isArray(proposedCv.experiences)) {
+    proposedCv.experiences = proposedCv.experiences.filter(exp => {
+      const cLow = (exp.company || '').toLowerCase().trim();
+      return (
+        cLow &&
+        cLow !== 'company' &&
+        !cLow.startsWith('isko') &&
+        !cLow.includes('pointer') &&
+        !cLow.includes('bullet') &&
+        !cLow.includes('krye') &&
+        !cLow.includes('karo') &&
+        !cLow.includes('sirf') &&
+        cLow.length >= 3
+      );
+    });
+  }
 
   // Ensure standard reverse-chronological order for ATS compliance
   if (Array.isArray(proposedCv.experiences) && proposedCv.experiences.length > 1) {

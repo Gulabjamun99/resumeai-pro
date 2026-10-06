@@ -100,8 +100,17 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
     .map(c => (c.value || '').toLowerCase());
 
   const replacedOrUpdatedExperiences = (changePlan?.authorizedChanges || [])
-    .filter(c => c.field === 'experiences.replaced' || c.field === 'experiences.updated')
+    .filter(c => 
+      c.field === 'experiences.replaced' || 
+      c.field === 'experiences.updated' || 
+      c.field === 'experiences.augmented' ||
+      c.field?.startsWith('experiences.')
+    )
     .map(c => (c.value || '').toLowerCase());
+
+  const opUpdatedCompanies = (changePlan?.operations || [])
+    .filter(op => op.operation === 'UPDATE_EXPERIENCE' || op.operation === 'AUGMENT_EXPERIENCE')
+    .map(op => (op.targetCompany || op.company || '').toLowerCase());
 
   const deletedBullets = (changePlan?.authorizedChanges || [])
     .filter(c => c.field === 'experiences.deleted_bullet' || c.field === 'experiences.bullet.deleted')
@@ -116,11 +125,13 @@ export function enforceContentLocks(sourceMaster, currentBaseCv, proposedCv, cha
       }
 
       // Skip if this experience was explicitly replaced or updated by the user in this turn
-      const isExplicitlyReplaced = replacedOrUpdatedExperiences.some(r => 
-        (sourceExp.id && sourceExp.id.toLowerCase() === r) ||
-        (sourceExp.role && sourceExp.role.toLowerCase().includes(r)) ||
-        (sourceCompLower && sourceCompLower.includes(r))
-      );
+      const isExplicitlyReplaced = 
+        opUpdatedCompanies.some(c => c && (sourceCompLower.includes(c) || c.includes(sourceCompLower))) ||
+        replacedOrUpdatedExperiences.some(r => 
+          (sourceExp.id && sourceExp.id.toLowerCase() === r) ||
+          (sourceExp.role && sourceExp.role.toLowerCase().includes(r)) ||
+          (sourceCompLower && sourceCompLower.includes(r))
+        );
       if (isExplicitlyReplaced) {
         return;
       }
