@@ -952,6 +952,13 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
         targetSections.add('experience');
         summaries.push(`Updated ${existingExp.company} with ${exp.bullets.length} high-impact bullets`);
       } else {
+        // STRICT USER-CONTROL GUARD: Only add a new employment entry if user explicitly requested adding a job/company!
+        const hasExplicitAddJobIntent = /(?:add\s*(?:new\s*)?(?:job|role|experience|company)|naya\s*(?:job|role|experience|kaam)|naye\s*(?:job|role)|new\s*(?:job|role|experience)|shamil\s*karo|insert\s*(?:job|role))/i.test(rawText);
+        if (!hasExplicitAddJobIntent) {
+          // Do NOT create random unprompted employment!
+          return;
+        }
+
         const opId = `op-exp-add-struct-${Date.now()}-${idx}`;
         operations.push({
           id: opId,
