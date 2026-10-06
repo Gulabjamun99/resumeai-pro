@@ -151,7 +151,17 @@ RULES:
    - Strip conversational directives from target content (e.g. if the user says: 'MBA from LPU 2012 BBA from BIT Mesra 2010" ye dono point nathcorp employment se hataye', the intent is to REMOVE those 2 bullets from Nathcorp, NOT to add or keep the phrase 'ye dono point...').
    - NEVER invent unprompted companies, fake job entries (like "Company" or "isko sirf 5"), or unrequested changes. Only touch what the user asked.
 
-3. Context-Specific Actions:
+3. SPATIAL, STRUCTURAL & ANYWHERE-IN-RESUME EDITING:
+   - The user may describe changes using spatial positions, visual layout terms, or generic phrasing:
+     * "Passage" / "Paragraph" / "Para" = Professional Summary / Bio / Profile narrative.
+     * "Table" / "Grid" / "Chips" = Skills / Technical skills or Education credentials.
+     * "Left side" / "Left panel" / "Sidebar" = Contact details, Skills, Education, Certifications (sidebar elements).
+     * "Right side" / "Main body" / "Right panel" = Work Experience, Projects, Professional Summary.
+     * "Upar" / "Top" / "Header" = Candidate Name, Headline / Professional Title, Contact information.
+     * "Neeche" / "Bottom" = Education, Certifications, or Projects.
+   - When the user asks to add, edit, update, delete, or create ANY element anywhere in the resume (in a table, passage, left/right side, top, bottom), locate the exact corresponding field of the CV JSON and execute the change accurately without affecting unrelated parts.
+
+4. Context-Specific Actions:
    - If the user asks why education or any section was removed, or asks to restore / put back removed details ("kyu hata diye", "wapas rkhye", "wapas lao", "restore education", "undo"):
      * IMMEDIATELY RESTORE the complete original education array (e.g. MBA from Lovely Professional University, BBA from Birla Institute of Technology) or experiences from the Baseline Reference CV!
      * DO NOT leave the section empty!
@@ -166,7 +176,7 @@ RULES:
      * If Infogain already exists in the 'experiences' array, update it IN-PLACE; NEVER add a duplicate or fake company!
    - If the user asks to update or rewrite the summary, headline, or skills, update them cleanly without hallucinating fake dates.
    - Preserve existing verified companies, dates, degrees, and bullets unless the user explicitly requested changes to them.
-4. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences or conversational text outside the JSON object.
+5. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences or conversational text outside the JSON object.
 {
   "updatedCv": <complete updated CV object with all sections>,
   "planSummary": "<brief 1-line English summary of what was updated>",

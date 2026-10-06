@@ -20,10 +20,10 @@
 
 // Common section header patterns
 const SECTION_HEADER_PATTERNS = {
-  profile: /^(?:profile|personal(?:\s*details|\s*info)?|header|candidate(?:\s*details)?|contact(?:\s*details)?)(?:\s*update|\s*changes|\s*details)?\s*[:\-]?$/i,
-  summary: /^(?:summary|profile\s*summary|executive\s*summary|about\s*me|bio)(?:\s*update|\s*changes)?\s*[:\-]?$/i,
-  experience: /^(?:employment|work\s*experience|experience|job(?:\s*history|\s*details)?|jobs|naya\s*job|kaam)(?:\s*update|\s*changes|\s*section)?\s*[:\-]?$/i,
-  skills: /^(?:skills|core\s*skills|technical\s*skills|tech\s*stack|technologies)(?:\s*update|\s*changes|\s*section)?\s*[:\-]?$/i,
+  profile: /^(?:profile|personal(?:\s*details|\s*info)?|header|candidate(?:\s*details)?|contact(?:\s*details)?|upar|top)(?:\s*update|\s*changes|\s*details)?\s*[:\-]?$/i,
+  summary: /^(?:summary|profile\s*summary|executive\s*summary|about\s*me|bio|passage|paragraph|para)(?:\s*update|\s*changes|\s*me)?\s*[:\-]?$/i,
+  experience: /^(?:employment|work\s*experience|experience|job(?:\s*history|\s*details)?|jobs|naya\s*job|kaam|right\s*(?:side|panel|column))(?:\s*update|\s*changes|\s*section)?\s*[:\-]?$/i,
+  skills: /^(?:skills|core\s*skills|technical\s*skills|tech\s*stack|technologies|table|grid|left\s*(?:side|panel|column))(?:\s*update|\s*changes|\s*section)?\s*[:\-]?$/i,
   education: /^(?:education|academics|qualifications|degrees)(?:\s*update|\s*changes|\s*section)?\s*[:\-]?$/i,
   projects: /^(?:projects|personal\s*projects|live\s*apps)(?:\s*update|\s*changes|\s*section)?\s*[:\-]?$/i,
   certifications: /^(?:certifications|certificates|courses)(?:\s*update|\s*changes|\s*section)?\s*[:\-]?$/i
