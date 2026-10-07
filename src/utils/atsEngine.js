@@ -1614,23 +1614,22 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         authorizedChanges.push({ field: 'experiences.augmented', value: targetExistingExp.id, authorization: 'USER_EXPLICIT' });
         targetSections.add('experience');
         summaries.push(`Augmented ${targetExistingExp.role}`);
-      } else {
+      } else if (extracted.company && extracted.company.trim().length >= 2) {
         operations.push({
-          id: `op-exp-add-generic`,
+          id: `op-exp-add-user-${Date.now()}`,
           operation: 'ADD',
           section: 'experience',
           role: roleName,
-          company: 'Independent Enterprise Solutions',
+          company: extracted.company,
           period: period,
           location: 'Remote / Hybrid',
-          bullets: [
-            `Delivered targeted strategic deliverables aligned with client specifications: ${rawText.substring(0, 100)}...`,
-            `Streamlined operations and accelerated milestone closures with modern workflow automation.`
+          bullets: extracted.bullets?.length > 0 ? extracted.bullets : [
+            `Spearheaded key strategic responsibilities and deliverables in the role of ${roleName} at ${extracted.company}.`
           ],
-          description: `Add ${roleName} role (${period})`
+          description: `Add ${roleName} role at ${extracted.company} (${period})`
         });
         targetSections.add('experience');
-        summaries.push(`Added ${roleName} role`);
+        summaries.push(`Added ${roleName} at ${extracted.company}`);
       }
     }
   }
@@ -2438,13 +2437,13 @@ export function executeChangePlan(currentCvState, changePlan) {
             compLow.includes('sirf') ||
             compLow.length < 3;
 
-          if (!isGarbage) {
+          if (!isGarbage && op.company && op.company.trim().length >= 2 && op.company !== 'Enterprise Solutions') {
             if (!proposedCv.experiences) proposedCv.experiences = [];
             const newExpEntity = {
               id: op.id || `exp-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
               _isNewUserEntry: true,
-              role: op.role || 'Specialist',
-              company: op.company || 'Enterprise Solutions',
+              role: op.role || 'Professional',
+              company: op.company,
               period: op.period || 'Present',
               location: op.location || 'Remote',
               bullets: op.bullets || []

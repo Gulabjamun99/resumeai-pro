@@ -295,17 +295,31 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
   const orphanBullets = [];
 
   const commitCurrentExp = () => {
-    if (currentExp && (currentExp.company || currentExp.role)) {
+    if (currentExp && (currentExp.company || currentExp.role || currentExp.bullets?.length > 0)) {
       if (isGarbageCompany(currentExp.company)) {
         currentExp = null;
         return;
       }
-      if (!currentExp.company) currentExp = 'Enterprise Solutions';
-      if (!currentExp.role || isGarbageCompany(currentExp.role)) currentExp.role = 'Specialist';
+      // Never invent phantom companies like "Enterprise Solutions"
+      if (!currentExp.company) {
+        if (currentExperiences && currentExperiences.length > 0) {
+          currentExp.company = currentExperiences[0].company;
+          if (!currentExp.role) currentExp.role = currentExperiences[0].role;
+          if (!currentExp.period) currentExp.period = currentExperiences[0].period;
+          if (!currentExp.location) currentExp.location = currentExperiences[0].location;
+        } else {
+          currentExp = null;
+          return;
+        }
+      }
+      if (!currentExp.role || isGarbageCompany(currentExp.role)) {
+        currentExp.role = currentExperiences?.find(e => e.company === currentExp.company)?.role || 'Professional';
+      }
       if (!currentExp.period) currentExp.period = 'Present';
       if (!currentExp.location) currentExp.location = 'Remote / Hybrid';
       if (!currentExp.bullets || currentExp.bullets.length === 0) {
-        currentExp.bullets = [`Delivered high-impact contributions and strategic objectives in the role of ${currentExp.role} at ${currentExp.company}.`];
+        currentExp = null;
+        return;
       } else {
         const polished = currentExp.bullets.map(b => polishBulletPoint(b, currentExp.role, currentExp.company)).filter(Boolean);
         currentExp.bullets = condenseBulletsIfRequested(polished, rawPrompt);
