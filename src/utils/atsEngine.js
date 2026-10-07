@@ -1004,23 +1004,24 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       }
     });
 
-    const knownFallbacks = ['nathcorp', 'pulse solutions', 'execo', 'infogain', 'seewe', 'indigenous'];
-    knownFallbacks.forEach(comp => {
-      const isFallbackMatched = comp === 'pulse solutions' 
-        ? (lower.includes('pulse solutions') || /\bpulse\b/i.test(lower))
-        : lower.includes(comp);
-      if (isFallbackMatched && !operations.some(op => op.targetCompany?.toLowerCase()?.includes(comp))) {
+    // Also check against sourceMaster experiences if available, purely dynamically without hardcoding
+    const masterExperiences = Array.isArray(sourceMaster?.experiences) ? sourceMaster.experiences : [];
+    masterExperiences.forEach(exp => {
+      const fullComp = (exp.company || '').toLowerCase();
+      const compTokens = fullComp.split(/[\s,().-]+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'technologies', 'solutions', 'systems', 'consulting', 'global', 'group', 'enterprises', 'tech', 'company', 'international'].includes(t));
+      const isMatched = (compTokens.length > 0 && compTokens.some(tok => lower.includes(tok))) || (fullComp.length >= 4 && lower.includes(fullComp));
+      if (isMatched && !operations.some(op => op.targetCompany?.toLowerCase() === exp.company?.toLowerCase())) {
         operations.push({
-          id: `op-del-exp-${comp}-${Date.now()}`,
+          id: `op-del-exp-${exp.company}-${Date.now()}`,
           operation: 'DELETE_EXPERIENCE',
           section: 'experience',
-          targetCompany: comp,
-          description: `Delete experience entry for "${comp}"`
+          targetCompany: exp.company,
+          description: `Delete experience entry for "${exp.company}"`
         });
-        authorizedChanges.push({ field: 'experiences.deleted', value: comp, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: 'experiences.deleted', value: exp.company, authorization: 'USER_EXPLICIT' });
         targetSections.add('experience');
         deletedAny = true;
-        summaries.push(`Deleted experience entry for "${comp}"`);
+        summaries.push(`Deleted experience entry for "${exp.company}"`);
       }
     });
 
@@ -1854,7 +1855,7 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
       (!currentCvState?.education?.length && (sourceMaster?.education?.length > 0));
 
     const isExperienceRestore = lower.includes('experience') || lower.includes('employment') || lower.includes('job') ||
-      lower.includes('company') || lower.includes('nathcorp') || lower.includes('role');
+      lower.includes('company') || lower.includes('role');
 
     const operations = [];
     const authorizedChanges = [];
@@ -1864,10 +1865,9 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     if (isEducationRestore) {
       const sourceEdu = (sourceMaster?.education && sourceMaster.education.length > 0)
         ? sourceMaster.education
-        : [
-            "MBA from Lovely Professional University, Punjab in 2012",
-            "BBA from Birla Institute of Technology, Mesra in 2010"
-          ];
+        : (currentCvState?.education && currentCvState.education.length > 0)
+          ? currentCvState.education
+          : [];
       operations.push({
         id: `op-restore-edu-${Date.now()}`,
         operation: 'RESTORE_EDUCATION',
@@ -2792,10 +2792,7 @@ export function executeChangePlan(currentCvState, changePlan) {
       case 'RESTORE_EDUCATION': {
         const eduToRestore = (Array.isArray(op.value) && op.value.length > 0)
           ? op.value
-          : [
-              "MBA from Lovely Professional University, Punjab in 2012",
-              "BBA from Birla Institute of Technology, Mesra in 2010"
-            ];
+          : (Array.isArray(sourceMaster?.education) ? sourceMaster.education : []);
         proposedCv.education = JSON.parse(JSON.stringify(eduToRestore));
         appliedOperations.push(op);
         requestedFacts.push(op.description || 'Restored educational qualifications');

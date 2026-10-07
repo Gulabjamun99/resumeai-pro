@@ -415,8 +415,8 @@ export function analyzeCandidateGaps(facts, askedGaps = []) {
       question: 'Which college or university did you graduate from, and what is your graduation batch?',
       subtext: 'Recruiters prioritize verified degree institutions and graduation timelines.',
       options: isBusinessOrSales ? [
-        { label: '🎓 MBA in Marketing Management', value: 'MBA in Marketing Management from Lovely Professional University (2015)' },
-        { label: '🎓 Bachelor of Commerce (B.Com)', value: 'Bachelor of Commerce (B.Com) Graduate (2010)' }
+        { label: '🎓 MBA in Marketing Management', value: 'Master of Business Administration (MBA) in Marketing Management' },
+        { label: '🎓 Bachelor of Commerce (B.Com)', value: 'Bachelor of Commerce (B.Com) Graduate' }
       ] : [
         { label: '🎓 B.Tech Computer Science', value: 'B.Tech in Computer Science & Engineering' },
         { label: '🎓 BCA / MCA Graduate', value: 'Bachelor or Master of Computer Applications' }

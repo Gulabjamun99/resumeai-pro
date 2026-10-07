@@ -11,7 +11,7 @@ export default function ChangePlanViewer({ requestedFacts }) {
         action: "ADD",
         section: "experience",
         target: "latest_experience",
-        placement: "Chronological (Above Execo Oct 2023 – Apr 2025)",
+        placement: "Chronological (Most Recent Experience)",
         content: "Independent Talent Acquisition Consultant (Freelance) | AI Automation & Agent Projects",
         period: "May 2025 – Present",
         bullets_added: [

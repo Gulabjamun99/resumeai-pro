@@ -92,8 +92,8 @@ export function polishBulletPoint(rawBullet, role = '', company = '') {
   text = text.replace(/^[-*•\d.)\s"'“”‘`]+/, '').trim();
   text = text.replace(/["'“”‘`]+$/, '').trim();
 
-  // 2. Strip trailing user conversational instructions (e.g. '... ye point nathcorp employment se hataye')
-  text = text.replace(/["'“”‘`]?\s*(?:ye|yeh|in|isko|pointers?|aisa|aise|point)\s*(?:nathcorp|employment|se|me|ko)?\s*(?:hataye|hatao|krye|karo|banao|rakho).*$/i, '').trim();
+  // 2. Strip trailing user conversational instructions (e.g. '... ye point employment se hataye')
+  text = text.replace(/["'“”‘`]?\s*(?:ye|yeh|in|isko|pointers?|aisa|aise|point)\s*(?:[a-zA-Z0-9_-]+|employment|se|me|ko)?\s*(?:hataye|hatao|krye|karo|banao|rakho).*$/i, '').trim();
 
   // 3. If the entire string is just a conversational instruction or command, discard it
   const lower = text.toLowerCase();
@@ -203,13 +203,12 @@ export function segmentTextIntoSections(rawText) {
  * Role and company dictionaries for smart parsing
  */
 const KNOWN_ROLE_WORDS = /(?:executive|manager|engineer|developer|consultant|specialist|recruiter|lead|head|analyst|architect|officer|coordinator|intern|designer|technician|supervisor|associate)/i;
-const KNOWN_COMPANY_WORDS = /(?:pvt|ltd|inc|llc|corp|technologies|solutions|services|labs|studio|consulting|group|bank|hospital|infogain|nathcorp|google|amazon|tcs|infosys|wipro|cognizant|accenture)/i;
+const KNOWN_COMPANY_WORDS = /(?:pvt|ltd|inc|llc|corp|technologies|solutions|services|labs|studio|consulting|group|bank|hospital|systems|enterprises|global|google|amazon|tcs|infosys|wipro|cognizant|accenture)/i;
 const ACTION_VERB_START = /^(?:managed|led|partnered|developed|organized|ensured|conducted|improved|experienced|built|designed|engineered|spearheaded|drove|implemented|delivered|executed|collaborated|resolved|achieved)\b/i;
 
 export function condenseBulletsIfRequested(bullets, rawPrompt = '', companyName = '') {
   if (!bullets || bullets.length === 0) return [];
   const pLower = (rawPrompt || '').toLowerCase();
-  const compLower = (companyName || '').toLowerCase();
   const isCondense = pLower.includes('kam point') || 
                      pLower.includes('kam points') || 
                      pLower.includes('condense') || 
@@ -235,43 +234,13 @@ export function condenseBulletsIfRequested(bullets, rawPrompt = '', companyName 
     targetCount = 4;
   }
 
-  const combinedText = (bullets.join(' ') + ' ' + compLower + ' ' + pLower).toLowerCase();
-
-  // 1. FACT-PRESERVING CONDENSATION FOR EXECO (CACTI GLOBAL)
-  const isExeco = /execo|cacti|singapore|legaltech|55\+|25%|80%\+/i.test(combinedText);
-  if (isExeco) {
-    const execoBullets = [
-      `Spearheaded end-to-end recruitment for IT and Non-IT roles, partnering closely with Singapore-based hiring managers to align talent acquisition strategies with global business objectives.`,
-      `Closed 55+ niche roles annually, including critical LegalTech, product, and leadership positions, ensuring seamless hiring processes and timely closures.`,
-      `Reduced time-to-hire by 25% by implementing AI-enabled sourcing strategies and building proactive talent pipelines for critical and recurring requisitions.`,
-      `Maintained an 80%+ offer-to-join ratio through structured competency screening, compensation negotiation, and continuous post-offer candidate engagement.`,
-      `Collaborated with cross-functional HR operations to streamline onboarding workflows, employee documentation, and smooth transitions for new global hires.`,
-      `Analyzed recruitment metrics and prepared comprehensive hiring MIS reports to eliminate pipeline bottlenecks and drive data-backed recruitment efficiency.`
-    ];
-    return execoBullets.slice(0, targetCount);
-  }
-
-  // 2. FACT-PRESERVING CONDENSATION FOR INFOGAIN INDIA PVT. LTD.
-  const isInfogain = /infogain|7\s*vendors?|quicksight|20\+\s*candidates?/i.test(combinedText);
-  if (isInfogain) {
-    const infogainBullets = [
-      `Spearheaded end-to-end talent acquisition lifecycle for lateral, leadership, and diversity hiring; partnered closely with hiring managers and cross-functional leadership to define headcount strategy, calibrate job descriptions, and optimize recruitment workflows.`,
-      `Engineered multi-channel talent pipelines and managed strategic partnerships across 7 external staffing vendors, driving high-volume candidate conversion and reducing cost-per-hire.`,
-      `Organized and executed large-scale recruitment drives averaging 20+ candidate lineups per event to accelerate hiring velocity and meet aggressive headcount targets.`,
-      `Directed end-to-end offer management workflow, securing compensation approvals, negotiating competitive packages, ensuring strict BGV compliance, and orchestrating proactive post-offer engagement to maximize joining ratio.`,
-      `Elevated overall hire quality and reduced employee turnover rates by standardizing structured screening, interview scorecards, and competency-based assessment frameworks across technical and corporate business units.`,
-      `Instituted data-driven recruitment tracking and built interactive Power BI / AWS QuickSight dashboards to monitor daily hiring metrics, resolve bottlenecks, and enhance recruitment efficiency.`
-    ];
-    return infogainBullets.slice(0, targetCount);
-  }
-
-  // 3. UNIVERSAL DYNAMIC CONDENSER (Preserves user's actual facts for any other company)
+  // UNIVERSAL DYNAMIC CONDENSER (100% profile-agnostic, preserves candidate's actual facts)
   const polished = bullets.map(b => polishBulletPoint(b)).filter(Boolean);
   if (polished.length <= targetCount) {
     return polished;
   }
 
-  // Compress into targetCount while strictly preserving candidate's own factual bullets
+  // Dynamically condense into targetCount while strictly preserving candidate's own factual bullets and numbers
   const condensed = [];
   const chunkSize = Math.ceil(polished.length / targetCount);
   for (let i = 0; i < polished.length; i += chunkSize) {
@@ -416,7 +385,7 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
     const isActionVerbLine = ACTION_VERB_START.test(line);
     const wordCount = line.split(/\s+/).length;
 
-    // 4. Inline Header without prefix: e.g. "Senior Talent Acquisition Executive• Infogain India Pvt.Ltd."
+    // 4. Inline Header without prefix: e.g. "Lead Software Engineer • Acme Corp"
     // Must NOT be an action verb sentence, must be concise (<= 8 words), and must NOT split on number ranges like 5-6!
     const hasNumberRangeHyphen = /\d+\s*[-–]\s*\d+/.test(line);
     const inlineHeaderMatch = !isActionVerbLine && wordCount <= 8 && !hasNumberRangeHyphen
@@ -498,7 +467,7 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
     }
   }
 
-  // If candidate pasted bullet points without an explicit company header (e.g. Infogain bullets):
+  // If candidate pasted bullet points without an explicit company header:
   // Match orphan bullets against existing experiences to find the target company automatically!
   if (orphanBullets.length > 0 && !currentExp) {
     let bestExp = null;
@@ -534,7 +503,8 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
         bullets: orphanBullets
       };
     } else if (orphanBullets.length >= 2 && currentExperiences && currentExperiences.length > 0) {
-      const targetExp = currentExperiences.find(e => /infogain/i.test(e.company)) || currentExperiences[0];
+      // Default cleanly to the most recent experience if matching confidence is neutral
+      const targetExp = currentExperiences[0];
       currentExp = {
         company: targetExp.company,
         role: targetExp.role,

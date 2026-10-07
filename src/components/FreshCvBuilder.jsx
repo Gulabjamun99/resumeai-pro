@@ -1065,7 +1065,7 @@ export default function FreshCvBuilder({ onComplete, onCancel }) {
                       <label className="text-[11px] font-semibold text-slate-300 block mb-1">Institution / University</label>
                       <input
                         type="text"
-                        placeholder="e.g. Lovely Professional University, Punjab"
+                        placeholder="e.g. University / College Name"
                         value={edu.school}
                         onChange={e => handleUpdateEducation(idx, 'school', e.target.value)}
                         className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white"

@@ -678,18 +678,9 @@ export function parseDualColumnCvDocument(mainText, sidebarText, fileName = "Upl
     positionsHiredFor: defaultPositionsHired,
     languages: [{ name: "English", level: "Advanced" }, { name: "Hindi", level: "Native" }],
     experiences,
-    education: education.length > 0 ? education : [
-      "MBA from Lovely Professional University, Punjab in 2012",
-      "BBA from Birla Institute of Technology, Mesra in 2010"
-    ],
-    certifications: certifications.length > 0 ? certifications : [
-      "Excel with LinkedIn Recruitment Assessment, LinkedIn",
-      "Business Analytics with Excel, Simplilearn",
-      "Certified Naukri recruiter"
-    ],
-    itSkills: itSkills.length > 0 ? itSkills : [
-      "ChatGPT/ Antigravity/ Codex -Prompting", "PowerBI", "SPSS", "Canva", "Tableau", "Photoshop", "MS Suites", "Figma"
-    ],
+    education: education || [],
+    certifications: certifications || [],
+    itSkills: itSkills || [],
     projects: [],
     customSections: [],
     sectionOrder: ['summary', 'experience', 'education', 'certifications']
