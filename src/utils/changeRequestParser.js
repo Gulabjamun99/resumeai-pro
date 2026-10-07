@@ -115,8 +115,12 @@ export function polishBulletPoint(rawBullet, role = '', company = '') {
   text = text.replace(/cantigravity/gi, 'Antigravity');
   text = text.replace(/guthub/gi, 'GitHub');
 
-  // 5. Semantic Hinglish-to-English translation & corporate polishing
-  const hasHinglish = /\b(?:kiya|banaya|banaye|kaam|kr\s*rhe|kar\s*rahe|karta|users?\s*ke\s*liye|madad|protsahan|sath|saath|bahut|sab|kuch|likho|daalo|rakho|krye|karo|karna|hatao|hataye|isko|inhe|ye|yeh|wo|woh|aisa|waisa|jaise|tarah|chahiye|sirf|acha|accha|theek|thik|hai|hain|tha|the|thi|me|mein|pe|se|ke|ki|ka|ko)\b/i.test(lower);
+  // Check if text is already predominantly corporate English (do not overwrite with fallback)
+  const englishWordCount = (text.match(/\b[a-zA-Z]{3,}\b/g) || []).length;
+  const isPredominantlyEnglish = englishWordCount >= 4 && !/(?:banaya|banaye|kiya|karta|likho|rakho|kaam|kr\s*rhe|kar\s*rahe|karna)/i.test(text);
+
+  // 5. Semantic Hinglish-to-English translation only if text is actually Hinglish/Hindi
+  const hasHinglish = !isPredominantlyEnglish && /\b(?:kiya|banaya|banaye|kaam|kr\s*rhe|kar\s*rahe|karta|users?\s*ke\s*liye|madad|protsahan|sath|saath|bahut|likho|daalo|rakho|krye|karo|karna|hatao|hataye|isko|inhe|yeh?|woh?|aisa|waisa|jaise|tarah|chahiye|acha|accha|theek|thik|mein)\b/i.test(lower);
 
   if (hasHinglish) {
     if (lower.includes('develop') || lower.includes('build') || lower.includes('banaya') || lower.includes('banaye') || lower.includes('engineer') || lower.includes('code') || lower.includes('vibe')) {
@@ -204,7 +208,7 @@ export function segmentTextIntoSections(rawText) {
  */
 const KNOWN_ROLE_WORDS = /(?:executive|manager|engineer|developer|consultant|specialist|recruiter|lead|head|analyst|architect|officer|coordinator|intern|designer|technician|supervisor|associate)/i;
 const KNOWN_COMPANY_WORDS = /(?:pvt|ltd|inc|llc|corp|technologies|solutions|services|labs|studio|consulting|group|bank|hospital|systems|enterprises|global|google|amazon|tcs|infosys|wipro|cognizant|accenture)/i;
-const ACTION_VERB_START = /^(?:managed|led|partnered|developed|organized|ensured|conducted|improved|experienced|built|designed|engineered|spearheaded|drove|implemented|delivered|executed|collaborated|resolved|achieved)\b/i;
+const ACTION_VERB_START = /^(?:managed|manage|led|lead|partnered|partner|developed|develop|organized|organize|ensured|ensure|conducted|conduct|improved|improve|experienced|built|build|designed|design|engineered|engineer|spearheaded|spearhead|drove|drive|implemented|implement|delivered|deliver|executed|execute|collaborated|collaborate|resolved|resolve|achieved|achieve|closed|close|reduced|reduce|maintained|maintain|prepared|prepare|analyzed|analyze|streamlined|streamline|negotiated|negotiate|sourced|source|recruited|recruit|directed|direct|instituted|institute|created|create|established|establish|monitored|monitor|formulated|formulate|facilitated|facilitate)\b/i;
 
 export function condenseBulletsIfRequested(bullets, rawPrompt = '', companyName = '') {
   if (!bullets || bullets.length === 0) return [];
@@ -312,10 +316,18 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
   };
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    let line = lines[i].trim();
     if (!line) continue;
 
-    // Check if line is a user instruction / directive rather than an employment data line
+    // Strip trailing conversational directives (e.g. '... " ye sabhi pointers ache se samjh 6 pointers me kre kuch miss nahi hona chiaye')
+    const directiveTailMatch = line.match(/["'“”‘`]?\s*(?:ye|yeh|in|isko|ise|ye\s*sabhi|sabhi)?\s*(?:point[s]?|pointer[s]?|bullet[s]?)?\s*(?:ache\s*se\s*samjh|samjhe|samjh)?\s*(?:\d+\s*(?:points?|pointers?|bullets?))?\s*(?:me|mein)?\s*(?:kre|krye|karo|banao|likho|rakho|convert|miss\s*nahi\s*hona\s*chiaye|miss\s*na\s*ho).*$/i);
+    if (directiveTailMatch && directiveTailMatch.index > 15) {
+      line = line.slice(0, directiveTailMatch.index).trim();
+    }
+    line = line.replace(/^["'“”‘`]+|["'“”‘`]+$/g, '').trim();
+    if (!line) continue;
+
+    // Check if line is a pure user instruction / directive rather than an employment data line
     const isDirectiveLine = (
       /(?:sirf|\bme\b|\bmein\b|\bko\b|\bse\b)\s*(?:\d+[\s\-]*(?:to|\-)?\s*\d*|\w+)?\s*(?:point|pointer|bullet)/i.test(line) ||
       /(?:points?|pointers?|bullets?)\s*(?:me|mein)\s*(?:krye|kijiye|karo|likho|convert|banao)/i.test(line) ||
@@ -456,8 +468,7 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
         location: '',
         bullets: []
       };
-      continue;
-    } else if (bulletMatch || (isActionVerbLine && wordCount > 4)) {
+    } else if (bulletMatch || (isActionVerbLine && wordCount > 3) || (wordCount >= 4 && /^[A-Z0-9"']/.test(line) && !line.toLowerCase().includes('company:') && !line.toLowerCase().includes('role:'))) {
       let cleanBullet = (bulletMatch ? bulletMatch[1] : line).replace(/["”']\s*(?:ye|yeh|in|isko|pointers?|aisa|aise).*$/i, '').trim();
       if (currentExp) {
         currentExp.bullets.push(cleanBullet);

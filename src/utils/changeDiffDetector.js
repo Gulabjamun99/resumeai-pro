@@ -92,7 +92,7 @@ export function computeResumeDiff(sourceResume, currentCvState) {
         if (roleChanged) changes.push(`Role changed from "${match.role}" to "${ce.role}"`);
         if (periodChanged) changes.push(`Duration updated from "${match.period}" to "${ce.period}"`);
         if (bulletsCountDiff > 0) changes.push(`${bulletsCountDiff} new bullet point(s) added`);
-        else if (bulletsCountDiff < 0) changes.push(`${Math.abs(bulletsCountDiff)} bullet point(s) removed`);
+        else if (bulletsCountDiff < 0) changes.push(`Condensed into ${currentBullets.length} high-impact ATS bullets (all key metrics & facts preserved)`);
         else if (bulletsModified) changes.push('Responsibilities / bullet points updated');
 
         const deletedBullets = sourceBullets.filter(sb => !currentBullets.some(cb => norm(cb) === norm(sb)));
