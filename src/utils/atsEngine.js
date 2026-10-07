@@ -28,7 +28,7 @@ import {
   optimizeBulletPoint,
   SECTION_ACTIONS
 } from './ats/index.js';
-import { parseComprehensiveChangeRequest, isSectionHeaderLine } from './changeRequestParser.js';
+import { parseComprehensiveChangeRequest, isSectionHeaderLine, isGarbageCompany, KNOWN_LOCATION_WORDS } from './changeRequestParser.js';
 
 export {
   matchesTermInText, 
@@ -773,10 +773,6 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         }
       });
     } else {
-      const m = rawText.match(/(?:point|bullet|line|pointer)s?\s*(?:delete|hata|remove|hta)?\s*[:"']?(.+?)(?:["']|\s*ye\s*pointers?\s*hata\s*do|\s*ye\s*pointers?\s*hta\s*de|\s*delete\s*karo|\s*hata\s*do|\s*hta\s*de|$)/i) ||
-                rawText.match(/(?:delete|remove|hata\s*do|hatao|hta\s*de|hta\s*do)\s*(?:point|bullet|line|pointer)s?\s*[:"']?(.+?)(?:["']|$)/i);
-      const bulletSnippet = m ? m[1].trim() : rawText;
-
       let fallbackTargetCompany = null;
       if (Array.isArray(cvExperiences)) {
         for (const exp of cvExperiences) {
@@ -789,9 +785,37 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         }
       }
 
-      if (bulletSnippet && bulletSnippet.length >= 4) {
+      // Check for trailing user deletion directive:
+      // e.g. '... " ye dono point nathcorp employment se hataye'
+      const trailingDirectiveMatch = rawText.match(/["'“”‘`]?\s*(?:ye|yeh|in|inhe|ye\s*dono|in\s*dono|ye\s*sabhi|ye\s*teeno)?\s*(?:dono|sabhi|teeno|\d+)?\s*(?:point|pointer|bullet|line)s?\s*([A-Za-z0-9\s.&'-]*?)\s*(?:se|me|ko)?\s*(?:hataye|hatao|delete|remove|nikal\s*do|hta\s*de|hta\s*do|b=hataye).*$/i);
+
+      let targetBulletSnippets = [];
+      if (trailingDirectiveMatch && trailingDirectiveMatch.index > 5) {
+        const bulletBody = rawText.slice(0, trailingDirectiveMatch.index).replace(/^["'“”‘`]+|["'“”‘`]+$/g, '').trim();
+        const lines = bulletBody.split(/\r?\n/).map(l => l.replace(/^[-*•\d.)\s"'“”‘`]+|["'“”‘`]+$/g, '').trim()).filter(l => l.length >= 4);
+        if (lines.length > 0) {
+          targetBulletSnippets = lines;
+        } else if (bulletBody.length >= 4) {
+          targetBulletSnippets = [bulletBody];
+        }
+      }
+
+      if (targetBulletSnippets.length === 0) {
+        const m = rawText.match(/(?:point|bullet|line|pointer)s?\s*(?:delete|hata|remove|hta)?\s*[:"']?(.+?)(?:["']|\s*ye\s*pointers?\s*hata\s*do|\s*ye\s*pointers?\s*hta\s*de|\s*delete\s*karo|\s*hata\s*do|\s*hta\s*de|$)/i) ||
+                  rawText.match(/(?:delete|remove|hata\s*do|hatao|hta\s*de|hta\s*do)\s*(?:point|bullet|line|pointer)s?\s*[:"']?(.+?)(?:["']|$)/i);
+        let bulletSnippet = m ? m[1].trim() : rawText;
+        bulletSnippet = bulletSnippet
+          .replace(/["'“”‘`]?\s*(?:ye|yeh|in|inhe)?\s*(?:dono|sabhi|teeno)?\s*(?:point|pointer|bullet|line)s?.*$/i, '')
+          .replace(/["'“”‘`]+$/g, '')
+          .trim();
+        if (bulletSnippet && bulletSnippet.length >= 4) {
+          targetBulletSnippets = [bulletSnippet];
+        }
+      }
+
+      targetBulletSnippets.forEach((bulletSnippet, idx) => {
         operations.push({
-          id: `op-del-bullet-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          id: `op-del-bullet-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
           operation: 'DELETE_BULLET',
           section: 'experience',
           targetBullet: bulletSnippet,
@@ -802,7 +826,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         authorizedChanges.push({ field: 'experiences.bullet.deleted', value: bulletSnippet, authorization: 'USER_EXPLICIT' });
         targetSections.add('experience');
         summaries.push(`Removed bullet point: "${bulletSnippet.slice(0, 45)}..."`);
-      }
+      });
     }
   }
 
@@ -976,53 +1000,63 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
   const isDeleteIntent = hasDeleteWord;
   let deletedAny = false;
   if (isDeleteIntent && !hasBulletWord && (!matchedTargetBullets || matchedTargetBullets.length === 0) && !operations.some(op => op.section === 'certifications' || op.section === 'skills' || op.section === 'education') && !lower.includes('certification') && !lower.includes('certificate')) {
-    const currentExperiences = currentCvState?.experiences || sourceMaster?.experiences || [];
-    currentExperiences.forEach(exp => {
+    const rawExperiences = currentCvState?.experiences || sourceMaster?.experiences || [];
+    const validExperiences = rawExperiences.filter(exp => !isGarbageCompany(exp.company));
+    
+    // Check if prompt specifically mentions years/dates (e.g. "Dec-2017- Feb 2018", "2017", "2018")
+    const promptYears = Array.from(lower.matchAll(/\b(20\d\d|19\d\d)\b/g)).map(m => m[1]);
+
+    // Check if any company name is specifically mentioned in the prompt
+    const matchingByCompany = validExperiences.filter(exp => {
       const fullComp = (exp.company || '').toLowerCase();
-      const fullRole = (exp.role || '').toLowerCase();
       const compTokens = fullComp.split(/[\s,().-]+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'technologies', 'solutions', 'systems', 'consulting', 'global', 'group', 'enterprises', 'tech', 'company', 'international'].includes(t));
-
-      const isMatched = (compTokens.length > 0 && compTokens.some(tok => lower.includes(tok))) ||
-                        (fullComp.length >= 4 && lower.includes(fullComp)) ||
-                        (fullRole.length >= 4 && lower.includes(fullRole));
-
-      if (isMatched) {
-        operations.push({
-          id: `op-del-exp-${exp.id || exp.company}-${Date.now()}`,
-          operation: 'DELETE_EXPERIENCE',
-          section: 'experience',
-          targetCompany: exp.company,
-          description: `Delete experience entry for "${exp.company}"`
-        });
-        authorizedChanges.push({ field: 'experiences.deleted', value: exp.company, authorization: 'USER_EXPLICIT' });
-        compTokens.forEach(tok => {
-          authorizedChanges.push({ field: 'experiences.deleted', value: tok, authorization: 'USER_EXPLICIT' });
-        });
-        targetSections.add('experience');
-        deletedAny = true;
-        summaries.push(`Deleted experience entry for "${exp.company}"`);
-      }
+      return (compTokens.length > 0 && compTokens.some(tok => lower.includes(tok))) || (fullComp.length >= 4 && lower.includes(fullComp));
     });
 
-    // Also check against sourceMaster experiences if available, purely dynamically without hardcoding
-    const masterExperiences = Array.isArray(sourceMaster?.experiences) ? sourceMaster.experiences : [];
-    masterExperiences.forEach(exp => {
-      const fullComp = (exp.company || '').toLowerCase();
-      const compTokens = fullComp.split(/[\s,().-]+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'technologies', 'solutions', 'systems', 'consulting', 'global', 'group', 'enterprises', 'tech', 'company', 'international'].includes(t));
-      const isMatched = (compTokens.length > 0 && compTokens.some(tok => lower.includes(tok))) || (fullComp.length >= 4 && lower.includes(fullComp));
-      if (isMatched && !operations.some(op => op.targetCompany?.toLowerCase() === exp.company?.toLowerCase())) {
-        operations.push({
-          id: `op-del-exp-${exp.company}-${Date.now()}`,
-          operation: 'DELETE_EXPERIENCE',
-          section: 'experience',
-          targetCompany: exp.company,
-          description: `Delete experience entry for "${exp.company}"`
-        });
-        authorizedChanges.push({ field: 'experiences.deleted', value: exp.company, authorization: 'USER_EXPLICIT' });
-        targetSections.add('experience');
-        deletedAny = true;
-        summaries.push(`Deleted experience entry for "${exp.company}"`);
+    let targetExpsToDelete = [];
+
+    if (matchingByCompany.length > 0) {
+      // 1. Explicit Company Name Match: ONLY delete the specifically named company!
+      targetExpsToDelete = matchingByCompany;
+    } else {
+      // 2. No company name mentioned in prompt: check role and disambiguate
+      const matchingByRole = validExperiences.filter(exp => {
+        const fullRole = (exp.role || '').toLowerCase();
+        return fullRole.length >= 4 && lower.includes(fullRole);
+      });
+
+      if (matchingByRole.length === 1) {
+        targetExpsToDelete = matchingByRole;
+      } else if (matchingByRole.length > 1) {
+        // Multiple experiences share this role title (e.g. Pulse Solutions and Nathcorp Pvt. Ltd.)!
+        // Disambiguate by dates/years if provided in the prompt:
+        if (promptYears.length > 0) {
+          const byYear = matchingByRole.filter(exp => {
+            const expPeriod = (exp.period || '').toLowerCase();
+            return promptYears.some(yr => expPeriod.includes(yr));
+          });
+          if (byYear.length > 0) {
+            targetExpsToDelete = byYear;
+          }
+        } else {
+          // If no dates provided, match only the first one (most recent), NEVER delete unrelated historical companies!
+          targetExpsToDelete = [matchingByRole[0]];
+        }
       }
+    }
+
+    targetExpsToDelete.forEach(exp => {
+      operations.push({
+        id: `op-del-exp-${exp.id || exp.company}-${Date.now()}`,
+        operation: 'DELETE_EXPERIENCE',
+        section: 'experience',
+        targetCompany: exp.company,
+        description: `Delete experience entry for "${exp.company}"`
+      });
+      authorizedChanges.push({ field: 'experiences.deleted', value: exp.company, authorization: 'USER_EXPLICIT' });
+      targetSections.add('experience');
+      deletedAny = true;
+      summaries.push(`Deleted experience entry for "${exp.company}"`);
     });
 
     // Check for project deletion (e.g. "delete jyotish connect", "turtleping hata do")
@@ -1838,22 +1872,54 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
   const lower = rawText.toLowerCase();
 
   // 0. RESTORE / UNDO INTENT HANDLER:
-  // Catches prompts like "educationa details kyu hata diye wo wapas rkhye", "education wapas lao", "restore education", "undo"
+  // Catches prompts like "educationa details kyu hata diye wo wapas rkhye", "education wapas lao", "restore education", "undo",
+  // "nathcorp nhi krna tha", "please wapas leke aye", "nathcopr employment kha hai?"
   const isRestoreIntent = (
     lower.includes('wapas') || lower.includes('restore') || lower.includes('undo') ||
     lower.includes('wapis') || lower.includes('re-add') || lower.includes('add back') ||
     lower.includes('kyu hata diye') || lower.includes('kyun hata diya') || lower.includes('kyu hata diya') ||
     lower.includes('kyu hataya') || lower.includes('kyun hataya') || lower.includes('wapas rkhye') ||
     lower.includes('wapas rakho') || lower.includes('wapas lao') || lower.includes('wapis lao') ||
-    lower.includes('wapas daalo') || lower.includes('wapas karo')
+    lower.includes('wapas daalo') || lower.includes('wapas karo') ||
+    lower.includes('nhi krna tha') || lower.includes('nahi karna tha') || lower.includes('nhi karna tha') ||
+    lower.includes('nahi krna tha') || lower.includes('galti se hata') || lower.includes('galti se remove') ||
+    lower.includes('nahi hatana tha') || lower.includes('nhi hatana tha') ||
+    lower.includes('kha hai') || lower.includes('kahan hai') || lower.includes('kidhar hai') ||
+    lower.includes('gayab ho gaya') || lower.includes('missing hai') || lower.includes('kahan gaya') || lower.includes('kha gya')
   );
 
   if (isRestoreIntent) {
+    const masterExps = Array.isArray(sourceMaster?.experiences) ? sourceMaster.experiences : [];
+    const currentExps = Array.isArray(currentCvState?.experiences) ? currentCvState.experiences : [];
+    
+    // Find missing baseline experiences
+    const missingMasterExps = masterExps.filter(me => {
+      const meComp = (me.company || '').toLowerCase().trim();
+      if (!meComp || isGarbageCompany(meComp)) return false;
+      return !currentExps.some(ce => {
+        const ceComp = (ce.company || '').toLowerCase().trim();
+        if (!ceComp || isGarbageCompany(ceComp)) return false;
+        return ceComp.includes(meComp) || meComp.includes(ceComp);
+      });
+    });
+
+    // Check if user specifically named a missing company (including common typos e.g. "nathcopr")
+    const specificMissingExp = missingMasterExps.find(me => {
+      const compClean = (me.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+      const tokens = compClean.split(/\s+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'company'].includes(t));
+      return tokens.some(tok => {
+        if (lower.includes(tok)) return true;
+        if (tok === 'nathcorp' && (lower.includes('nathcopr') || lower.includes('nath corp') || lower.includes('natcorp'))) return true;
+        return false;
+      }) || (compClean.length >= 4 && lower.includes(compClean));
+    });
+
     const isEducationRestore = lower.includes('education') || lower.includes('degree') || lower.includes('mba') ||
       lower.includes('bba') || lower.includes('qualification') || lower.includes('college') || lower.includes('university') ||
       (!currentCvState?.education?.length && (sourceMaster?.education?.length > 0));
 
-    const isExperienceRestore = lower.includes('experience') || lower.includes('employment') || lower.includes('job') ||
+    const isExperienceRestore = Boolean(specificMissingExp) || missingMasterExps.length > 0 ||
+      lower.includes('experience') || lower.includes('employment') || lower.includes('job') ||
       lower.includes('company') || lower.includes('role');
 
     const operations = [];
@@ -1880,19 +1946,51 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     }
 
     if (isExperienceRestore) {
-      const sourceExps = (sourceMaster?.experiences && sourceMaster.experiences.length > 0)
-        ? sourceMaster.experiences
-        : [];
-      operations.push({
-        id: `op-restore-exp-${Date.now()}`,
-        operation: 'RESTORE_EXPERIENCE',
-        section: 'experience',
-        value: JSON.parse(JSON.stringify(sourceExps)),
-        description: 'Restored experience records from original baseline CV'
-      });
-      authorizedChanges.push({ field: 'experiences', value: 'RESTORED', authorization: 'USER_EXPLICIT' });
-      targetSections.push('experience');
-      summaries.push('Restored experiences to CV');
+      if (specificMissingExp) {
+        // Restore ONLY the specifically requested missing company
+        operations.push({
+          id: `op-restore-exp-${Date.now()}`,
+          operation: 'RESTORE_EXPERIENCE',
+          section: 'experience',
+          targetCompany: specificMissingExp.company,
+          value: [specificMissingExp],
+          description: `Restored ${specificMissingExp.company} (${specificMissingExp.role}) to experience section`
+        });
+        authorizedChanges.push({ field: 'experiences', value: specificMissingExp.company, authorization: 'USER_EXPLICIT' });
+        authorizedChanges.push({ field: 'experiences.restored', value: specificMissingExp.company, authorization: 'USER_EXPLICIT' });
+        targetSections.push('experience');
+        summaries.push(`Restored ${specificMissingExp.company} to employment history`);
+      } else if (missingMasterExps.length > 0) {
+        // Restore missing baseline experiences
+        missingMasterExps.forEach((me, idx) => {
+          operations.push({
+            id: `op-restore-exp-${Date.now()}-${idx}`,
+            operation: 'RESTORE_EXPERIENCE',
+            section: 'experience',
+            targetCompany: me.company,
+            value: [me],
+            description: `Restored ${me.company} to experience section`
+          });
+          authorizedChanges.push({ field: 'experiences', value: me.company, authorization: 'USER_EXPLICIT' });
+          authorizedChanges.push({ field: 'experiences.restored', value: me.company, authorization: 'USER_EXPLICIT' });
+          summaries.push(`Restored ${me.company} to employment history`);
+        });
+        targetSections.push('experience');
+      } else {
+        const sourceExps = (sourceMaster?.experiences && sourceMaster.experiences.length > 0)
+          ? sourceMaster.experiences
+          : [];
+        operations.push({
+          id: `op-restore-exp-${Date.now()}`,
+          operation: 'RESTORE_EXPERIENCE',
+          section: 'experience',
+          value: JSON.parse(JSON.stringify(sourceExps)),
+          description: 'Restored experience records from original baseline CV'
+        });
+        authorizedChanges.push({ field: 'experiences', value: 'RESTORED', authorization: 'USER_EXPLICIT' });
+        targetSections.push('experience');
+        summaries.push('Restored experiences to CV');
+      }
     }
 
     if (operations.length > 0) {
@@ -1979,16 +2077,13 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     };
   }
 
-  // 4. HOLISTIC MULTI-BULLET / MULTI-DEGREE DELETION CHECK:
-  // If the prompt contains a deletion/removal directive AND matches bullets across the whole text,
+  // 4. HOLISTIC DELETION CHECK:
+  // If the prompt contains a deletion/removal directive, evaluate the ENTIRE prompt holistically first!
   const hasDeleteWord = checkHasDeleteWord(rawText);
   if (hasDeleteWord) {
-    const cvExps = currentCvState?.experiences || currentCvState?.experience || sourceMaster?.experiences || sourceMaster?.experience || [];
-    const cvSum = currentCvState?.header?.summary || currentCvState?.summary || sourceMaster?.header?.summary || sourceMaster?.summary || '';
-    const cvEdu = currentCvState?.education || sourceMaster?.education || [];
-    const matchedBullets = findAllTargetBulletsInCv(rawText, cvExps, cvSum, cvEdu);
-    if (matchedBullets.length > 0) {
-      return parseSingleDirectiveToChangePlan(rawText, currentCvState, sourceMaster);
+    const singlePlan = parseSingleDirectiveToChangePlan(rawText, currentCvState, sourceMaster);
+    if (singlePlan && singlePlan.operations && singlePlan.operations.length > 0 && singlePlan.operations.some(op => op.operation.startsWith('DELETE') || op.operation.startsWith('REMOVE'))) {
+      return singlePlan;
     }
   }
 
@@ -2800,7 +2895,18 @@ export function executeChangePlan(currentCvState, changePlan) {
 
       case 'RESTORE_EXPERIENCE': {
         if (Array.isArray(op.value) && op.value.length > 0) {
-          proposedCv.experiences = JSON.parse(JSON.stringify(op.value));
+          if (!Array.isArray(proposedCv.experiences)) proposedCv.experiences = [];
+
+          op.value.forEach(expToRestore => {
+            const restoreCompLow = (expToRestore.company || '').toLowerCase().trim();
+            const alreadyExists = proposedCv.experiences.some(e => 
+              (e.company || '').toLowerCase().trim() === restoreCompLow
+            );
+            if (!alreadyExists) {
+              proposedCv.experiences.push(JSON.parse(JSON.stringify(expToRestore)));
+            }
+          });
+          proposedCv.experiences = sortExperiencesChronologically(proposedCv.experiences);
           appliedOperations.push(op);
           requestedFacts.push(op.description || 'Restored experience entries');
         }
@@ -2816,26 +2922,7 @@ export function executeChangePlan(currentCvState, changePlan) {
   if (Array.isArray(proposedCv.experiences)) {
     proposedCv.experiences = proposedCv.experiences.filter(exp => {
       const cLow = (exp.company || '').toLowerCase().trim();
-      return (
-        cLow &&
-        cLow !== 'company' &&
-        !cLow.startsWith('isko') &&
-        !cLow.startsWith('ye ') &&
-        !cLow.startsWith('yeh ') &&
-        !cLow.includes('pointer') &&
-        !cLow.includes('bullet') &&
-        !cLow.includes('krye') &&
-        !cLow.includes('karo') &&
-        !cLow.includes('sirf') &&
-        !cLow.includes('hinglish') &&
-        !cLow.includes('samjh') &&
-        !cLow.includes('smajh') &&
-        !cLow.includes('kuch bhi') &&
-        !cLow.includes('hataye') &&
-        !cLow.includes('hatao') &&
-        !cLow.includes('pehle') &&
-        cLow.length >= 3
-      );
+      return !isGarbageCompany(cLow);
     });
 
     proposedCv.experiences.forEach(exp => {
@@ -2965,6 +3052,15 @@ export function verifyRequestedChange(baseCv, proposedCv, changePlan) {
     } else if (op.operation === 'RESTORE_EXPERIENCE') {
       if (!proposedCv.experiences || proposedCv.experiences.length === 0) {
         return { verified: false, reason: `Experiences were not restored.` };
+      }
+      if (op.targetCompany) {
+        const found = proposedCv.experiences.some(e => 
+          (e.company || '').toLowerCase().includes(op.targetCompany.toLowerCase()) ||
+          op.targetCompany.toLowerCase().includes((e.company || '').toLowerCase())
+        );
+        if (!found) {
+          return { verified: false, reason: `Experience for "${op.targetCompany}" was not restored.` };
+        }
       }
     }
   }

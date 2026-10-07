@@ -262,9 +262,14 @@ export function condenseBulletsIfRequested(bullets, rawPrompt = '', companyName 
   return condensed.slice(0, targetCount);
 }
 
+export const KNOWN_LOCATION_WORDS = /^(?:ranchi|bangalore|bengaluru|mumbai|bombay|delhi|new\s*delhi|noida|gurgaon|gurugram|pune|hyderabad|chennai|madras|kolkata|calcutta|ahmedabad|jaipur|chandigarh|lucknow|patna|bhopal|indore|coimbatore|kochi|thiruvananthapuram|remote|hybrid|onsite|on-site|india|singapore|london|uk|us|usa|california|new\s*york|san\s*francisco)$/i;
+
+export const CONTAINS_LOCATION_WORDS = /\b(?:ranchi|bangalore|bengaluru|mumbai|bombay|delhi|new\s*delhi|noida|gurgaon|gurugram|pune|hyderabad|chennai|madras|kolkata|calcutta|ahmedabad|jaipur|chandigarh|lucknow|patna|bhopal|indore|coimbatore|kochi|thiruvananthapuram|remote|hybrid|onsite|on-site|india|singapore|london|uk|us|usa|california|new\s*york|san\s*francisco)\b/i;
+
 export const isGarbageCompany = (name) => {
   if (!name || typeof name !== 'string') return true;
   const low = name.toLowerCase().trim();
+  const cleanBase = low.replace(/\s*\(.*$/, '').trim();
   return (
     low === 'company' ||
     low.startsWith('isko') ||
@@ -282,6 +287,12 @@ export const isGarbageCompany = (name) => {
     low.includes('hataye') ||
     low.includes('hatao') ||
     low.includes('pehle') ||
+    low.includes('delete') ||
+    low.includes('remove') ||
+    low.includes('wapas') ||
+    low.includes('restore') ||
+    KNOWN_LOCATION_WORDS.test(cleanBase) ||
+    (CONTAINS_LOCATION_WORDS.test(cleanBase) && !KNOWN_COMPANY_WORDS.test(cleanBase) && cleanBase.split(/\s+/).length <= 2) ||
     low.length < 3
   );
 };
@@ -414,8 +425,16 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
     // 4. Inline Header without prefix: e.g. "Lead Software Engineer • Acme Corp"
     // Must NOT be an action verb sentence, must be concise (<= 8 words), and must NOT split on number ranges like 5-6!
     const hasNumberRangeHyphen = /\d+\s*[-–]\s*\d+/.test(line);
+    let cleanHeaderLine = line;
+    let inlineParenPeriod = '';
+    const parenDateMatch = line.match(/\(([^)]*(?:20\d\d|19\d\d|present)[^)]*)\)\s*$/i);
+    if (parenDateMatch) {
+      inlineParenPeriod = parenDateMatch[1].trim();
+      cleanHeaderLine = line.slice(0, parenDateMatch.index).trim();
+    }
+
     const inlineHeaderMatch = !isActionVerbLine && wordCount <= 8 && !hasNumberRangeHyphen
-      ? line.match(/^([A-Za-z0-9\s.&',()]{2,50})\s*(?:[•·|–—]|\s+at\s+|\s+[-]\s+)\s*([A-Za-z0-9\s.&',()]{2,50})(?:\s*[-–|(]\s*([A-Za-z0-9\s.–—to\-,]+(?:\s*present)?)\)?)?$/i)
+      ? cleanHeaderLine.match(/^([A-Za-z0-9\s.&',()]{2,50})\s*(?:[•·|–—]|\s+at\s+|\s+[-]\s+)\s*([A-Za-z0-9\s.&',()]{2,50})(?:\s*[-–|(]\s*([A-Za-z0-9\s.–—to\-,]+(?:\s*present)?)\)?)?$/i)
       : null;
 
     if (compMatch) {
@@ -446,13 +465,15 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
     } else if (inlineHeaderMatch && !isPureDateLine && !line.toLowerCase().startsWith('http') && !line.includes('@')) {
       let p1 = inlineHeaderMatch[1].trim();
       let p2 = inlineHeaderMatch[2].trim();
-      let p3 = inlineHeaderMatch[3] ? inlineHeaderMatch[3].trim() : '';
+      let p3 = inlineHeaderMatch[3] ? inlineHeaderMatch[3].trim() : (inlineParenPeriod || '');
 
-      // Validate that at least ONE part is a recognizable role or recognizable company!
+      // Validate that at least ONE part is a recognizable role, company, or location!
       const isRole1 = KNOWN_ROLE_WORDS.test(p1);
       const isRole2 = KNOWN_ROLE_WORDS.test(p2);
       const isComp1 = KNOWN_COMPANY_WORDS.test(p1) || currentExperiences?.some(e => (e.company || '').toLowerCase().includes(p1.toLowerCase()));
       const isComp2 = KNOWN_COMPANY_WORDS.test(p2) || currentExperiences?.some(e => (e.company || '').toLowerCase().includes(p2.toLowerCase()));
+      const isLoc1 = KNOWN_LOCATION_WORDS.test(p1) || CONTAINS_LOCATION_WORDS.test(p1);
+      const isLoc2 = KNOWN_LOCATION_WORDS.test(p2) || CONTAINS_LOCATION_WORDS.test(p2);
 
       if (!isRole1 && !isRole2 && !isComp1 && !isComp2) {
         continue;
@@ -460,9 +481,34 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
 
       let role = p1;
       let company = p2;
+      let location = '';
 
-      // Invert if role or company keywords match opposite positions
-      if ((isComp1 || !isRole1) && (isRole2 || !isComp2)) {
+      if (isRole1 && isLoc2) {
+        role = p1;
+        location = p2;
+        // Resolve company from currentExperiences by matching location, period, or role
+        const matched = currentExperiences?.find(e => {
+          const locMatch = (e.location || '').toLowerCase().includes(p2.toLowerCase());
+          const roleMatch = (e.role || '').toLowerCase().includes(p1.toLowerCase());
+          const periodMatch = p3 ? (e.period || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(p3.toLowerCase().replace(/[^a-z0-9]/g, '')) : true;
+          return locMatch && roleMatch && periodMatch;
+        }) || currentExperiences?.find(e => {
+          const locMatch = (e.location || '').toLowerCase().includes(p2.toLowerCase());
+          const periodMatch = p3 ? (e.period || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(p3.toLowerCase().replace(/[^a-z0-9]/g, '')) : false;
+          return locMatch && periodMatch;
+        });
+        company = matched?.company || '';
+      } else if (isRole2 && isLoc1) {
+        role = p2;
+        location = p1;
+        const matched = currentExperiences?.find(e => {
+          const locMatch = (e.location || '').toLowerCase().includes(p1.toLowerCase());
+          const roleMatch = (e.role || '').toLowerCase().includes(p2.toLowerCase());
+          const periodMatch = p3 ? (e.period || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(p3.toLowerCase().replace(/[^a-z0-9]/g, '')) : true;
+          return locMatch && roleMatch && periodMatch;
+        });
+        company = matched?.company || '';
+      } else if ((isComp1 || !isRole1) && (isRole2 || !isComp2)) {
         company = p1;
         role = p2;
       } else if (isRole1 || isComp2) {
@@ -470,7 +516,7 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
         company = p2;
       }
 
-      if (isGarbageCompany(company)) {
+      if (!company || isGarbageCompany(company)) {
         continue;
       }
 
@@ -479,7 +525,7 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
         company,
         role,
         period: p3,
-        location: '',
+        location: location || '',
         bullets: []
       };
     } else if (bulletMatch || (isActionVerbLine && wordCount > 3) || (wordCount >= 4 && /^[A-Z0-9"']/.test(line) && !line.toLowerCase().includes('company:') && !line.toLowerCase().includes('role:'))) {

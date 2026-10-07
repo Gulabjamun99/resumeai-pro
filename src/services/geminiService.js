@@ -162,9 +162,14 @@ RULES:
    - When the user asks to add, edit, update, delete, or create ANY element anywhere in the resume (in a table, passage, left/right side, top, bottom), locate the exact corresponding field of the CV JSON and execute the change accurately without affecting unrelated parts.
 
 4. Context-Specific Actions:
-   - If the user asks why education or any section was removed, or asks to restore / put back removed details ("kyu hata diye", "wapas rkhye", "wapas lao", "restore education", "undo"):
-     * IMMEDIATELY RESTORE the complete original section (e.g. education, experiences, certifications) from the Baseline Reference CV!
-     * DO NOT leave the section empty!
+   - If the user asks why education or any section was removed, or asks to restore / put back removed details ("kyu hata diye", "wapas rkhye", "wapas lao", "restore education", "undo", "nathcorp nhi krna tha", "please wapas leke aye", "nathcopr employment kha hai?"):
+     * IMMEDIATELY RESTORE the requested section or specific company from the Baseline Reference CV!
+     * If user mentions a specific company (even with typos like "nathcopr" for "nathcorp"), restore that specific company to the experiences array!
+     * DO NOT leave the section or company missing!
+   - If the user asks to remove an experience by role, city, and dates (e.g. "HR Executive • Ranchi Dec-2017- Feb 2018 delete"):
+     * NEVER treat city names (like "Ranchi", "Bangalore", "Pune") as company names!
+     * Match the company by its unique dates and role (Pulse Solutions, Dec 2017 - Feb 2018).
+     * NEVER delete unrelated companies that happen to be in the same city or share the same role title (like Nathcorp Pvt. Ltd.)!
    - If the user asks to remove specific points from a specific company:
      * ONLY remove those points from that specific company!
      * DO NOT remove the candidate's actual qualifications from the Education section!
