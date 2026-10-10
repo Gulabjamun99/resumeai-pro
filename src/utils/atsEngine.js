@@ -770,6 +770,21 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
           authorizedChanges.push({ field: 'experiences.bullet.deleted', value: matched.bulletText, authorization: 'USER_EXPLICIT' });
           targetSections.add(matched.section || 'experience');
           summaries.push(`Removed bullet point: "${matched.bulletText.slice(0, 45)}..."`);
+
+          const isEduPoint = /(?:education\s*(?:ke|me)?\s*(?:hai|hain|daliye|daal)|degree\b)/i.test(lower);
+          const isAcademicDegree = /\b(?:MBA|BBA|B\.?Tech|M\.?Tech|B\.?Sc|M\.?Sc|B\.?Com|M\.?Com|Bachelor|Master|PhD|Diploma|Engineering|Degree)\b/i.test(matched.bulletText);
+          if (isEduPoint && isAcademicDegree) {
+            operations.push({
+              id: `op-add-edu-transfer-${Date.now()}-${idx}`,
+              operation: 'ADD_EDUCATION',
+              section: 'education',
+              value: matched.bulletText,
+              description: `Add to education: "${matched.bulletText}"`
+            });
+            authorizedChanges.push({ field: 'education', value: matched.bulletText, authorization: 'USER_EXPLICIT' });
+            targetSections.add('education');
+            summaries.push(`Added to education: "${matched.bulletText}"`);
+          }
         }
       });
     } else {
@@ -786,8 +801,8 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       }
 
       // Check for trailing user deletion directive:
-      // e.g. '... " ye dono point nathcorp employment se hataye'
-      const trailingDirectiveMatch = rawText.match(/["'“”‘`]?\s*(?:ye|yeh|in|inhe|ye\s*dono|in\s*dono|ye\s*sabhi|ye\s*teeno)?\s*(?:dono|sabhi|teeno|\d+)?\s*(?:point|pointer|bullet|line)s?\s*([A-Za-z0-9\s.&'-]*?)\s*(?:se|me|ko)?\s*(?:hataye|hatao|delete|remove|nikal\s*do|hta\s*de|hta\s*do|b=hataye).*$/i);
+      // e.g. '... " ye dono point education ke hai nathcorp se hataye' or '... " ye dono point nathcorp employment se hataye'
+      const trailingDirectiveMatch = rawText.match(/["'“”‘`]?\s*(?:ye|yeh|in|inhe|ye\s*dono|in\s*dono|ye\s*sabhi|ye\s*teeno)?\s*(?:dono|sabhi|teeno|\d+)?\s*(?:point|pointer|bullet|line)s?\s*(?:education\s*(?:ke|me)?\s*(?:hai|hain)?\s*)?([A-Za-z0-9\s.&'-]*?)\s*(?:se|me|ko)?\s*(?:hataye|hatao|delete|remove|nikal\s*do|hta\s*de|hta\s*do|b=hataye).*$/i);
 
       let targetBulletSnippets = [];
       if (trailingDirectiveMatch && trailingDirectiveMatch.index > 5) {
@@ -826,6 +841,22 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         authorizedChanges.push({ field: 'experiences.bullet.deleted', value: bulletSnippet, authorization: 'USER_EXPLICIT' });
         targetSections.add('experience');
         summaries.push(`Removed bullet point: "${bulletSnippet.slice(0, 45)}..."`);
+
+        // If the prompt mentions that these points belong to education ("education ke hai", "education me daliye"):
+        const isEduPoint = /(?:education\s*(?:ke|me)?\s*(?:hai|hain|daliye|daal)|degree\b)/i.test(lower);
+        const isAcademicDegree = /\b(?:MBA|BBA|B\.?Tech|M\.?Tech|B\.?Sc|M\.?Sc|B\.?Com|M\.?Com|Bachelor|Master|PhD|Diploma|Engineering|Degree)\b/i.test(bulletSnippet);
+        if (isEduPoint && isAcademicDegree) {
+          operations.push({
+            id: `op-add-edu-transfer-${Date.now()}-${idx}`,
+            operation: 'ADD_EDUCATION',
+            section: 'education',
+            value: bulletSnippet,
+            description: `Add to education: "${bulletSnippet}"`
+          });
+          authorizedChanges.push({ field: 'education', value: bulletSnippet, authorization: 'USER_EXPLICIT' });
+          targetSections.add('education');
+          summaries.push(`Added to education: "${bulletSnippet}"`);
+        }
       });
     }
   }
@@ -2033,6 +2064,16 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
     return generateFullDocumentOptimization(rawJd, currentCvState);
   }
 
+  // 1.25 HOLISTIC DELETION / BULLET REMOVAL CHECK:
+  // If user says "ye dono point ... nathcorp se hataye", evaluate deletion/removal BEFORE comprehensive structured employment parsing!
+  const hasDeleteWord = checkHasDeleteWord(rawText);
+  if (hasDeleteWord) {
+    const singlePlan = parseSingleDirectiveToChangePlan(rawText, currentCvState, sourceMaster);
+    if (singlePlan && singlePlan.operations && singlePlan.operations.length > 0 && singlePlan.operations.some(op => op.operation.startsWith('DELETE') || op.operation.startsWith('REMOVE'))) {
+      return singlePlan;
+    }
+  }
+
   // 1.5 COMPREHENSIVE MULTI-SECTION & STRUCTURED / CONVERSATIONAL PARSING:
   // (Handles profile updates, employment additions/updates, skills, and multi-field inputs)
   const comprehensivePlan = parseComprehensiveChangeRequest(rawText, currentCvState, sourceMaster);
@@ -2099,7 +2140,6 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
 
   // 4. HOLISTIC DELETION CHECK:
   // If the prompt contains a deletion/removal directive, evaluate the ENTIRE prompt holistically first!
-  const hasDeleteWord = checkHasDeleteWord(rawText);
   if (hasDeleteWord) {
     const singlePlan = parseSingleDirectiveToChangePlan(rawText, currentCvState, sourceMaster);
     if (singlePlan && singlePlan.operations && singlePlan.operations.length > 0 && singlePlan.operations.some(op => op.operation.startsWith('DELETE') || op.operation.startsWith('REMOVE'))) {
