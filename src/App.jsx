@@ -344,7 +344,7 @@ export default function App() {
   };
 
   // Persona 1: Handle Live Refinement from Split-Screen Studio
-  const handleApplyLiveRefinement = async (instruction) => {
+  const handleApplyLiveRefinement = async (instruction, chatHistory = []) => {
     if (!currentCvState) return { success: false };
 
     // Support 1-page and 2-page density adjustments
@@ -364,7 +364,7 @@ export default function App() {
 
     // 1. Direct AI Refiner (ChatGPT / Claude / Gemini style)
     try {
-      const aiResult = await refineCvWithAi(instruction, currentCvState, sourceResume);
+      const aiResult = await refineCvWithAi(instruction, currentCvState, sourceResume, chatHistory);
       if (aiResult && aiResult.updatedCv && (aiResult.updatedCv.header || aiResult.updatedCv.experiences)) {
         finalCv = aiResult.updatedCv;
         planSummary = aiResult.planSummary;

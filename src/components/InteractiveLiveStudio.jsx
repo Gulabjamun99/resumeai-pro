@@ -163,97 +163,59 @@ export default function InteractiveLiveStudio({
     // 3. RESUME REFINEMENT / JD TAILORING INTENT
     try {
       if (onApplyRefinement) {
-        const result = await onApplyRefinement(trimmed);
+        const result = await onApplyRefinement(trimmed, chatLog);
         const stepDiff = result?.stepDiff;
-        let aiResponseText = '';
 
-        if (stepDiff && stepDiff.hasChanges) {
-          const parts = [];
-          parts.push(`✅ **${result?.planSummary || 'Update successfully applied!'}**\n`);
-
-          if (stepDiff.summaryChanged) {
-            parts.push(`🔹 **Profile Summary (Pehle vs Ab):**`);
-            if (stepDiff.summaryBefore) parts.push(`*Pehle:* "${stepDiff.summaryBefore.length > 180 ? stepDiff.summaryBefore.slice(0, 170) + '...' : stepDiff.summaryBefore}"`);
-            if (stepDiff.summaryAfter) parts.push(`*Ab:* "${stepDiff.summaryAfter.length > 180 ? stepDiff.summaryAfter.slice(0, 170) + '...' : stepDiff.summaryAfter}"`);
-            parts.push('');
+        // Build conversational response like ChatGPT / Claude / Gemini
+        let naturalExplanation = result?.aiExplanation || null;
+        if (!naturalExplanation) {
+          try {
+            naturalExplanation = await getGeminiChatResponse(trimmed, result?.updatedCv || resume, result?.planSummary, chatLog);
+          } catch (gemErr) {
+            console.warn("Gemini chat explanation fallback:", gemErr.message);
           }
-
-          if (stepDiff.headlineChanged) {
-            parts.push(`🔹 **Target Role / Headline:**`);
-            parts.push(`*Pehle:* ${stepDiff.headlineBefore || 'N/A'} ➡️ *Ab:* **${stepDiff.headlineAfter}**\n`);
-          }
-
-          if (stepDiff.addedCompanies?.length > 0) {
-            parts.push(`🔹 **Naya Work Experience Add Hua:**`);
-            stepDiff.addedCompanies.forEach(c => {
-              parts.push(`• **${c.company}** — *${c.role || 'Role'}* (${c.period || 'Duration'}${c.location ? ' • ' + c.location : ''})`);
-              if (c.bullets?.length > 0) {
-                parts.push(`  └ Added ${c.bullets.length} high-impact responsibility bullets.`);
-              }
-            });
-            parts.push('');
-          }
-
-          if (stepDiff.modifiedCompanies?.length > 0) {
-            parts.push(`🔹 **Employment History Updated:**`);
-            stepDiff.modifiedCompanies.forEach(c => {
-              parts.push(`• **${c.company}:** ${c.changesSummary}`);
-            });
-            parts.push('');
-          }
-
-          if (stepDiff.addedProjects?.length > 0) {
-            parts.push(`🔹 **Naye Projects Add Huye (${stepDiff.addedProjects.length}):**`);
-            stepDiff.addedProjects.forEach(p => {
-              parts.push(`• **${p.title}**${p.techStack ? ` (${p.techStack})` : ''}`);
-            });
-            parts.push('');
-          }
-
-          if (stepDiff.addedEducation?.length > 0) {
-            parts.push(`🔹 **Education / Qualifications Restored (${stepDiff.addedEducation.length}):**`);
-            stepDiff.addedEducation.forEach(e => {
-              parts.push(`• 🎓 Restored: "${e}"`);
-            });
-            parts.push('');
-          }
-
-          if (stepDiff.removedEducation?.length > 0) {
-            parts.push(`🔹 **Education / Qualifications Removed (${stepDiff.removedEducation.length}):**`);
-            stepDiff.removedEducation.forEach(e => {
-              parts.push(`• ❌ Removed: "${e}"`);
-            });
-            parts.push('');
-          }
-
-          if (stepDiff.removedSkills?.length > 0) {
-            parts.push(`🔹 **Skills Removed:** ${stepDiff.removedSkills.join(', ')}\n`);
-          }
-
-          if (stepDiff.contactChanged && stepDiff.contactDiff) {
-            parts.push(`🔹 **Contact Details Updated**\n`);
-          }
-
-          parts.push(`Live canvas right panel me update ho gaya hai. Aap koi aur change bol sakte hain ya kisi specific line ko refine karwa sakte hain!`);
-          aiResponseText = parts.join('\n');
-        } else {
-          aiResponseText = `✅ ${result?.planSummary || `Instruction "${trimmed}" live apply ho gaya hai.`}\n\nPreview canvas me update check kijiye!`;
         }
 
-        // When actual document changes occur, show crisp, factual diff to avoid confusing verbose monologues
-        let finalText = aiResponseText;
-        if (!stepDiff || !stepDiff.hasChanges) {
-          let geminiExplanation = result?.aiExplanation || null;
-          if (!geminiExplanation) {
-            try {
-              geminiExplanation = await getGeminiChatResponse(trimmed, result?.updatedCv || resume, aiResponseText);
-            } catch (gemErr) {
-              console.warn("Gemini chat explanation fallback:", gemErr.message);
-            }
+        // Crisp factual diff highlights to accompany the conversational response
+        let diffBadge = '';
+        if (stepDiff && stepDiff.hasChanges) {
+          const highlights = [];
+          if (stepDiff.summaryChanged) highlights.push('• Professional summary updated with executive impact');
+          if (stepDiff.headlineChanged) highlights.push(`• Headline updated to: "${stepDiff.headlineAfter}"`);
+          if (stepDiff.addedCompanies?.length > 0) {
+            stepDiff.addedCompanies.forEach(c => highlights.push(`• Added experience: ${c.company} (${c.role || ''})`));
           }
-          if (geminiExplanation) {
-            finalText = geminiExplanation;
+          if (stepDiff.modifiedCompanies?.length > 0) {
+            stepDiff.modifiedCompanies.forEach(c => highlights.push(`• ${c.company}: ${c.changesSummary}`));
           }
+          if (stepDiff.addedProjects?.length > 0) {
+            stepDiff.addedProjects.forEach(p => highlights.push(`• Added project: ${p.title}`));
+          }
+          if (stepDiff.addedEducation?.length > 0) {
+            stepDiff.addedEducation.forEach(e => highlights.push(`• Restored education: ${e}`));
+          }
+          if (stepDiff.removedEducation?.length > 0) {
+            stepDiff.removedEducation.forEach(e => highlights.push(`• Removed education: ${e}`));
+          }
+          if (stepDiff.removedSkills?.length > 0) {
+            highlights.push(`• Skills updated: removed ${stepDiff.removedSkills.join(', ')}`);
+          }
+          if (stepDiff.contactChanged) {
+            highlights.push(`• Contact details updated`);
+          }
+
+          if (highlights.length > 0) {
+            diffBadge = `\n\n📋 **Canvas Updates Applied:**\n` + highlights.slice(0, 5).join('\n');
+          }
+        }
+
+        let finalText = '';
+        if (naturalExplanation) {
+          finalText = naturalExplanation + (diffBadge ? diffBadge : '');
+        } else if (stepDiff && stepDiff.hasChanges) {
+          finalText = `✅ **${result?.planSummary || 'Update successfully applied!'}**\n${diffBadge}\n\nLive canvas right panel me update ho gaya hai. Aap koi aur change bol sakte hain ya refine karwa sakte hain!`;
+        } else {
+          finalText = `✅ ${result?.planSummary || `Instruction "${trimmed}" live apply ho gaya hai.`}\n\nPreview canvas me update check kijiye!`;
         }
 
         setChatLog(prev => [

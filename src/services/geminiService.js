@@ -20,8 +20,9 @@ function getApiKey() {
 
 /**
  * Core Gemini API Caller
+ * Supports single-turn or multi-turn chat contents
  */
-export async function callGeminiApi(promptText, systemInstruction = "") {
+export async function callGeminiApi(promptText, systemInstruction = "", chatHistory = []) {
   const apiKey = getApiKey();
 
   // Try direct Gemini 2.5 Flash API first
@@ -29,15 +30,25 @@ export async function callGeminiApi(promptText, systemInstruction = "") {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
       const contents = [];
+
+      let finalPrompt = promptText;
+      if (chatHistory && chatHistory.length > 0) {
+        const recentTurns = chatHistory.slice(-4).map(m => {
+          const role = m.sender === 'user' ? 'User' : 'AI Assistant';
+          return `${role}: ${m.text?.slice(0, 300) || ''}`;
+        }).join('\n');
+        finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Task/Message:\n${promptText}`;
+      }
+
       if (systemInstruction) {
         contents.push({
           role: 'user',
-          parts: [{ text: `System Instruction:\n${systemInstruction}\n\nTask:\n${promptText}` }]
+          parts: [{ text: `System Instruction / Guiding Rules:\n${systemInstruction}\n\nTask:\n${finalPrompt}` }]
         });
       } else {
         contents.push({
           role: 'user',
-          parts: [{ text: promptText }]
+          parts: [{ text: finalPrompt }]
         });
       }
 
@@ -47,8 +58,8 @@ export async function callGeminiApi(promptText, systemInstruction = "") {
         body: JSON.stringify({
           contents,
           generationConfig: {
-            temperature: 0.25,
-            maxOutputTokens: 2048
+            temperature: 0.2,
+            maxOutputTokens: 2500
           }
         })
       });
@@ -88,16 +99,17 @@ export async function callGeminiApi(promptText, systemInstruction = "") {
  * Intelligent Conversational Assistant for Live Studio Chat
  * Responds in natural, warm, helpful Hinglish/English just like ChatGPT/Gemini
  */
-export async function getGeminiChatResponse(userMessage, currentCv, diffContext = null) {
+export async function getGeminiChatResponse(userMessage, currentCv, diffContext = null, chatHistory = []) {
   const systemInstruction = `You are the lead AI Career Mentor and Executive Resume Architect at ResumeAI Pro.
+You talk directly to the user just like ChatGPT, Claude, or Google Gemini.
 The user is conversing with you about their resume, asking what changes were made, requesting edits, or asking for career advice.
-Respond in a friendly, intelligent, and CRISP tone (using conversational Hinglish or English matching the user's language).
+Respond in a friendly, conversational, intelligent, and CRISP tone (using conversational Hinglish or English matching the user's language).
 
 CRITICAL CONVERSATIONAL RULES:
-1. BE CONCISE & TO THE POINT: Keep responses strictly within 2 to 4 sentences. NEVER write lengthy essays or overwhelm the user with long walls of text.
-2. STRICT IMMEDIATE RELEVANCE: Focus EXCLUSIVELY on what the user is asking right now. NEVER bring up previously deleted degrees (such as MBA/BBA) or unrelated past edits unless the user explicitly asks about them in the CURRENT message.
-3. If the user asks to update bullet points for a specific company, confirm the exact company and count concisely.
-4. Sound like an elite, sharp executive mentor — direct, helpful, and transparent.`;
+1. TALK LIKE A REAL AI ASSISTANT: Be warm, direct, and conversational. Acknowledge what the user said naturally.
+2. CONCISE & TO THE POINT: Keep responses strictly within 2 to 4 sentences. NEVER write lengthy essays or overwhelm the user with long walls of text.
+3. STRICT IMMEDIATE RELEVANCE: Focus EXCLUSIVELY on what the user is asking right now. NEVER bring up previously deleted items unless the user explicitly asks about them in the CURRENT message.
+4. If the user asked to change or condense something, confirm exactly what you did with a friendly and supportive tone.`;
 
   const cvSummary = {
     name: currentCv?.header?.name,
@@ -119,7 +131,7 @@ ${diffContext ? `Recent Changes Made to CV:\n${diffContext}\n` : ''}
 
 Respond to the user naturally:`;
 
-  return await callGeminiApi(prompt, systemInstruction);
+  return await callGeminiApi(prompt, systemInstruction, chatHistory);
 }
 
 /**
@@ -127,7 +139,7 @@ Respond to the user naturally:`;
  * Directly transforms the CV JSON based on the user's natural language instruction,
  * preserving facts while condensing, enhancing, or restructuring content.
  */
-export async function refineCvWithAi(userInstruction, currentCv, sourceMaster = null) {
+export async function refineCvWithAi(userInstruction, currentCv, sourceMaster = null, chatHistory = []) {
   if (!userInstruction || !currentCv) return null;
 
   const systemInstruction = `You are the lead AI Resume Architect and Career Mentor at ResumeAI Pro.
@@ -209,7 +221,7 @@ ${JSON.stringify(sourceMaster || currentCv, null, 2)}
 Apply the user instruction and return the updated CV JSON:`;
 
   try {
-    const rawResult = await callGeminiApi(promptText, systemInstruction);
+    const rawResult = await callGeminiApi(promptText, systemInstruction, chatHistory);
     if (!rawResult) return null;
 
     // Clean JSON response (handling possible \`\`\`json ... \`\`\` wrapper)
