@@ -119,7 +119,8 @@ CRITICAL CONVERSATIONAL RULES:
     companies: currentCv?.experiences?.map(e => `${e.company} (${e.role}, ${e.period})`),
     projectsCount: currentCv?.projects?.length,
     projects: currentCv?.projects?.map(p => p.title),
-    skillsCount: currentCv?.skills?.length
+    skillsCount: currentCv?.skills?.length,
+    education: currentCv?.education || []
   };
 
   const prompt = `User Message: "${userMessage}"
@@ -182,6 +183,11 @@ RULES:
      * NEVER treat city names (like "Ranchi", "Bangalore", "Pune") as company names!
      * Match the company by its unique dates and role (Pulse Solutions, Dec 2017 - Feb 2018).
      * NEVER delete unrelated companies that happen to be in the same city or share the same role title (like Nathcorp Pvt. Ltd.)!
+   - If the user asks to move or add education points from an experience (e.g. MBA/BBA from Nathcorp to education):
+     * ADD the degrees ("MBA from Lovely Professional University, Punjab in 2012" and "BBA from Birla Institute of Technology, Mesra in 2010") to the education array!
+     * REMOVE only those specific bullets from the Nathcorp experience!
+     * NEVER DELETE the entire Nathcorp company or its other job responsibilities!
+     * NEVER put user chat complaints or questions (like "kha add kiye hai aap dikhaye") into the education array! Only genuine academic degrees and institutions belong in education.
    - If the user asks to remove specific points from a specific company:
      * ONLY remove those points from that specific company!
      * DO NOT remove the candidate's actual qualifications from the Education section!

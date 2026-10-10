@@ -860,23 +860,43 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         summaries.push(`Removed education: "${eduName}"`);
       }
     } else if (hasAddWord) {
-      let eduName = rawText
-        .replace(/^(?:add\s*(?:to\s*)?)?(?:education|degree|college|university)s?\s*(?:me)?\s*(?:add\s*karo|daal\s*do|include\s*karo)?\s*[:"']?/i, '')
-        .replace(/^(?:add\s*karo|daal\s*do|include\s*karo)\s*[:"']?/i, '')
-        .replace(/\s*(?:add\s*karo|daal\s*do|include\s*karo|add)$/i, '')
-        .replace(/^[:"']+|["']+$/g, '')
-        .trim();
-      if (eduName.length >= 3) {
-        operations.push({
-          id: `op-add-edu-${Date.now()}`,
-          operation: 'ADD_EDUCATION',
-          section: 'education',
-          value: eduName,
-          description: `Add education: "${eduName}"`
+      const isQuestionOrMeta = /(?:kha|kahan|kya|kyu|dikhaye|dikhao|pehle|baad|check|mix-up|confusion|galti|aapne|apne|likhe)\b/i.test(lower);
+      const degreeMatches = rawText.match(/\b(?:MBA|BBA|B\.?Tech|M\.?Tech|B\.?Sc|M\.?Sc|B\.?Com|M\.?Com|Bachelor|Master|PhD|Diploma|Engineering|Degree)\b[^\n,"]*/gi);
+      if (degreeMatches && degreeMatches.length > 0) {
+        degreeMatches.forEach((deg, dIdx) => {
+          const cleanDeg = deg.replace(/["'“”‘`]+.*$/g, '').trim();
+          if (cleanDeg.length >= 4) {
+            operations.push({
+              id: `op-add-edu-${Date.now()}-${dIdx}`,
+              operation: 'ADD_EDUCATION',
+              section: 'education',
+              value: cleanDeg,
+              description: `Add education: "${cleanDeg}"`
+            });
+            authorizedChanges.push({ field: 'education', value: cleanDeg, authorization: 'USER_EXPLICIT' });
+            targetSections.add('education');
+            summaries.push(`Added education: "${cleanDeg}"`);
+          }
         });
-        authorizedChanges.push({ field: 'education', value: eduName, authorization: 'USER_EXPLICIT' });
-        targetSections.add('education');
-        summaries.push(`Added education: "${eduName}"`);
+      } else if (!isQuestionOrMeta) {
+        let eduName = rawText
+          .replace(/^(?:add\s*(?:to\s*)?)?(?:education|degree|college|university)s?\s*(?:me)?\s*(?:add\s*karo|daal\s*do|include\s*karo)?\s*[:"']?/i, '')
+          .replace(/^(?:add\s*karo|daal\s*do|include\s*karo)\s*[:"']?/i, '')
+          .replace(/\s*(?:add\s*karo|daal\s*do|include\s*karo|add)$/i, '')
+          .replace(/^[:"']+|["']+$/g, '')
+          .trim();
+        if (eduName.length >= 4 && !eduName.toLowerCase().includes('dikhaye') && !eduName.toLowerCase().includes('kya')) {
+          operations.push({
+            id: `op-add-edu-${Date.now()}`,
+            operation: 'ADD_EDUCATION',
+            section: 'education',
+            value: eduName,
+            description: `Add education: "${eduName}"`
+          });
+          authorizedChanges.push({ field: 'education', value: eduName, authorization: 'USER_EXPLICIT' });
+          targetSections.add('education');
+          summaries.push(`Added education: "${eduName}"`);
+        }
       }
     }
   }

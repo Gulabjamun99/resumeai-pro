@@ -11,7 +11,7 @@ import { exportResumeToPdf } from '../utils/pdfExporter';
 import { exportResumeToDocx } from '../utils/docxExporter';
 import { RESUME_TEMPLATES_CATALOG, TEMPLATE_TAG_FILTERS } from '../data/templateCatalog';
 import { COLOR_PALETTES, FONT_FAMILIES, DENSITY_OPTIONS, DEFAULT_DESIGN_THEME } from '../data/themePresets';
-import { computeResumeDiff, isDiffInquiry, formatDiffAsExplanation, isJdOptimizationRequest, isImprovementOrOptionsRequest, generateDomainImprovementOptions } from '../utils/changeDiffDetector';
+import { computeResumeDiff, isDiffInquiry, isConversationalQuestion, formatDiffAsExplanation, isJdOptimizationRequest, isImprovementOrOptionsRequest, generateDomainImprovementOptions } from '../utils/changeDiffDetector';
 import { getGeminiChatResponse } from '../services/geminiService';
 
 /**
@@ -123,7 +123,7 @@ export default function InteractiveLiveStudio({
       const explanation = formatDiffAsExplanation(latestDiff, currentVersion);
       let geminiReply = null;
       try {
-        geminiReply = await getGeminiChatResponse(trimmed, resume, explanation);
+        geminiReply = await getGeminiChatResponse(trimmed, resume, explanation, chatLog);
       } catch (err) {
         console.warn("Gemini chat query fallback:", err.message);
       }
@@ -133,6 +133,33 @@ export default function InteractiveLiveStudio({
         {
           sender: 'ai',
           text: geminiReply || explanation,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ]);
+      setIsProcessing(false);
+      return;
+    }
+
+    // 1.5 CONVERSATIONAL QUESTIONS & CV CHECKS (e.g. "education kha add kiye hai aap dikhaye", "nathcorp se pehle ek tha check krye")
+    if (isConversationalQuestion(trimmed)) {
+      let geminiReply = null;
+      try {
+        geminiReply = await getGeminiChatResponse(trimmed, resume, null, chatLog);
+      } catch (err) {
+        console.warn("Gemini conversational question fallback:", err.message);
+      }
+
+      if (!geminiReply) {
+        const compList = (resume?.experiences || []).map(e => e.company).join(', ');
+        const eduList = (resume?.education || []).map(e => typeof e === 'string' ? e : e?.degree).join(', ');
+        geminiReply = `Aapke live canvas par abhi ye details hain:\n• **Experiences:** ${compList || 'None'}\n• **Education:** ${eduList || 'None'}\n\nAapko isme jo bhi change karwana hai, mujhe batayein!`;
+      }
+
+      setChatLog(prev => [
+        ...prev,
+        {
+          sender: 'ai',
+          text: geminiReply,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);

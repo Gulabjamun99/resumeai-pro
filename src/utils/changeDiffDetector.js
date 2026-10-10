@@ -244,6 +244,46 @@ export function isDiffInquiry(text) {
 }
 
 /**
+ * Checks if the user's message is a question, query, or check request
+ * that does NOT instruct editing the CV content.
+ * e.g. "education kha add kiye hai aap dikhaye", "nathcorp se pehle ek tha check krye",
+ *      "ye education hai kya", "aapne ek employment hata diye", "check karo"
+ */
+export function isConversationalQuestion(text) {
+  if (!text || typeof text !== 'string') return false;
+  const t = text.toLowerCase().trim();
+
+  // If text contains explicit target bullet removal directives, treat as edit
+  const isTargetBulletDirective = /["'“”‘`].*["'“”‘`]\s*(?:ye|in|isko)/i.test(t);
+  if (isTargetBulletDirective) return false;
+
+  const questionPatterns = [
+    /kha\s*add\s*kiye/i,
+    /kahan\s*add\s*kiye/i,
+    /kahan\s*hai/i,
+    /kha\s*hai/i,
+    /dikhaye/i,
+    /dikhao/i,
+    /check\s*(?:krye|kariye|karo|kijiyega|kijiye)/i,
+    /ek\s*tha\s*check/i,
+    /pehle\s*ek\s*tha/i,
+    /baad\s*ek\s*tha/i,
+    /hata\s*diye\s*kya/i,
+    /aapne\s*ek\s*employment\s*hata/i,
+    /aapne\s*(?:kuch|ye)?\s*hata\s*diya/i,
+    /ye\s*(?:education|employment|bullet|experience)\s*hai\s*kya/i,
+    /\?$/,
+    /kya\s*ye\s*(?:sahi|education|experience|theek)/i,
+    /kyu\s*(?:hata|delete)/i,
+    /why\s*did\s*you/i,
+    /where\s*is/i,
+    /did\s*you\s*remove/i
+  ];
+
+  return questionPatterns.some(p => p.test(t));
+}
+
+/**
  * Checks if the input is a Job Description tailoring request.
  */
 export function isJdOptimizationRequest(text) {
