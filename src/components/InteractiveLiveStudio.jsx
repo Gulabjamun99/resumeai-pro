@@ -219,7 +219,7 @@ export default function InteractiveLiveStudio({
             stepDiff.addedProjects.forEach(p => highlights.push(`• Added project: ${p.title}`));
           }
           if (stepDiff.addedEducation?.length > 0) {
-            stepDiff.addedEducation.forEach(e => highlights.push(`• Restored education: ${e}`));
+            stepDiff.addedEducation.forEach(e => highlights.push(`• Added education: ${e}`));
           }
           if (stepDiff.removedEducation?.length > 0) {
             stepDiff.removedEducation.forEach(e => highlights.push(`• Removed education: ${e}`));

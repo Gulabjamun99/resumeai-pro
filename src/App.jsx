@@ -152,8 +152,8 @@ export default function App() {
     setScreen(4); // Advance to Screen 4 (Review & Approval Gate)
   };
 
-  // Direct Application: Screen 3 -> Screen 7 Fast-Track Pipeline
-  const handleApplyChangeRequestDirectly = (customPrompt = null) => {
+  // Direct Application: Screen 3 -> Screen 7 Fast-Track Pipeline (ChatGPT / Gemini LLM powered with fallback)
+  const handleApplyChangeRequestDirectly = async (customPrompt = null) => {
     const textToApply = typeof customPrompt === 'string' ? customPrompt : promptText;
     if (!textToApply || !textToApply.trim() || !currentCvState) {
       setScreen(7);
@@ -164,15 +164,30 @@ export default function App() {
     const scope = classifyPermissionScope(textToApply);
     setPermissionScope(scope);
 
-    const plan = parseUserIntentToChangePlan(textToApply, currentCvState, sourceResume);
-    setActiveChangePlan(plan);
+    let finalCv = null;
+    let summaryText = textToApply.slice(0, 60);
 
-    const { proposedCv } = executeChangePlan(currentCvState, plan);
-    const lockedCv = enforceContentLocks(sourceResume || currentCvState, currentCvState, proposedCv, plan);
-    const finalCv = lockedCv || proposedCv || currentCvState;
+    // 1. Direct LLM Refiner (Unified ChatGPT / Gemini Intelligence)
+    try {
+      const aiResult = await refineCvWithAi(textToApply, currentCvState, sourceResume);
+      if (aiResult && aiResult.updatedCv && (aiResult.updatedCv.header || aiResult.updatedCv.experiences)) {
+        finalCv = aiResult.updatedCv;
+        if (aiResult.planSummary) summaryText = aiResult.planSummary;
+      }
+    } catch (aiErr) {
+      console.warn("AI refiner fallback to deterministic engine on Screen 3:", aiErr.message);
+    }
 
-    const nextVer = versionHistory.length + 1;
-    const summaryText = plan?.planSummary || textToApply.slice(0, 60);
+    // 2. Deterministic Local Fallback
+    let plan = null;
+    if (!finalCv) {
+      plan = parseUserIntentToChangePlan(textToApply, currentCvState, sourceResume);
+      setActiveChangePlan(plan);
+      const { proposedCv } = executeChangePlan(currentCvState, plan);
+      const lockedCv = enforceContentLocks(sourceResume || currentCvState, currentCvState, proposedCv, plan);
+      finalCv = lockedCv || proposedCv || currentCvState;
+      if (plan?.planSummary) summaryText = plan.planSummary;
+    }
     const newVersionSnapshot = {
       version: nextVer,
       id: `v${nextVer}`,
