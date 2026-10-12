@@ -771,7 +771,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
           targetSections.add(matched.section || 'experience');
           summaries.push(`Removed bullet point: "${matched.bulletText.slice(0, 45)}..."`);
 
-          const isEduPoint = /(?:education\s*(?:ke|me)?\s*(?:hai|hain|daliye|daal)|degree\b)/i.test(lower);
+          const isEduPoint = /(?:education|degree|padhai|qualification)/i.test(lower);
           const isAcademicDegree = /\b(?:MBA|BBA|B\.?Tech|M\.?Tech|B\.?Sc|M\.?Sc|B\.?Com|M\.?Com|Bachelor|Master|PhD|Diploma|Engineering|Degree)\b/i.test(matched.bulletText);
           if (isEduPoint && isAcademicDegree) {
             operations.push({
@@ -800,9 +800,12 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         }
       }
 
-      // Check for trailing user deletion directive:
-      // e.g. '... " ye dono point education ke hai nathcorp se hataye' or '... " ye dono point nathcorp employment se hataye'
-      const trailingDirectiveMatch = rawText.match(/["'“”‘`]?\s*(?:ye|yeh|in|inhe|ye\s*dono|in\s*dono|ye\s*sabhi|ye\s*teeno)?\s*(?:dono|sabhi|teeno|\d+)?\s*(?:point|pointer|bullet|line)s?\s*(?:education\s*(?:ke|me)?\s*(?:hai|hain)?\s*)?([A-Za-z0-9\s.&'-]*?)\s*(?:se|me|ko)?\s*(?:hataye|hatao|delete|remove|nikal\s*do|hta\s*de|hta\s*do|b=hataye).*$/i);
+      // Check for trailing user deletion / transfer directive:
+      // e.g. '... " ye dono pointer ko yha nathcorp se hata ke education section me dalye'
+      // or '... " ye dono point education ke hai nathcorp se hataye'
+      const trailingDirectiveMatch = 
+        rawText.match(/["'“”‘`]?\s*(?:ye|yeh|in|inhe|ye\s*dono|in\s*dono|ye\s*sabhi|ye\s*teeno)?\s*(?:dono|sabhi|teeno|\d+)?\s*(?:point|pointer|bullet|line)s?.*?(?:hataye|hatao|hata|hta|delete|remove|nikal\s*do|hta\s*de|hta\s*do|b=hataye).*$/i) ||
+        rawText.match(/["'“”‘`]?\s*(?:ye|yeh|in|inhe|ye\s*dono|in\s*dono|ye\s*sabhi|ye\s*teeno)?\s*(?:dono|sabhi|teeno|\d+)?\s*(?:point|pointer|bullet|line)s?\s*(?:education\s*(?:ke|me)?\s*(?:hai|hain)?\s*)?([A-Za-z0-9\s.&'-]*?)\s*(?:se|me|ko)?\s*(?:hataye|hatao|delete|remove|nikal\s*do|hta\s*de|hta\s*do|b=hataye).*$/i);
 
       let targetBulletSnippets = [];
       if (trailingDirectiveMatch && trailingDirectiveMatch.index > 5) {
@@ -842,8 +845,8 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
         targetSections.add('experience');
         summaries.push(`Removed bullet point: "${bulletSnippet.slice(0, 45)}..."`);
 
-        // If the prompt mentions that these points belong to education ("education ke hai", "education me daliye"):
-        const isEduPoint = /(?:education\s*(?:ke|me)?\s*(?:hai|hain|daliye|daal)|degree\b)/i.test(lower);
+        // If the prompt mentions that these points belong to education ("education ke hai", "education me dalye", "education section me dalye"):
+        const isEduPoint = /(?:education|degree|padhai|qualification)/i.test(lower);
         const isAcademicDegree = /\b(?:MBA|BBA|B\.?Tech|M\.?Tech|B\.?Sc|M\.?Sc|B\.?Com|M\.?Com|Bachelor|Master|PhD|Diploma|Engineering|Degree)\b/i.test(bulletSnippet);
         if (isEduPoint && isAcademicDegree) {
           operations.push({
