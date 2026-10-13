@@ -191,6 +191,21 @@ export default function InteractiveLiveStudio({
     try {
       if (onApplyRefinement) {
         const result = await onApplyRefinement(trimmed, chatLog);
+
+        if (result && result.success === false) {
+          setChatLog(prev => [
+            ...prev,
+            {
+              sender: 'ai',
+              text: result.aiExplanation || result.error || 'AI service se response generate nahi ho paya. Kripya punah prayas karein.',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
+          ]);
+          setIsProcessing(false);
+          showToast('⚠️ AI service busy. Kripya retry karein.');
+          return;
+        }
+
         const stepDiff = result?.stepDiff;
 
         // Build conversational response like ChatGPT / Claude / Gemini

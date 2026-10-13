@@ -178,15 +178,10 @@ export default function App() {
       console.warn("AI refiner fallback to deterministic engine on Screen 3:", aiErr.message);
     }
 
-    // 2. Deterministic Local Fallback
-    let plan = null;
+    // Zero Offline Engine Fallback: If AI fails, notify user without mutating resume locally
     if (!finalCv) {
-      plan = parseUserIntentToChangePlan(textToApply, currentCvState, sourceResume);
-      setActiveChangePlan(plan);
-      const { proposedCv } = executeChangePlan(currentCvState, plan);
-      const lockedCv = enforceContentLocks(sourceResume || currentCvState, currentCvState, proposedCv, plan);
-      finalCv = lockedCv || proposedCv || currentCvState;
-      if (plan?.planSummary) summaryText = plan.planSummary;
+      setErrorMessage("AI service abhi response nahi de payi. Kripya punah prayas karein.");
+      return;
     }
     const newVersionSnapshot = {
       version: nextVer,
@@ -377,7 +372,7 @@ export default function App() {
     let planSummary = null;
     let aiExplanation = null;
 
-    // 1. Direct AI Refiner (ChatGPT / Claude / Gemini style)
+    // 1. Direct AI Refiner (100% Pure Gemini AI - Zero Offline Engine)
     try {
       const aiResult = await refineCvWithAi(instruction, currentCvState, sourceResume, chatHistory);
       if (aiResult && aiResult.updatedCv && (aiResult.updatedCv.header || aiResult.updatedCv.experiences)) {
@@ -386,16 +381,16 @@ export default function App() {
         aiExplanation = aiResult.explanation;
       }
     } catch (aiErr) {
-      console.warn("AI refinement error, routing to local engine:", aiErr.message);
+      console.warn("AI refinement error:", aiErr.message);
     }
 
-    // 2. Deterministic Local Engine Fallback (guaranteed offline stability)
+    // Zero Offline Engine Fallback: If AI fails, do not mutate resume locally; return explicit retry notice
     if (!finalCv) {
-      const plan = parseUserIntentToChangePlan(instruction, currentCvState, sourceResume);
-      const { proposedCv } = executeChangePlan(currentCvState, plan);
-      const locked = enforceContentLocks(sourceResume || currentCvState, currentCvState, proposedCv, plan);
-      finalCv = locked || proposedCv || currentCvState;
-      planSummary = plan?.planSummary;
+      return {
+        success: false,
+        error: "AI service se response prapt nahi ho paya. Kripya apna internet connection check karein ya dubara try karein.",
+        aiExplanation: "Mujhe khed hai, AI model se connection sthapit nahi ho paya ya request limit aayi hai. Aapka resume surakshit hai aur koi changes apply nahi hue. Kripya ek baar fir se try karein!"
+      };
     }
 
     const stepDiff = computeResumeDiff(previousSnapshot, finalCv);
