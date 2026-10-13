@@ -22,7 +22,7 @@ function getApiKey() {
  * Core Gemini API Caller
  * Supports single-turn or multi-turn chat contents
  */
-export async function callGeminiApi(promptText, systemInstruction = "", chatHistory = []) {
+export async function callGeminiApi(promptText, systemInstruction = "", chatHistory = [], customConfig = {}) {
   const apiKey = getApiKey();
 
   // Try direct Gemini 2.5 Flash API first
@@ -58,8 +58,9 @@ export async function callGeminiApi(promptText, systemInstruction = "", chatHist
         body: JSON.stringify({
           contents,
           generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 2500
+            temperature: 0.1,
+            maxOutputTokens: 8192,
+            ...customConfig
           }
         })
       });
@@ -198,6 +199,11 @@ RULES:
      * Condense that company's OWN bullets into the EXACT requested number of powerful STAR-method corporate English ATS bullets, strictly preserving its unique metrics, achievements, and responsibilities.
      * If the company already exists in the 'experiences' array, update it IN-PLACE; NEVER add a duplicate or fake company!
    - If the user asks to update or rewrite the summary, headline, or skills, update them cleanly without hallucinating fake dates.
+   - If the user mentions live apps or projects (e.g. Gharmantra, Lensdraft, Jyotish Connect, Mausam Veda, Turtleping, KharchaBook, ResumeAI):
+     * Ensure "projects" array is included with these projects: each with { "title": "...", "status": "Live App", "bullets": ["..."] }.
+   - ALL SECTIONS INTEGRITY (Zero Data Drop):
+     * Always return ALL sections in "updatedCv" (header, contact, skills, experiences, education, projects, certifications, languages).
+     * NEVER drop existing jobs, companies, or education entries unless explicitly asked to delete them.
    - Preserve existing verified companies, dates, degrees, and bullets unless the user explicitly requested changes to them.
 
 5. STRICT EMPLOYMENT IN-PLACE INTEGRITY & ZERO UNPROMPTED EMPLOYMENT:
@@ -227,7 +233,9 @@ ${JSON.stringify(sourceMaster || currentCv, null, 2)}
 Apply the user instruction and return the updated CV JSON:`;
 
   try {
-    const rawResult = await callGeminiApi(promptText, systemInstruction, chatHistory);
+    const rawResult = await callGeminiApi(promptText, systemInstruction, chatHistory, {
+      responseMimeType: 'application/json'
+    });
     if (!rawResult) return null;
 
     // Clean JSON response (handling possible \`\`\`json ... \`\`\` wrapper)
