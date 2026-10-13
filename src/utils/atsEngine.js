@@ -68,7 +68,7 @@ export function checkHasDeleteWord(text) {
   if (!text || typeof text !== 'string') return false;
   const lower = text.toLowerCase();
 
-  // If prompt is asking to put back / restore / undo, it is NOT a delete intent!
+  // If prompt is asking to put back / restore / undo / keep employment, it is NOT a delete intent!
   if (
     lower.includes('wapas') ||
     lower.includes('restore') ||
@@ -77,7 +77,15 @@ export function checkHasDeleteWord(text) {
     lower.includes('re-add') ||
     lower.includes('add back') ||
     lower.includes('kyu hata diye') ||
-    lower.includes('kyun hata diya')
+    lower.includes('kyun hata diya') ||
+    lower.includes('hat diya tha') ||
+    lower.includes('hata diya tha') ||
+    lower.includes('hat diya') ||
+    lower.includes('hata diya') ||
+    lower.includes('aapne hat') ||
+    lower.includes('aapne hata') ||
+    /(?:ye|yeh|in|is)?\s*(?:employment|job|role|experience)\s*(?:ko)?\s*(?:rkhye|rakho|rakhiye|daalo|add)/i.test(lower) ||
+    /(?:ke\s*upar|above|ke\s*pehle|before)\s*(?:ye\s*)?(?:employment|job|role|experience)/i.test(lower)
   ) {
     return false;
   }
@@ -2609,7 +2617,23 @@ export function executeChangePlan(currentCvState, changePlan) {
             
             const isDuplicate = proposedCv.experiences.some(e => e.role === op.role && e.company === op.company);
             if (!isDuplicate) {
-              proposedCv.experiences.unshift(newExpEntity);
+              if (op.placeBeforeCompany) {
+                const targetIdx = proposedCv.experiences.findIndex(e => (e.company || '').toLowerCase().includes(op.placeBeforeCompany.toLowerCase()));
+                if (targetIdx !== -1) {
+                  proposedCv.experiences.splice(targetIdx, 0, newExpEntity);
+                } else {
+                  proposedCv.experiences.unshift(newExpEntity);
+                }
+              } else if (op.placeAfterCompany) {
+                const targetIdx = proposedCv.experiences.findIndex(e => (e.company || '').toLowerCase().includes(op.placeAfterCompany.toLowerCase()));
+                if (targetIdx !== -1) {
+                  proposedCv.experiences.splice(targetIdx + 1, 0, newExpEntity);
+                } else {
+                  proposedCv.experiences.push(newExpEntity);
+                }
+              } else {
+                proposedCv.experiences.unshift(newExpEntity);
+              }
               appliedOperations.push(op);
               requestedFacts.push(op.description || `Added ${op.role} role at ${op.company}`);
             }

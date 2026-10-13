@@ -300,7 +300,7 @@ export const isGarbageCompany = (name) => {
 /**
  * Extracts structured Employment blocks from text lines
  */
-export function extractStructuredExperiences(lines, currentExperiences = [], rawPrompt = '') {
+export function extractStructuredExperiences(lines, currentExperiences = [], rawPrompt = '', sourceMaster = null) {
   const experiences = [];
   let currentExp = null;
   const orphanBullets = [];
@@ -479,6 +479,30 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
         continue;
       }
 
+      // Lookahead: if date period was not inline on this header line, check next line
+      if (!p3 && i + 1 < lines.length) {
+        const nextL = lines[i + 1].trim();
+        const nextIsDate = /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})\s*[-–—to\/\\]\s*(?:present|current|till\s*date|now|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})/i.test(nextL);
+        if (nextIsDate) {
+          p3 = nextL;
+        }
+      }
+
+      const allSearchPool = [
+        ...(currentExperiences || []),
+        ...(sourceMaster?.experiences || []),
+        ...(sourceMaster?.experience || [])
+      ];
+      const uniqueExps = [];
+      const seenKeys = new Set();
+      allSearchPool.forEach(e => {
+        const k = `${(e.company || '').toLowerCase()}::${(e.period || '').toLowerCase()}`;
+        if (!seenKeys.has(k)) {
+          seenKeys.add(k);
+          uniqueExps.push(e);
+        }
+      });
+
       let role = p1;
       let company = p2;
       let location = '';
@@ -486,26 +510,38 @@ export function extractStructuredExperiences(lines, currentExperiences = [], raw
       if (isRole1 && isLoc2) {
         role = p1;
         location = p2;
-        // Resolve company from currentExperiences by matching location, period, or role
-        const matched = currentExperiences?.find(e => {
+        // Resolve company by matching period, role, and location
+        const matched = uniqueExps.find(e => {
           const locMatch = (e.location || '').toLowerCase().includes(p2.toLowerCase());
           const roleMatch = (e.role || '').toLowerCase().includes(p1.toLowerCase());
-          const periodMatch = p3 ? (e.period || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(p3.toLowerCase().replace(/[^a-z0-9]/g, '')) : true;
-          return locMatch && roleMatch && periodMatch;
-        }) || currentExperiences?.find(e => {
-          const locMatch = (e.location || '').toLowerCase().includes(p2.toLowerCase());
           const periodMatch = p3 ? (e.period || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(p3.toLowerCase().replace(/[^a-z0-9]/g, '')) : false;
-          return locMatch && periodMatch;
+          return locMatch && roleMatch && periodMatch;
+        }) || uniqueExps.find(e => {
+          const roleMatch = (e.role || '').toLowerCase().includes(p1.toLowerCase());
+          const periodMatch = p3 ? (e.period || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(p3.toLowerCase().replace(/[^a-z0-9]/g, '')) : false;
+          return roleMatch && periodMatch;
+        }) || uniqueExps.find(e => {
+          const locMatch = (e.location || '').toLowerCase().includes(p2.toLowerCase());
+          const roleMatch = (e.role || '').toLowerCase().includes(p1.toLowerCase());
+          return locMatch && roleMatch && !p3;
         });
         company = matched?.company || '';
       } else if (isRole2 && isLoc1) {
         role = p2;
         location = p1;
-        const matched = currentExperiences?.find(e => {
+        const matched = uniqueExps.find(e => {
           const locMatch = (e.location || '').toLowerCase().includes(p1.toLowerCase());
           const roleMatch = (e.role || '').toLowerCase().includes(p2.toLowerCase());
-          const periodMatch = p3 ? (e.period || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(p3.toLowerCase().replace(/[^a-z0-9]/g, '')) : true;
+          const periodMatch = p3 ? (e.period || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(p3.toLowerCase().replace(/[^a-z0-9]/g, '')) : false;
           return locMatch && roleMatch && periodMatch;
+        }) || uniqueExps.find(e => {
+          const roleMatch = (e.role || '').toLowerCase().includes(p2.toLowerCase());
+          const periodMatch = p3 ? (e.period || '').toLowerCase().replace(/[^a-z0-9]/g, '').includes(p3.toLowerCase().replace(/[^a-z0-9]/g, '')) : false;
+          return roleMatch && periodMatch;
+        }) || uniqueExps.find(e => {
+          const locMatch = (e.location || '').toLowerCase().includes(p1.toLowerCase());
+          const roleMatch = (e.role || '').toLowerCase().includes(p2.toLowerCase());
+          return locMatch && roleMatch && !p3;
         });
         company = matched?.company || '';
       } else if ((isComp1 || !isRole1) && (isRole2 || !isComp2)) {
@@ -1221,7 +1257,19 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
     expLines = lines;
   }
 
-  const structuredExps = extractStructuredExperiences(expLines, currentCvState?.experiences, rawText);
+  // Detect relative placement if user specifies: e.g. "nathcorp ke upar ye employment rkhye"
+  let placeBeforeCompany = null;
+  let placeAfterCompany = null;
+  const placeBeforeMatch = rawText.match(/([A-Za-z0-9\s.&'-]+?)\s*(?:ke\s*upar|ke\s*pehle|se\s*pehle|above|before)\s*(?:ye\s*)?(?:employment|job|role|experience)?\s*(?:rkhye|rakho|rakhiye|daalo|add|insert|karo)/i);
+  if (placeBeforeMatch) {
+    placeBeforeCompany = placeBeforeMatch[1].trim();
+  }
+  const placeAfterMatch = rawText.match(/([A-Za-z0-9\s.&'-]+?)\s*(?:ke\s*neeche|ke\s*baad|se\s*baad|below|after)\s*(?:ye\s*)?(?:employment|job|role|experience)?\s*(?:rkhye|rakho|rakhiye|daalo|add|insert|karo)/i);
+  if (placeAfterMatch) {
+    placeAfterCompany = placeAfterMatch[1].trim();
+  }
+
+  const structuredExps = extractStructuredExperiences(expLines, currentCvState?.experiences, rawText, sourceMaster);
 
   if (structuredExps.length > 0) {
     structuredExps.forEach((exp, idx) => {
@@ -1230,18 +1278,26 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
       const existingExp = currentCvState?.experiences?.find(e => {
         const eComp = (e.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
         const newComp = (exp.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+
+        // If this existing company is the reference anchor for relative placement (e.g. "above Nathcorp"),
+        // it cannot be the company being added or modified!
+        if (placeBeforeCompany && eComp.includes(placeBeforeCompany.toLowerCase())) return false;
+        if (placeAfterCompany && eComp.includes(placeAfterCompany.toLowerCase())) return false;
+
         if (eComp && newComp && (eComp.includes(newComp) || newComp.includes(eComp))) return true;
         const eTokens = eComp.split(/\s+/).filter(t => t.length >= 4 && !['india', 'pvt', 'ltd', 'technologies', 'solutions'].includes(t));
         const newTokens = newComp.split(/\s+/).filter(t => t.length >= 4 && !['india', 'pvt', 'ltd', 'technologies', 'solutions'].includes(t));
         if (eTokens.length > 0 && eTokens.some(t => newTokens.includes(t))) return true;
 
-        // Check if raw prompt mentions this existing company
-        if (eComp && rawText.toLowerCase().includes(eComp)) return true;
+        // Check if raw prompt explicitly targets this company (only if company is not specified on exp)
+        if (!exp.company && !placeBeforeCompany && !placeAfterCompany && eComp && rawText.toLowerCase().includes(eComp)) return true;
 
-        // Check role match
-        const eRole = (e.role || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
-        const newRole = (exp.role || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
-        if (eRole && newRole && (eRole.includes(newRole) || newRole.includes(eRole))) return true;
+        // Check role match only if exp.company is not set
+        if (!exp.company) {
+          const eRole = (e.role || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+          const newRole = (exp.role || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+          if (eRole && newRole && (eRole.includes(newRole) || newRole.includes(eRole))) return true;
+        }
 
         return false;
       });
@@ -1266,8 +1322,12 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
         targetSections.add('experience');
         summaries.push(`Updated ${existingExp.company} with ${exp.bullets.length} high-impact bullets`);
       } else {
-        // STRICT USER-CONTROL GUARD: Only add a new employment entry if user explicitly requested adding a job/company!
-        const hasExplicitAddJobIntent = /(?:add\s*(?:new\s*)?(?:job|role|experience|company)|naya\s*(?:job|role|experience|kaam)|naye\s*(?:job|role)|new\s*(?:job|role|experience)|shamil\s*karo|insert\s*(?:job|role))/i.test(rawText);
+        // STRICT USER-CONTROL GUARD: Only add a new employment entry if user explicitly requested adding a job/company or restoring it!
+        const hasExplicitAddJobIntent = 
+          /(?:add\s*(?:new\s*)?(?:job|role|experience|company)|naya\s*(?:job|role|experience|kaam)|naye\s*(?:job|role)|new\s*(?:job|role|experience)|shamil\s*karo|insert\s*(?:job|role)|employment\s*(?:rkhye|rakho|rakhiye|daalo|add|insert|chahiye)|hat\s*diya\s*tha|hata\s*diya\s*tha|wapas|restore)/i.test(rawText) ||
+          Boolean(placeBeforeCompany || placeAfterCompany) ||
+          Boolean(sourceMaster?.experiences?.some(se => (se.company || '').toLowerCase() === (exp.company || '').toLowerCase()));
+
         if (!hasExplicitAddJobIntent) {
           // Do NOT create random unprompted employment!
           return;
@@ -1283,6 +1343,8 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
           period: exp.period,
           location: exp.location,
           bullets: exp.bullets,
+          placeBeforeCompany,
+          placeAfterCompany,
           description: `Add ${exp.role} at ${exp.company} (${exp.period})`
         });
 

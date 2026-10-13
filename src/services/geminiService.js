@@ -10,7 +10,7 @@
  * 5. Robust Fallback to deterministic local engine if network fails
  */
 
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const CANDIDATE_MODELS = ['gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-flash-latest'];
 
 function getApiKey() {
   return (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) || 
@@ -20,60 +20,78 @@ function getApiKey() {
 
 /**
  * Core Gemini API Caller
- * Supports single-turn or multi-turn chat contents
+ * Supports single-turn or multi-turn chat contents with multi-model fallback & backoff
  */
 export async function callGeminiApi(promptText, systemInstruction = "", chatHistory = [], customConfig = {}) {
   const apiKey = getApiKey();
 
-  // Try direct Gemini 2.5 Flash API first
+  // Try direct Gemini API first across candidate models
   if (apiKey) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-      const contents = [];
+    for (const model of CANDIDATE_MODELS) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const contents = [];
 
-      let finalPrompt = promptText;
-      if (chatHistory && chatHistory.length > 0) {
-        const recentTurns = chatHistory.slice(-4).map(m => {
-          const role = m.sender === 'user' ? 'User' : 'AI Assistant';
-          return `${role}: ${m.text?.slice(0, 300) || ''}`;
-        }).join('\n');
-        finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Task/Message:\n${promptText}`;
-      }
+        let finalPrompt = promptText;
+        if (chatHistory && chatHistory.length > 0) {
+          const recentTurns = chatHistory.slice(-4).map(m => {
+            const role = m.sender === 'user' ? 'User' : 'AI Assistant';
+            return `${role}: ${m.text?.slice(0, 300) || ''}`;
+          }).join('\n');
+          finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Task/Message:\n${promptText}`;
+        }
 
-      if (systemInstruction) {
-        contents.push({
-          role: 'user',
-          parts: [{ text: `System Instruction / Guiding Rules:\n${systemInstruction}\n\nTask:\n${finalPrompt}` }]
-        });
-      } else {
-        contents.push({
-          role: 'user',
-          parts: [{ text: finalPrompt }]
-        });
-      }
+        if (systemInstruction) {
+          contents.push({
+            role: 'user',
+            parts: [{ text: `System Instruction / Guiding Rules:\n${systemInstruction}\n\nTask:\n${finalPrompt}` }]
+          });
+        } else {
+          contents.push({
+            role: 'user',
+            parts: [{ text: finalPrompt }]
+          });
+        }
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 8192,
-            ...customConfig
+        let response = null;
+        let attempts = 0;
+        const maxAttempts = 2;
+
+        while (attempts < maxAttempts) {
+          attempts++;
+          response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents,
+              generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 8192,
+                ...customConfig
+              }
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (candidateText) return candidateText;
+            break;
           }
-        })
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (candidateText) return candidateText;
-      } else {
-        console.warn(`Direct Gemini API returned ${response.status}. Attempting server route...`);
+          if (response.status === 429 && attempts < maxAttempts) {
+            // Short backoff before next attempt or model fallback
+            console.warn(`Gemini (${model}) 429 rate limit hit. Waiting 1.5s...`);
+            await new Promise(r => setTimeout(r, 1500));
+            continue;
+          }
+
+          console.warn(`Gemini model ${model} returned ${response.status}. Trying next candidate model...`);
+          break;
+        }
+      } catch (err) {
+        console.warn(`Gemini model ${model} error:`, err.message);
       }
-    } catch (err) {
-      console.warn("Direct Gemini API error:", err.message);
     }
   }
 
@@ -184,6 +202,10 @@ RULES:
      * NEVER treat city names (like "Ranchi", "Bangalore", "Pune") as company names!
      * Match the company by its unique dates and role (Pulse Solutions, Dec 2017 - Feb 2018).
      * NEVER delete unrelated companies that happen to be in the same city or share the same role title (like Nathcorp Pvt. Ltd.)!
+   - If the user provides a role, location, dates, or bullets and asks to keep/place it above another company (e.g. "HR Executive • Ranchi Dec-2017- Feb 2018 ... nathcorp ke upar ye employment rkhye aapne hat diya tha"):
+     * Match this role in the Baseline Reference CV (Pulse Solutions: HR Executive, Ranchi, Dec-2017- Feb 2018).
+     * Restore/insert Pulse Solutions with its bullets directly ABOVE Nathcorp Pvt. Ltd. in the experiences array.
+     * NEVER overwrite, condense, or delete Nathcorp Pvt. Ltd.! Keep Nathcorp's existing bullets and dates completely intact.
    - If the user asks to move or add education points from an experience (e.g. MBA/BBA from Nathcorp to education):
      * ADD the degrees ("MBA from Lovely Professional University, Punjab in 2012" and "BBA from Birla Institute of Technology, Mesra in 2010") to the education array!
      * REMOVE only those specific bullets from the Nathcorp experience!
