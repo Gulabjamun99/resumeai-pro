@@ -206,15 +206,18 @@ RULES:
      * NEVER drop existing jobs, companies, or education entries unless explicitly asked to delete them.
    - Preserve existing verified companies, dates, degrees, and bullets unless the user explicitly requested changes to them.
 
-5. STRICT EMPLOYMENT IN-PLACE INTEGRITY & ZERO UNPROMPTED EMPLOYMENT:
-   - UNDER NO CIRCUMSTANCES should you create a new employment entry, company card, or dummy job on your own!
-   - A new employment entry can ONLY be added if the user EXPLICITLY says "naya employment add karo" / "add new job" AND explicitly provides the company, role, and period details.
-   - When the user asks to edit, update, change, rewrite, or delete bullets, role, or dates for ANY employment:
-     * ALWAYS perform the change IN-PLACE inside that existing employment entry!
-     * NEVER duplicate the company or create an extra employment block!
-     * Never feed random data or dummy experiences.
+6. MANDATORY 1-TO-2 PAGE TARGET CONSTRAINT WITH ZERO DATA LOSS:
+   - TARGET PAGE BUDGET: The generated CV document must be strictly engineered to fit within a pristine 1 to 2 page ATS format (never spill over to 3+ pages).
+   - ZERO DATA LOSS GUARANTEE (NEVER DELETE ENTITIES):
+     * NEVER drop or delete any company, job role, degree, institution, certification, project, or key metric from the candidate's career history to save space.
+     * Every single company and credential must remain present in the CV!
+   - DENSE COMPOUND BULLET SYNTHESIS:
+     * To fit 4-5 pages of raw history into 1-2 pages, synthesize overlapping duties into high-impact STAR-method compound bullets.
+     * Recent & high-priority roles: 4 to 6 powerful bullets capturing all metrics, technologies, and achievements.
+     * Older roles (>6-8 years ago): 2 to 3 concise high-density bullets preserving key responsibilities and tools.
+     * Eliminate conversational filler, administrative fluff, and repetitive lines while 100% retaining factual numbers, percentages, tools, and domain accomplishments.
 
-6. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences or conversational text outside the JSON object.
+7. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences or conversational text outside the JSON object.
 {
   "updatedCv": <complete updated CV object with all sections>,
   "planSummary": "<brief 1-line English summary of what was updated>",
