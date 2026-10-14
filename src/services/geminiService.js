@@ -10,56 +10,65 @@
  * 5. Robust Fallback to deterministic local engine if network fails
  */
 
-const CANDIDATE_MODELS = ['gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-flash-latest'];
+const CANDIDATE_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-2.5-flash'
+];
 
-function getApiKey() {
-  return (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) || 
-         (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) || 
-         (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || '';
+let currentKeyIndex = 0;
+
+function getApiKeys() {
+  const raw = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEYS) ||
+              (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) || 
+              (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEYS) || 
+              (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) || 
+              (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || '';
+  return raw.split(/[,;\s]+/).map(k => k.trim()).filter(Boolean);
 }
 
 /**
  * Core Gemini API Caller
- * Supports single-turn or multi-turn chat contents with multi-model fallback & backoff
+ * Supports single-turn or multi-turn chat contents with multi-model fallback & multi-key rotation
  */
 export async function callGeminiApi(promptText, systemInstruction = "", chatHistory = [], customConfig = {}) {
-  const apiKey = getApiKey();
+  const apiKeys = getApiKeys();
 
-  // Try direct Gemini API first across candidate models
-  if (apiKey) {
-    for (const model of CANDIDATE_MODELS) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-        const contents = [];
+  // Try direct Gemini API across candidate keys and models
+  if (apiKeys.length > 0) {
+    // Try up to all available keys in round-robin fashion
+    const keysToTry = [...apiKeys];
+    for (let kIdx = 0; kIdx < keysToTry.length; kIdx++) {
+      const apiKey = keysToTry[(currentKeyIndex + kIdx) % keysToTry.length];
 
-        let finalPrompt = promptText;
-        if (chatHistory && chatHistory.length > 0) {
-          const recentTurns = chatHistory.slice(-4).map(m => {
-            const role = m.sender === 'user' ? 'User' : 'AI Assistant';
-            return `${role}: ${m.text?.slice(0, 300) || ''}`;
-          }).join('\n');
-          finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Task/Message:\n${promptText}`;
-        }
+      for (const model of CANDIDATE_MODELS) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const contents = [];
 
-        if (systemInstruction) {
-          contents.push({
-            role: 'user',
-            parts: [{ text: `System Instruction / Guiding Rules:\n${systemInstruction}\n\nTask:\n${finalPrompt}` }]
-          });
-        } else {
-          contents.push({
-            role: 'user',
-            parts: [{ text: finalPrompt }]
-          });
-        }
+          let finalPrompt = promptText;
+          if (chatHistory && chatHistory.length > 0) {
+            const recentTurns = chatHistory.slice(-4).map(m => {
+              const role = m.sender === 'user' ? 'User' : 'AI Assistant';
+              return `${role}: ${m.text?.slice(0, 300) || ''}`;
+            }).join('\n');
+            finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Task/Message:\n${promptText}`;
+          }
 
-        let response = null;
-        let attempts = 0;
-        const maxAttempts = 2;
+          if (systemInstruction) {
+            contents.push({
+              role: 'user',
+              parts: [{ text: `System Instruction / Guiding Rules:\n${systemInstruction}\n\nTask:\n${finalPrompt}` }]
+            });
+          } else {
+            contents.push({
+              role: 'user',
+              parts: [{ text: finalPrompt }]
+            });
+          }
 
-        while (attempts < maxAttempts) {
-          attempts++;
-          response = await fetch(url, {
+          const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -69,28 +78,28 @@ export async function callGeminiApi(promptText, systemInstruction = "", chatHist
                 maxOutputTokens: 8192,
                 ...customConfig
               }
-            })
+            }),
+            signal: AbortSignal.timeout(12000)
           });
 
           if (response.ok) {
             const data = await response.json();
             const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (candidateText) return candidateText;
-            break;
+            if (candidateText) {
+              currentKeyIndex = (currentKeyIndex + kIdx) % keysToTry.length;
+              return candidateText;
+            }
           }
 
-          if (response.status === 429 && attempts < maxAttempts) {
-            // Short backoff before next attempt or model fallback
-            console.warn(`Gemini (${model}) 429 rate limit hit. Waiting 1.5s...`);
-            await new Promise(r => setTimeout(r, 1500));
+          if (response.status === 429) {
+            console.warn(`Gemini (${model}) 429 rate limit hit. Trying next key/model...`);
             continue;
           }
 
           console.warn(`Gemini model ${model} returned ${response.status}. Trying next candidate model...`);
-          break;
+        } catch (err) {
+          console.warn(`Gemini model ${model} error:`, err.message);
         }
-      } catch (err) {
-        console.warn(`Gemini model ${model} error:`, err.message);
       }
     }
   }
