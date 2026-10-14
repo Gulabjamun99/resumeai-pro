@@ -433,7 +433,7 @@ export default function Screen3Request({
               className={`text-xs font-bold px-6 py-2.5 rounded-lg shadow-md flex items-center gap-2 transition cursor-pointer ${
                 !jdText.trim() || isAnalyzingJd
                   ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white shadow-sky-500/25'
+                  : 'bg-blue-600 hover:bg-blue-500 text-white shadow'
               }`}
             >
               <Sparkles className="w-4 h-4" />
@@ -453,16 +453,16 @@ export default function Screen3Request({
           {jdAnalysisResult && !jdAnalysisResult.error && (
             <div className="flex flex-col gap-5 mt-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
               {/* P1.6 Primary Call-to-Action: Optimize Entire CV (100% Coverage) */}
-              <div className="bg-gradient-to-r from-sky-950 via-slate-900 to-indigo-950 border-2 border-sky-500/50 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
+              <div className="bg-slate-900 border border-slate-750 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-400 flex-shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-blue-600/10 border border-blue-500/30 flex items-center justify-center text-blue-400 flex-shrink-0">
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-white uppercase tracking-wide">
+                    <h4 className="text-sm font-semibold text-white uppercase tracking-wide">
                       Full CV & Job Description Optimization (100% Coverage)
                     </h4>
-                    <p className="text-[11px] text-slate-300">
+                    <p className="text-[11px] text-slate-400">
                       Analyze all sections, upgrade bullets with STAR verbs, prioritize target keywords, and preserve original template.
                     </p>
                   </div>
@@ -470,7 +470,7 @@ export default function Screen3Request({
 
                 <button
                   onClick={handleOptimizeEntireCvForJd}
-                  className="w-full sm:w-auto bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-lg shadow-sky-500/20 flex items-center justify-center gap-2 transition cursor-pointer whitespace-nowrap"
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs px-5 py-2.5 rounded-lg shadow flex items-center justify-center gap-2 transition cursor-pointer whitespace-nowrap"
                 >
                   <Sparkles className="w-4 h-4" />
                   <span>OPTIMIZE ENTIRE CV FOR THIS JD</span>
@@ -536,11 +536,11 @@ export default function Screen3Request({
                 <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col gap-3 shadow-lg">
                   <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-800/80 pb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-sky-500/20 to-teal-500/20 border border-sky-500/40 flex flex-col items-center justify-center font-mono">
-                        <span className="text-lg font-extrabold text-sky-300 leading-none">
+                      <div className="w-14 h-14 rounded-lg bg-slate-800 border border-slate-700 flex flex-col items-center justify-center font-mono">
+                        <span className="text-lg font-bold text-white leading-none">
                           {jdAnalysisResult.decisionIntelligence.jobFit.overallJobFit}%
                         </span>
-                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">FIT</span>
+                        <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mt-0.5">FIT</span>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">

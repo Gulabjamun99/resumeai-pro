@@ -619,7 +619,7 @@ export default function App() {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-center gap-3">
-                <label className="cursor-pointer bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-8 py-3.5 rounded-xl shadow-lg shadow-sky-500/25 flex items-center gap-2.5 transition">
+                <label className="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-8 py-3.5 rounded-lg shadow flex items-center gap-2.5 transition">
                   <Upload className="w-4 h-4" />
                   <span>Upload Candidate Resume (PDF / DOCX / TXT)</span>
                   <input type="file" accept=".pdf,.docx,.txt,.png,.jpg" onChange={handleProductionFileUpload} className="hidden" />
@@ -784,7 +784,7 @@ export default function App() {
 
                     <button
                       onClick={handleMakeAnotherChange}
-                      className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
+                      className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border border-slate-700 text-xs font-semibold px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition cursor-pointer"
                       title="Make another change on top of current version"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
@@ -793,7 +793,7 @@ export default function App() {
 
                     <button
                       onClick={() => exportResumeToPdf('preview-resume-updated', currentCvState?.header?.name || 'Candidate', currentVersion)}
-                      className="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition cursor-pointer"
+                      className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow flex items-center gap-1.5 transition cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" />
                       <span>PDF</span>
@@ -881,7 +881,7 @@ export default function App() {
 
               <button
                 onClick={() => setScreen(8)}
-                className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-6 py-2.5 rounded-lg shadow-lg shadow-sky-500/25 flex items-center gap-2"
+                className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-6 py-2.5 rounded-lg shadow flex items-center gap-2"
               >
                 <span>Proceed to Final Download (Screen 8)</span>
               </button>

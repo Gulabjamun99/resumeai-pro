@@ -63,7 +63,7 @@ export default function PromptConsole({ promptText, setPromptText, onExecute, is
             <button
               onClick={onExecute}
               disabled={isProcessing}
-              className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold px-5 py-2 rounded-lg shadow-lg shadow-sky-500/25 flex items-center gap-2 transition disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-5 py-2 rounded-lg shadow flex items-center gap-2 transition disabled:opacity-50"
             >
               {isProcessing ? (
                 <>

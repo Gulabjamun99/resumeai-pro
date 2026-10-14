@@ -344,21 +344,21 @@ export default function InteractiveLiveStudio({
     <div className="flex flex-col gap-3 w-full max-w-[1600px] mx-auto text-slate-100 animate-fadeIn">
       
       {/* ========================================================
-          1. ULTRA-CLEAN MODERN TOP BAR (NO DEVELOPER JARGON)
+          1. ULTRA-CLEAN MODERN TOP BAR (EXECUTIVE UNIVERSAL DESIGN)
           ======================================================== */}
-      <header className="bg-slate-900/90 backdrop-blur border border-slate-800 px-4 py-2.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 shadow-xl">
+      <header className="bg-slate-900 border border-slate-800 px-4 py-2.5 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-lg">
         {/* Brand & Document Info */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-md shadow-sky-500/20">
-            <Sparkles className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold shadow-sm">
+            <Sparkles className="w-4 h-4" />
           </div>
           <div className="flex flex-col text-left">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-sm text-white tracking-tight">
+              <span className="font-semibold text-sm text-white tracking-tight">
                 {resume?.header?.name || 'ResumeAI Pro'}
               </span>
-              <span className="text-[10px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2 py-0.5 rounded-full font-medium">
-                Version {currentVersion}
+              <span className="text-[11px] bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded font-mono font-medium">
+                v{currentVersion}
               </span>
             </div>
             <span className="text-[11px] text-slate-400">
@@ -372,18 +372,18 @@ export default function InteractiveLiveStudio({
           {versionHistory && versionHistory.length > 1 && (
             <button
               onClick={() => onRollback && onRollback(versionHistory.length - 1)}
-              className="text-xs text-amber-300 hover:text-amber-200 bg-amber-950/40 hover:bg-amber-900/60 px-3 py-1.5 rounded-xl border border-amber-600/30 flex items-center gap-1.5 transition cursor-pointer font-medium active:scale-95 shadow-sm"
+              className="text-xs text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-750 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 transition cursor-pointer font-medium active:scale-95 shadow-sm"
               title="Undo last modification"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
               <span>Undo Last Edit (v{currentVersion})</span>
             </button>
           )}
 
           {/* Diff Tag if changes made */}
           {diffReport.hasChanges && (
-            <div className="hidden sm:flex items-center gap-1.5 bg-emerald-950/40 border border-emerald-800/50 px-2.5 py-1 rounded-xl text-[11px] text-emerald-300 font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            <div className="hidden sm:flex items-center gap-1.5 bg-slate-800/80 border border-slate-700 px-2.5 py-1 rounded-lg text-[11px] text-emerald-400 font-medium">
+              <CheckCircle2 className="w-3.5 h-3.5" />
               <span>{diffReport.totalChangesCount} Changes Verified</span>
             </div>
           )}
@@ -392,7 +392,7 @@ export default function InteractiveLiveStudio({
         {/* Right: Zoom Presets & Primary Export Actions */}
         <div className="flex items-center gap-2">
           {/* Zoom Controls */}
-          <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 px-2 py-1 rounded-xl text-slate-300">
+          <div className="flex items-center gap-1 bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-slate-300">
             <button 
               onClick={() => setZoomLevel(prev => Math.max(60, prev - 10))}
               className="p-1 hover:text-white transition cursor-pointer"
@@ -400,7 +400,7 @@ export default function InteractiveLiveStudio({
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
-            <span className="text-[11px] font-mono w-9 text-center font-bold">{zoomLevel}%</span>
+            <span className="text-[11px] font-mono w-9 text-center font-semibold">{zoomLevel}%</span>
             <button 
               onClick={() => setZoomLevel(prev => Math.min(120, prev + 10))}
               className="p-1 hover:text-white transition cursor-pointer"
@@ -411,7 +411,7 @@ export default function InteractiveLiveStudio({
             <span className="text-slate-700">|</span>
             <button
               onClick={() => setZoomLevel(80)}
-              className={`text-[10.5px] px-2 py-0.5 rounded transition cursor-pointer ${zoomLevel === 80 ? 'bg-sky-500 text-white font-bold' : 'text-slate-400 hover:text-white'}`}
+              className={`text-[10.5px] px-2 py-0.5 rounded transition cursor-pointer ${zoomLevel === 80 ? 'bg-blue-600 text-white font-medium' : 'text-slate-400 hover:text-white'}`}
             >
               Fit
             </button>
@@ -420,20 +420,20 @@ export default function InteractiveLiveStudio({
           {/* Primary Action: Download PDF */}
           <button
             onClick={() => exportResumeToPdf('cockpit-preview-canvas', resume?.header?.name || 'Candidate', currentVersion)}
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 transition cursor-pointer active:scale-95"
+            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow flex items-center gap-1.5 transition cursor-pointer active:scale-95"
             title="Download vector printable PDF"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             <span>Download PDF</span>
           </button>
 
           {/* Secondary Action: DOCX */}
           <button
             onClick={() => exportResumeToDocx(resume, currentVersion, selectedTemplateId)}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+            className="bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold px-3 py-2 rounded-lg border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
             title="Download Word (.docx)"
           >
-            <FileText className="w-3.5 h-3.5 text-sky-400" />
+            <FileText className="w-3.5 h-3.5 text-slate-400" />
             <span>DOCX</span>
           </button>
 
@@ -441,10 +441,10 @@ export default function InteractiveLiveStudio({
           {onToggleCompare && (
             <button
               onClick={onToggleCompare}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold px-3 py-2 rounded-xl border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+              className="bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-xs font-semibold px-3 py-2 rounded-lg border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
               title="Side-by-side comparison with original CV"
             >
-              <Columns className="w-3.5 h-3.5 text-indigo-400" />
+              <Columns className="w-3.5 h-3.5 text-slate-400" />
               <span className="hidden sm:inline">Compare</span>
             </button>
           )}
@@ -476,10 +476,10 @@ export default function InteractiveLiveStudio({
           <div className="p-2 bg-slate-950 border-b border-slate-800 grid grid-cols-3 gap-1.5 shrink-0">
             <button
               onClick={() => setActiveTab('templates')}
-              className={`py-2 px-1 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+              className={`py-2 px-1 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
                 activeTab === 'templates'
-                  ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-slate-800 text-white border border-slate-700 shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
               }`}
             >
               <Layout className="w-3.5 h-3.5" />
@@ -488,32 +488,31 @@ export default function InteractiveLiveStudio({
 
             <button
               onClick={() => setActiveTab('chat')}
-              className={`py-2 px-1 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+              className={`py-2 px-1 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
                 activeTab === 'chat'
-                  ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-slate-800 text-white border border-slate-700 shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5" />
-              <span>AI Editor</span>
+              <span>AI Assistant</span>
             </button>
 
             <button
               onClick={() => setActiveTab('styling')}
-              className={`py-2 px-1 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+              className={`py-2 px-1 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
                 activeTab === 'styling'
-                  ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  ? 'bg-slate-800 text-white border border-slate-700 shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
               }`}
             >
               <Palette className="w-3.5 h-3.5" />
-              <span>Colors & Style</span>
+              <span>Design & Fonts</span>
             </button>
           </div>
 
           {/* ----------------------------------------------------
               TAB 1: 36 TEMPLATES SHOWCASE (BIG VISUAL CARDS GRID)
-              User Directive: "template bhi ek bada samne rehta kuch aisa format whi dikh jaye log select kre apply ho jaye"
               ---------------------------------------------------- */}
           {activeTab === 'templates' && (
             <div className="flex-1 flex flex-col overflow-hidden text-left">
@@ -528,7 +527,7 @@ export default function InteractiveLiveStudio({
                     value={templateSearch}
                     onChange={(e) => setTemplateSearch(e.target.value)}
                     placeholder="Search 36 templates by name or style..."
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 transition"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
                   />
                 </div>
 
@@ -538,10 +537,10 @@ export default function InteractiveLiveStudio({
                     <button
                       key={tag}
                       onClick={() => setActiveTemplateTag(tag)}
-                      className={`px-3 py-1 rounded-full font-medium whitespace-nowrap transition cursor-pointer ${
+                      className={`px-3 py-1 rounded-md font-medium whitespace-nowrap transition cursor-pointer ${
                         activeTemplateTag === tag
-                          ? 'bg-sky-500 text-white font-bold shadow'
-                          : 'bg-slate-850 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-850 border border-slate-800'
                       }`}
                     >
                       {tag}
@@ -565,10 +564,10 @@ export default function InteractiveLiveStudio({
                           showToast(`Applied: ${tpl.name}`);
                         }
                       }}
-                      className={`group rounded-2xl border transition-all duration-200 flex flex-col overflow-hidden cursor-pointer relative min-h-[240px] ${
+                      className={`group rounded-xl border transition-all duration-200 flex flex-col overflow-hidden cursor-pointer relative min-h-[240px] ${
                         isSelected
-                          ? 'bg-sky-950/50 border-sky-500 shadow-lg shadow-sky-500/20 ring-2 ring-sky-500/60 scale-[1.01]'
-                          : 'bg-slate-950/60 hover:bg-slate-850/80 border-slate-800/90 hover:border-slate-700 hover:shadow-md'
+                          ? 'bg-slate-850 border-blue-500 ring-2 ring-blue-500/40 shadow-md'
+                          : 'bg-slate-950/70 hover:bg-slate-850/60 border-slate-800 hover:border-slate-700 hover:shadow-sm'
                       }`}
                     >
                       {/* Visual Resume Schematic / Thumbnail */}
@@ -666,15 +665,13 @@ export default function InteractiveLiveStudio({
           {activeTab === 'chat' && (
             <div className="flex-1 flex flex-col overflow-hidden text-left">
               {/* Header Info */}
-              <div className="p-3 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sky-400">
-                  <Sparkles className="w-4 h-4" />
-                  <span className="text-xs font-bold text-slate-200">
-                    AI Natural Language Live Editor
-                  </span>
+              <div className="p-3 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs">
+                  <Sparkles className="w-4 h-4 text-blue-400" />
+                  <span>Conversational AI Assistant</span>
                 </div>
-                <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded-full">
-                  NLP AI Active
+                <span className="text-[10px] text-slate-300 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded font-mono">
+                  Online
                 </span>
               </div>
 
@@ -686,35 +683,35 @@ export default function InteractiveLiveStudio({
                     className={`flex flex-col max-w-[90%] ${msg.sender === 'user' ? 'ml-auto items-end' : 'mr-auto items-start'}`}
                   >
                     <div 
-                      className={`p-3 rounded-2xl leading-relaxed shadow-sm whitespace-pre-line ${
+                      className={`p-3 rounded-xl leading-relaxed shadow-sm whitespace-pre-line ${
                         msg.sender === 'user' 
-                          ? 'bg-sky-600 text-white rounded-br-none' 
-                          : 'bg-slate-850 text-slate-200 border border-slate-700/80 rounded-bl-none'
+                          ? 'bg-blue-600 text-white rounded-br-none' 
+                          : 'bg-slate-850 text-slate-200 border border-slate-800 rounded-bl-none'
                       }`}
                     >
                       <div>{msg.text}</div>
 
                       {msg.options && msg.options.length > 0 && (
                         <div className="mt-3 pt-3 border-t border-slate-700/60 flex flex-col gap-2 w-full text-left">
-                          <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider">
-                            ⚡ Select a track to apply instantly to your live canvas:
+                          <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">
+                            Select a recommended track:
                           </span>
                           <div className="flex flex-col gap-2">
                             {msg.options.map((opt, oIdx) => (
                               <button
                                 key={oIdx}
                                 onClick={() => handleSendPrompt(opt.actionPrompt || opt.title)}
-                                className="text-left p-2.5 rounded-xl bg-slate-900 hover:bg-sky-950/80 border border-slate-700/80 hover:border-sky-500/80 transition flex flex-col gap-1 cursor-pointer group shadow-sm"
+                                className="text-left p-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-750 hover:border-blue-500 transition flex flex-col gap-1 cursor-pointer group shadow-sm"
                               >
                                 <div className="flex items-center justify-between">
-                                  <span className="font-bold text-sky-300 group-hover:text-sky-200 text-xs flex items-center gap-1.5">
-                                    <span>{opt.icon || '✨'}</span> {opt.title}
+                                  <span className="font-semibold text-slate-200 group-hover:text-blue-300 text-xs flex items-center gap-1.5">
+                                    <span>{opt.icon || '•'}</span> {opt.title}
                                   </span>
-                                  <span className="text-[9.5px] bg-sky-900/40 text-sky-300 px-2 py-0.5 rounded border border-sky-700/40 font-semibold group-hover:bg-sky-500 group-hover:text-white transition">
-                                    1-Click Apply ➔
+                                  <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700 font-medium group-hover:bg-blue-600 group-hover:text-white transition">
+                                    Apply Track ➔
                                   </span>
                                 </div>
-                                <span className="text-[10.5px] text-slate-400 group-hover:text-slate-300 leading-snug">
+                                <span className="text-[11px] text-slate-400 group-hover:text-slate-300 leading-snug">
                                   {opt.description}
                                 </span>
                               </button>
@@ -730,22 +727,22 @@ export default function InteractiveLiveStudio({
                 ))}
 
                 {isProcessing && (
-                  <div className="flex items-center gap-2 text-sky-400 text-xs p-3 bg-slate-800/80 rounded-xl border border-sky-500/20 max-w-[80%]">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Processing instruction and updating CV in real time...</span>
+                  <div className="flex items-center gap-2 text-slate-300 text-xs p-3 bg-slate-850 rounded-xl border border-slate-800 max-w-[85%]">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                    <span>Processing instruction and updating CV live...</span>
                   </div>
                 )}
                 <div ref={chatEndRef} />
               </div>
 
               {/* Quick Prompt Suggestions */}
-              <div className="px-3 py-2 bg-slate-950/60 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[10.5px]">
-                <span className="text-slate-500 shrink-0 font-medium">Try:</span>
-                {['Kya kya changes huye batayein', 'Summary ko JD ke hisab se tailor karo', 'Wipro work experience add karo', 'Skills me marketing aur sales add karo'].map((suggestion, sIdx) => (
+              <div className="px-3 py-2 bg-slate-950/70 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[11px]">
+                <span className="text-slate-500 shrink-0 font-medium">Suggestions:</span>
+                {['Add STAR metrics to bullets', 'Make summary concise & executive', 'Add experience or degrees', 'Tailor for Senior role'].map((suggestion, sIdx) => (
                   <button
                     key={sIdx}
                     onClick={() => handleSendPrompt(suggestion)}
-                    className="bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white px-2.5 py-1 rounded-lg border border-slate-700/70 whitespace-nowrap transition cursor-pointer"
+                    className="bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white px-2.5 py-1 rounded-md border border-slate-800 whitespace-nowrap transition cursor-pointer"
                   >
                     {suggestion}
                   </button>
@@ -753,7 +750,7 @@ export default function InteractiveLiveStudio({
               </div>
 
               {/* Chat Input Form */}
-              <div className="p-3 bg-slate-950/90 border-t border-slate-800">
+              <div className="p-3 bg-slate-950 border-t border-slate-800">
                 <form 
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -773,14 +770,14 @@ export default function InteractiveLiveStudio({
                         }
                       }
                     }}
-                    placeholder="Type any instruction (e.g. 'Add Docker to skills', 'Remove bullet point', 'Update headline to Senior Engineer')..."
+                    placeholder="Type any instruction (e.g. 'Add Docker to skills', 'Move Pulse Solutions to experience', 'Make summary punchy')..."
                     disabled={isProcessing}
-                    className="w-full bg-slate-900 border border-slate-700/80 focus:border-sky-500 rounded-xl pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition resize-none disabled:opacity-50 shadow-inner"
+                    className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition resize-none disabled:opacity-50"
                   />
                   <button
                     type="submit"
                     disabled={!promptInput.trim() || isProcessing}
-                    className="absolute right-2 bottom-3.5 p-2 bg-sky-500 hover:bg-sky-400 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl transition cursor-pointer shadow-sm"
+                    className="absolute right-2 bottom-3.5 p-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-lg transition cursor-pointer shadow-sm"
                     title="Send instruction (Enter)"
                   >
                     <Send className="w-3.5 h-3.5" />
@@ -798,54 +795,54 @@ export default function InteractiveLiveStudio({
               
               {/* 1. Layout Mode Architecture */}
               <div className="flex flex-col gap-2">
-                <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Columns className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Columns className="w-3.5 h-3.5 text-blue-400" />
                   1. Layout Mode (Two-Column vs Single-Column)
                 </span>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handleToggleLayoutMode('two-column')}
-                    className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                    className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition cursor-pointer ${
                       currentTheme.layoutMode === 'two-column'
-                        ? 'bg-sky-950/60 border-sky-500 ring-1 ring-sky-500/50 text-white'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                        ? 'bg-slate-800 border-blue-500 ring-1 ring-blue-500/40 text-white font-medium'
+                        : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <Columns className="w-5 h-5 text-sky-400" />
-                    <span className="font-bold text-[11px]">Two-Column (Sidebar)</span>
+                    <Columns className="w-5 h-5 text-blue-400" />
+                    <span className="font-semibold text-[11px]">Two-Column (Sidebar)</span>
                     <span className="text-[9.5px] opacity-70 text-center">Compact sidebar for skills & contact</span>
                   </button>
 
                   <button
                     onClick={() => handleToggleLayoutMode('single-column')}
-                    className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 transition cursor-pointer ${
+                    className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition cursor-pointer ${
                       currentTheme.layoutMode === 'single-column'
-                        ? 'bg-sky-950/60 border-sky-500 ring-1 ring-sky-500/50 text-white'
-                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                        ? 'bg-slate-800 border-blue-500 ring-1 ring-blue-500/40 text-white font-medium'
+                        : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:text-white'
                     }`}
                   >
-                    <AlignLeft className="w-5 h-5 text-sky-400" />
-                    <span className="font-bold text-[11px]">Single-Column (Linear)</span>
+                    <AlignLeft className="w-5 h-5 text-blue-400" />
+                    <span className="font-semibold text-[11px]">Single-Column (Linear)</span>
                     <span className="text-[9.5px] opacity-70 text-center">Top-down classic chronological flow</span>
                   </button>
                 </div>
 
                 {currentTheme.layoutMode === 'two-column' && (
-                  <div className="flex items-center justify-between bg-slate-950 p-2.5 rounded-xl border border-slate-800 mt-1">
+                  <div className="flex items-center justify-between bg-slate-950 p-2.5 rounded-lg border border-slate-800 mt-1">
                     <span className="text-[10.5px] text-slate-400">Sidebar Position:</span>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleToggleSidebarPosition('left')}
-                        className={`text-[10px] font-semibold px-3 py-1 rounded-lg transition cursor-pointer ${
-                          currentTheme.sidebarPosition === 'left' ? 'bg-sky-500 text-white font-bold' : 'text-slate-400 hover:text-white'
+                        className={`text-[10px] font-medium px-3 py-1 rounded transition cursor-pointer ${
+                          currentTheme.sidebarPosition === 'left' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                         }`}
                       >
                         Left Sidebar
                       </button>
                       <button
                         onClick={() => handleToggleSidebarPosition('right')}
-                        className={`text-[10px] font-semibold px-3 py-1 rounded-lg transition cursor-pointer ${
-                          currentTheme.sidebarPosition === 'right' ? 'bg-sky-500 text-white font-bold' : 'text-slate-400 hover:text-white'
+                        className={`text-[10px] font-medium px-3 py-1 rounded transition cursor-pointer ${
+                          currentTheme.sidebarPosition === 'right' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'
                         }`}
                       >
                         Right Sidebar
@@ -857,9 +854,9 @@ export default function InteractiveLiveStudio({
 
               {/* 2. 12 Curated Designer Color Palettes */}
               <div className="flex flex-col gap-2">
-                <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Palette className="w-3.5 h-3.5" />
-                  2. Designer Color Palettes (1-Click Switch)
+                <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5 text-blue-400" />
+                  2. Executive Color Palettes
                 </span>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -869,15 +866,15 @@ export default function InteractiveLiveStudio({
                       <button
                         key={pal.id}
                         onClick={() => handleApplyPalette(pal)}
-                        className={`p-2.5 rounded-xl border flex flex-col gap-1.5 text-left transition cursor-pointer relative ${
+                        className={`p-2.5 rounded-lg border flex flex-col gap-1.5 text-left transition cursor-pointer relative ${
                           isSelected
-                            ? 'bg-slate-800 border-sky-500 ring-1 ring-sky-500/50'
-                            : 'bg-slate-950/60 hover:bg-slate-850 border-slate-800 hover:border-slate-700'
+                            ? 'bg-slate-800 border-blue-500 ring-1 ring-blue-500/40'
+                            : 'bg-slate-950/70 hover:bg-slate-850 border-slate-800 hover:border-slate-700'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-[10.5px] text-slate-200 truncate">{pal.name}</span>
-                          {isSelected && <Check className="w-3 h-3 text-sky-400 shrink-0" />}
+                          <span className="font-semibold text-[10.5px] text-slate-200 truncate">{pal.name}</span>
+                          {isSelected && <Check className="w-3 h-3 text-blue-400 shrink-0" />}
                         </div>
 
                         {/* Swatches */}
@@ -899,9 +896,9 @@ export default function InteractiveLiveStudio({
               </div>
 
               {/* 3. Granular Custom Color Pickers */}
-              <div className="flex flex-col gap-2.5 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-                <span className="text-[10.5px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sliders className="w-3.5 h-3.5 text-sky-400" />
+              <div className="flex flex-col gap-2.5 bg-slate-950/70 p-3 rounded-lg border border-slate-800">
+                <span className="text-[10.5px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-blue-400" />
                   3. Custom Accent Colors
                 </span>
 
@@ -936,8 +933,8 @@ export default function InteractiveLiveStudio({
 
               {/* 4. Typography Font Families */}
               <div className="flex flex-col gap-2">
-                <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Type className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Type className="w-3.5 h-3.5 text-blue-400" />
                   4. Font Typography
                 </span>
                 <div className="grid grid-cols-2 gap-2">
@@ -945,10 +942,10 @@ export default function InteractiveLiveStudio({
                     <button
                       key={font.id}
                       onClick={() => handleFontChange(font)}
-                      className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                      className={`p-2.5 rounded-lg border text-left transition cursor-pointer ${
                         currentTheme.fontId === font.id
-                          ? 'bg-sky-950/60 border-sky-500 text-white font-bold'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                          ? 'bg-slate-800 border-blue-500 text-white font-medium'
+                          : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:text-white'
                       }`}
                     >
                       <span className="text-[11px] block">{font.name}</span>
@@ -961,31 +958,30 @@ export default function InteractiveLiveStudio({
         </aside>
 
         {/* ========================================================
-            RIGHT PANE (Col 7 / 58%): LIVE CV CANVAS & DOCKED AI QUICK-EDIT BAR
+            RIGHT PANE (Col 7 / 58%): LIVE CV DOCUMENT CANVAS
             ======================================================== */}
         <main className="lg:col-span-7 flex flex-col gap-2">
           
           {/* Subheader: Canvas Status & Scroll Jump Controls */}
           <div className="flex flex-wrap justify-between items-center px-1 gap-2">
             <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-sky-400" />
-              <span className="text-xs font-bold text-sky-400 uppercase tracking-wider">
-                Live Interactive Canvas:
+              <span className="text-xs font-semibold text-slate-300">
+                Document Preview:
               </span>
-              <span className="text-xs font-semibold text-white bg-slate-850 px-2 py-0.5 rounded-lg border border-slate-800">
+              <span className="text-xs font-medium text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
                 {activeTemplateObj?.name}
               </span>
             </div>
 
             <div className="flex items-center gap-2">
               {/* Scroll Jump Controls */}
-              <div className="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded-lg p-0.5 text-[10.5px]">
+              <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-[10.5px]">
                 <button
                   onClick={scrollToTop}
                   className="px-2 py-0.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center gap-1 transition cursor-pointer"
                   title="Scroll to Top"
                 >
-                  <ArrowUp className="w-3 h-3 text-sky-400" />
+                  <ArrowUp className="w-3 h-3 text-slate-400" />
                   <span>Top</span>
                 </button>
                 <span className="text-slate-700">|</span>
@@ -994,22 +990,22 @@ export default function InteractiveLiveStudio({
                   className="px-2 py-0.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center gap-1 transition cursor-pointer"
                   title="Scroll to Bottom"
                 >
-                  <ArrowDown className="w-3 h-3 text-sky-400" />
+                  <ArrowDown className="w-3 h-3 text-slate-400" />
                   <span>Bottom</span>
                 </button>
               </div>
 
-              <span className="text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded-full flex items-center gap-1 font-mono">
-                <ShieldCheck className="w-3 h-3" />
+              <span className="text-[10.5px] text-emerald-400 bg-slate-800/80 border border-slate-700 px-2.5 py-0.5 rounded-md flex items-center gap-1.5 font-mono">
+                <ShieldCheck className="w-3.5 h-3.5" />
                 Facts Locked
               </span>
             </div>
           </div>
 
-          {/* Document Viewport - Auto-sized with full scrollability */}
+          {/* Document Viewport - Auto-sized with full viewport scrollability matching left panel */}
           <div 
             ref={scrollCanvasRef}
-            className="w-full bg-slate-950/90 border border-slate-800 rounded-2xl p-3 sm:p-4 overflow-x-auto overflow-y-auto max-h-[calc(100vh-210px)] min-h-[580px] shadow-2xl flex justify-center items-start text-left scroll-smooth"
+            className="w-full bg-slate-950/80 border border-slate-800 rounded-xl p-3 sm:p-5 overflow-x-auto overflow-y-auto h-[calc(100vh-140px)] min-h-[620px] shadow-xl flex justify-center items-start text-left scroll-smooth"
           >
             <div 
               id="cockpit-preview-canvas"
@@ -1017,7 +1013,7 @@ export default function InteractiveLiveStudio({
                 zoom: zoomLevel / 100,
                 transition: 'zoom 0.2s ease-out' 
               }}
-              className="bg-white rounded-lg shadow-2xl text-slate-900 shrink-0 text-left h-auto min-h-fit"
+              className="bg-white rounded shadow-2xl text-slate-900 shrink-0 text-left h-auto min-h-fit"
             >
               <ResumeDocument 
                 resume={resume} 
@@ -1027,46 +1023,6 @@ export default function InteractiveLiveStudio({
               />
             </div>
           </div>
-
-          {/* DOCKED AI QUICK-EDIT BAR (Always accessible at the bottom) */}
-          <div className="bg-slate-900/95 backdrop-blur border border-slate-800 p-2 rounded-2xl shadow-xl flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-sky-400 pl-2 shrink-0">
-              <Sparkles className="w-4 h-4" />
-              <span className="text-[11px] font-bold hidden sm:inline">AI Quick Edit:</span>
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendPrompt();
-              }}
-              className="flex-1 flex items-center gap-2"
-            >
-              <input
-                type="text"
-                value={quickPromptInput}
-                onChange={(e) => setQuickPromptInput(e.target.value)}
-                placeholder="Type any instruction (e.g. 'Add Docker to skills', 'Make summary concise', 'Remove bullet point')..."
-                disabled={isProcessing}
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition disabled:opacity-50"
-              />
-
-              <button
-                type="submit"
-                disabled={!quickPromptInput.trim() || isProcessing}
-                className="bg-sky-500 hover:bg-sky-400 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition cursor-pointer flex items-center gap-1 shrink-0 shadow"
-                title="Apply AI edit"
-              >
-                {isProcessing ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Send className="w-3.5 h-3.5" />
-                )}
-                <span className="hidden sm:inline">Apply</span>
-              </button>
-            </form>
-          </div>
-
         </main>
       </div>
     </div>

@@ -48,9 +48,9 @@ export default function Screen5Generation({ onComplete }) {
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full bg-slate-950 rounded-full h-3 border border-slate-800 overflow-hidden">
+      <div className="w-full bg-slate-950 rounded-full h-2.5 border border-slate-800 overflow-hidden">
         <div 
-          className="bg-gradient-to-r from-sky-500 to-emerald-500 h-full transition-all duration-300 rounded-full"
+          className="bg-blue-600 h-full transition-all duration-300 rounded-full"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -66,7 +66,7 @@ export default function Screen5Generation({ onComplete }) {
               {isDone ? (
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
               ) : isCurrent ? (
-                <div className="w-4 h-4 rounded-full border-2 border-sky-400 border-t-transparent animate-spin flex-shrink-0" />
+                <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin flex-shrink-0" />
               ) : (
                 <div className="w-4 h-4 rounded-full bg-slate-800 flex-shrink-0" />
               )}
