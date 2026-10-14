@@ -37,36 +37,40 @@ export default async function handler(req, res) {
       });
     }
 
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
     const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
     // 4. Primary Provider: Google Gemini
     if (GEMINI_API_KEY) {
-      try {
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const geminiRes = await fetch(geminiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{ text: `${systemInstruction ? systemInstruction + '\n\n' : ''}${promptText}` }]
-            }],
-            generationConfig: { temperature: 0.2, maxOutputTokens: 2048 }
-          })
-        });
+      const serverModels = ['gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+      for (const model of serverModels) {
+        try {
+          const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+          const geminiRes = await fetch(geminiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{ text: `${systemInstruction ? systemInstruction + '\n\n' : ''}${promptText}` }]
+              }],
+              generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
+            }),
+            signal: AbortSignal.timeout(25000)
+          });
 
-        if (geminiRes.ok) {
-          const data = await geminiRes.json();
-          const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (candidateText) {
-            return res.status(200).json({
-              provider: 'GEMINI_PRIMARY',
-              resultText: candidateText.trim()
-            });
+          if (geminiRes.ok) {
+            const data = await geminiRes.json();
+            const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (candidateText) {
+              return res.status(200).json({
+                provider: `GEMINI_${model.toUpperCase()}`,
+                resultText: candidateText.trim()
+              });
+            }
           }
+        } catch (geminiErr) {
+          console.warn(`Gemini (${model}) failed on server:`, geminiErr.message);
         }
-      } catch (geminiErr) {
-        console.warn("Gemini Primary failed, routing to Groq Fallback:", geminiErr.message);
       }
     }
 

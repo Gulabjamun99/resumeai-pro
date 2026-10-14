@@ -12,8 +12,6 @@
 
 const CANDIDATE_MODELS = [
   'gemini-3.5-flash-lite',
-  'gemini-3.1-flash-lite',
-  'gemini-3.5-flash',
   'gemini-2.5-flash'
 ];
 
@@ -43,62 +41,74 @@ export async function callGeminiApi(promptText, systemInstruction = "", chatHist
       const apiKey = keysToTry[(currentKeyIndex + kIdx) % keysToTry.length];
 
       for (const model of CANDIDATE_MODELS) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const contents = [];
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const contents = [];
 
-          let finalPrompt = promptText;
-          if (chatHistory && chatHistory.length > 0) {
-            const recentTurns = chatHistory.slice(-4).map(m => {
-              const role = m.sender === 'user' ? 'User' : 'AI Assistant';
-              return `${role}: ${m.text?.slice(0, 300) || ''}`;
-            }).join('\n');
-            finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Task/Message:\n${promptText}`;
-          }
+            let finalPrompt = promptText;
+            if (chatHistory && chatHistory.length > 0) {
+              const recentTurns = chatHistory.slice(-4).map(m => {
+                const role = m.sender === 'user' ? 'User' : 'AI Assistant';
+                return `${role}: ${m.text?.slice(0, 300) || ''}`;
+              }).join('\n');
+              finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Task/Message:\n${promptText}`;
+            }
 
-          if (systemInstruction) {
-            contents.push({
-              role: 'user',
-              parts: [{ text: `System Instruction / Guiding Rules:\n${systemInstruction}\n\nTask:\n${finalPrompt}` }]
+            if (systemInstruction) {
+              contents.push({
+                role: 'user',
+                parts: [{ text: `System Instruction / Guiding Rules:\n${systemInstruction}\n\nTask:\n${finalPrompt}` }]
+              });
+            } else {
+              contents.push({
+                role: 'user',
+                parts: [{ text: finalPrompt }]
+              });
+            }
+
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents,
+                generationConfig: {
+                  temperature: 0.1,
+                  maxOutputTokens: 8192,
+                  ...customConfig
+                }
+              }),
+              signal: AbortSignal.timeout(25000)
             });
-          } else {
-            contents.push({
-              role: 'user',
-              parts: [{ text: finalPrompt }]
-            });
-          }
 
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents,
-              generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 8192,
-                ...customConfig
+            if (response.ok) {
+              const data = await response.json();
+              const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (candidateText) {
+                currentKeyIndex = (currentKeyIndex + kIdx) % keysToTry.length;
+                return candidateText;
               }
-            }),
-            signal: AbortSignal.timeout(12000)
-          });
+            }
 
-          if (response.ok) {
-            const data = await response.json();
-            const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (candidateText) {
-              currentKeyIndex = (currentKeyIndex + kIdx) % keysToTry.length;
-              return candidateText;
+            if (response.status === 429) {
+              console.warn(`Gemini (${model}) 429 rate limit hit. Trying next...`);
+              break;
+            }
+
+            if (response.status >= 500 && attempt === 0) {
+              console.warn(`Gemini (${model}) temporary server error ${response.status}. Retrying once...`);
+              await new Promise(r => setTimeout(r, 600));
+              continue;
+            }
+
+            console.warn(`Gemini model ${model} returned ${response.status}. Trying next candidate model...`);
+            break;
+          } catch (err) {
+            console.warn(`Gemini model ${model} attempt ${attempt + 1} error:`, err.message);
+            if (attempt === 0) {
+              await new Promise(r => setTimeout(r, 500));
             }
           }
-
-          if (response.status === 429) {
-            console.warn(`Gemini (${model}) 429 rate limit hit. Trying next key/model...`);
-            continue;
-          }
-
-          console.warn(`Gemini model ${model} returned ${response.status}. Trying next candidate model...`);
-        } catch (err) {
-          console.warn(`Gemini model ${model} error:`, err.message);
         }
       }
     }
@@ -273,15 +283,36 @@ Apply the user instruction and return the updated CV JSON:`;
     if (!rawResult) return null;
 
     // Clean JSON response (handling possible \`\`\`json ... \`\`\` wrapper)
-    const jsonMatch = rawResult.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      if (parsed.updatedCv && (parsed.updatedCv.header || parsed.updatedCv.experiences)) {
-        return parsed;
+    let clean = rawResult.trim();
+    if (clean.startsWith('```json')) clean = clean.slice(7);
+    else if (clean.startsWith('```')) clean = clean.slice(3);
+    if (clean.endsWith('```')) clean = clean.slice(0, -3);
+    clean = clean.trim();
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(clean);
+    } catch (e1) {
+      const jsonMatch = clean.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+        } catch (e2) {
+          try {
+            const sanitized = jsonMatch[0].replace(/[\u0000-\u001F]+/g, ' ');
+            parsed = JSON.parse(sanitized);
+          } catch (e3) {
+            console.warn("JSON parse fallback failed:", e3.message);
+          }
+        }
       }
     }
+
+    if (parsed && parsed.updatedCv && (parsed.updatedCv.header || parsed.updatedCv.experiences)) {
+      return parsed;
+    }
   } catch (err) {
-    console.warn("refineCvWithAi LLM error, falling back to local engine:", err.message);
+    console.warn("refineCvWithAi LLM error:", err.message);
   }
 
   return null;
