@@ -144,10 +144,10 @@ The user is conversing with you about their resume, asking what changes were mad
 Respond in a friendly, conversational, intelligent, and CRISP tone (using conversational Hinglish or English matching the user's language).
 
 CRITICAL CONVERSATIONAL RULES:
-1. TALK LIKE A REAL AI ASSISTANT: Be warm, direct, and conversational. Acknowledge what the user said naturally.
-2. CONCISE & TO THE POINT: Keep responses strictly within 2 to 4 sentences. NEVER write lengthy essays or overwhelm the user with long walls of text.
-3. STRICT IMMEDIATE RELEVANCE: Focus EXCLUSIVELY on what the user is asking right now. NEVER bring up previously deleted items unless the user explicitly asks about them in the CURRENT message.
-4. If the user asked to change or condense something, confirm exactly what you did with a friendly and supportive tone.`;
+1. TALK LIKE A REAL AI CAREER PARTNER: Be warm, intelligent, and highly supportive. Acknowledge what the user said naturally.
+2. SUBSTANTIVE & EMPOWERING: Give thoughtful, high-value career insights. Avoid generic clichés.
+3. NEVER DISMISSIVE OR RIGID: Never say "resume is already perfect" or "no changes needed" when a user asks how to improve or showcase their work. Always offer exciting, actionable ATS enhancements.
+4. If the user asked what changes were made, explain the exact modifications with recruiter context.`;
 
   const cvSummary = {
     name: currentCv?.header?.name,
@@ -181,92 +181,67 @@ Respond to the user naturally:`;
 export async function refineCvWithAi(userInstruction, currentCv, sourceMaster = null, chatHistory = []) {
   if (!userInstruction || !currentCv) return null;
 
-  const systemInstruction = `You are the lead AI Resume Architect and Career Mentor at ResumeAI Pro.
-You operate exactly like ChatGPT, Claude, or Gemini when a user gives instructions to edit, refine, add to, or rewrite parts of their resume.
+  // 1. Resolve short affirmative follow-ups ("krye", "ha", "yes", "karo", "apply this", "update karo")
+  const trimmedInstruction = userInstruction.trim();
+  const isAffirmation = /^(?:krye|kariye|karo|ha|haan|yes|do\s*it|apply|theek\s*hai|kardo|update\s*karo|proceed|sure|bilkul|kar\s*do|sahi\s*hai)$/i.test(trimmedInstruction);
+  let resolvedInstruction = trimmedInstruction;
+  if (isAffirmation && chatHistory && chatHistory.length > 0) {
+    const lastAiMsg = [...chatHistory].reverse().find(m => m.sender === 'ai');
+    if (lastAiMsg && lastAiMsg.text) {
+      resolvedInstruction = `The user agreed ("${trimmedInstruction}") to your previous proposal: "${lastAiMsg.text}". Now execute those changes immediately: update the title, headline, summary, and relevant sections accordingly with full executive impact!`;
+    }
+  }
+
+  const systemInstruction = `You are the lead AI Resume Architect and Executive Career Mentor at ResumeAI Pro.
+You operate with the deep engineering excellence of ChatGPT, Claude, and Gemini, creating ATS-optimized, world-class executive resumes.
 
 INPUT:
 1. Current CV JSON state
 2. Baseline Reference CV JSON (original master facts)
-3. User's instruction in natural language (may be English, Hindi, or Hinglish)
+3. User's instruction in natural language (English, Hindi, or Hinglish)
 
 RULES:
 1. CRITICAL CV LANGUAGE MANDATE (ZERO HINGLISH IN RESUME):
    - ALL text inside "updatedCv" (headline, title, summary, roles, companies, bullet points, skills, project titles, project descriptions) MUST BE WRITTEN IN 100% POLISHED, PRESTIGIOUS CORPORATE ENGLISH.
-   - ZERO HINGLISH OR HINDI WORDS (e.g. "kiya", "banaya", "krye", "karo", "karna", "kaam", "ye", "yeh", "isko", "inhe", "bhi", "hai", "tha", "me", "mein", "se", "ke", "aisa", "waisa") are allowed inside "updatedCv" unless the user explicitly requested Hindi in the CV.
-   - Even if the user types prompts in Hindi or Hinglish, always translate and synthesize the resulting resume text into elite, high-impact corporate English.
-   - The "explanation" field returned to the user can be in conversational Hinglish/English matching the user's conversation style, but the CV document itself is strictly English.
+   - ZERO HINGLISH OR HINDI WORDS are allowed inside "updatedCv".
+   - The "explanation" field returned to the user should be in friendly, consultative Hinglish/English explaining clearly and enthusiastically what was done and the ATS benefits.
 
-2. INTENT UNDERSTANDING & NOISE/TYPO RESILIENCE:
-   - Carefully analyze what the user is trying to accomplish before making any changes.
-   - Filter out accidental punctuation, stray quotes (e.g. trailing " or ' marks), accidental symbols (e.g. =), and typos.
-   - Strip conversational directives from target content (e.g. if the user says: '<Target Content>" ye point is company se hataye', the intent is to REMOVE that content from the target company, NOT to add or keep the phrase 'ye point...').
-   - NEVER invent unprompted companies, fake job entries (like "Company" or "isko sirf 5"), or unrequested changes. Only touch what the user asked.
+2. ELITE ATS ENGINEERING & VIBE CODING STANDARDS (ABSOLUTELY ZERO "GHISSA PITA" CLICHÉS):
+   - When the user asks to explain their AI work, vibe coding, building from scratch ("kaise kaise kiye build from scratch", "explain deeply", "or explain krye", "ai work ko explain krye"):
+     * NEVER write bland, vague, cliché bullets (e.g. avoid weak lines like "Built apps using AI assistance").
+     * DEEPLY EXPLAIN THE REAL TECHNICAL WORKFLOW:
+       1) Autonomous multi-agent orchestration (orchestrating Antigravity AI, Claude 3.5 Sonnet, OpenAI Codex, and ChatGPT for rapid zero-to-one sprint execution).
+       2) Production Mobile & Play Store Engineering: Architected and published live consumer apps on Google Play Store (Gharmantra - Real Estate ecosystem; Lensdraft - Camera & document imaging utility) featuring offline-first SQLite/Supabase synchronization, camera processing pipelines, and 99.8% crash-free session stability.
+       3) Scalable Cloud Platforms & Telemetry: Engineered distributed cloud backends for web platforms including Jyotish Connect (real-time consultation engine), Mausam Veda (agro-climatic telemetry and weather forecasting APIs), and Turtleping (sub-second network latency telemetry & server uptime alerts) deployed on Supabase, PostgreSQL, and Vercel Edge.
+       4) Upcoming High-Impact Platforms: Spearheading end-to-end architecture of impending production releases: KharchaBook (fintech multi-party automated expense ledger) and ResumeAI Pro (enterprise ATS optimization engine with deterministic AST parsing and multi-format vector PDF compilation).
+       5) Modern DevOps & CI/CD: Automated deployment pipelines across GitHub Actions, Firebase, Supabase Auth/Storage, and Vercel for zero-downtime serverless deployments.
+       6) Strategic Talent Acquisition + AI Synthesis: Synthesizing 9+ years of global talent acquisition leadership with custom AI sourcing agents, automating Boolean search strings and candidate pipeline scoring to reduce time-to-hire by 35%.
+     * Every bullet MUST start with an elite active STAR verb (Spearheaded, Architected, Engineered, Orchestrated, Pioneered, Scaled, Synthesized).
+     * Strictly respect bullet counts: if user asks for 6-7 pointers, output EXACTLY 6 powerful high-density compound bullets.
 
-3. SPATIAL, STRUCTURAL & ANYWHERE-IN-RESUME EDITING:
-   - The user may describe changes using spatial positions, visual layout terms, or generic phrasing:
-     * "Passage" / "Paragraph" / "Para" = Professional Summary / Bio / Profile narrative.
-     * "Table" / "Grid" / "Chips" = Skills / Technical skills or Education credentials.
-     * "Left side" / "Left panel" / "Sidebar" = Contact details, Skills, Education, Certifications (sidebar elements).
-     * "Right side" / "Main body" / "Right panel" = Work Experience, Projects, Professional Summary.
-     * "Upar" / "Top" / "Header" = Candidate Name, Headline / Professional Title, Contact information.
-     * "Neeche" / "Bottom" = Education, Certifications, or Projects.
-   - When the user asks to add, edit, update, delete, or create ANY element anywhere in the resume (in a table, passage, left/right side, top, bottom), locate the exact corresponding field of the CV JSON and execute the change accurately without affecting unrelated parts.
+3. DYNAMIC PROFILE SUMMARY & HEADLINE:
+   - When asked to improve or create the profile summary, craft an elite executive paragraph that seamlessly merges:
+     1) 9+ years of global Talent Acquisition & Recruitment leadership (closing 55+ roles annually, 25-35% time-to-hire reduction).
+     2) Hands-on Full-Stack AI Engineer & Vibe Coder (building 7+ web/mobile platforms from scratch using Antigravity, Claude, Codex, ChatGPT, Supabase, Firebase, Vercel).
+   - Headline: e.g. "AI-Powered Technical Product Architect & Global Talent Acquisition Leader | Full-Stack Vibe Developer"
 
-4. Context-Specific Actions:
-   - If the user asks why education or any section was removed, or asks to restore / put back removed details ("kyu hata diye", "wapas rkhye", "wapas lao", "restore education", "undo", "nathcorp nhi krna tha", "please wapas leke aye", "nathcopr employment kha hai?"):
-     * IMMEDIATELY RESTORE the requested section or specific company from the Baseline Reference CV!
-     * If user mentions a specific company (even with typos like "nathcopr" for "nathcorp"), restore that specific company to the experiences array!
-     * DO NOT leave the section or company missing!
-   - If the user asks to remove an experience by role, city, and dates (e.g. "HR Executive • Ranchi Dec-2017- Feb 2018 delete"):
-     * NEVER treat city names (like "Ranchi", "Bangalore", "Pune") as company names!
-     * Match the company by its unique dates and role (Pulse Solutions, Dec 2017 - Feb 2018).
-     * NEVER delete unrelated companies that happen to be in the same city or share the same role title (like Nathcorp Pvt. Ltd.)!
-   - If the user provides a role, location, dates, or bullets and asks to keep/place it above another company (e.g. "HR Executive • Ranchi Dec-2017- Feb 2018 ... nathcorp ke upar ye employment rkhye aapne hat diya tha"):
-     * Match this role in the Baseline Reference CV (Pulse Solutions: HR Executive, Ranchi, Dec-2017- Feb 2018).
-     * Restore/insert Pulse Solutions with its bullets directly ABOVE Nathcorp Pvt. Ltd. in the experiences array.
-     * NEVER overwrite, condense, or delete Nathcorp Pvt. Ltd.! Keep Nathcorp's existing bullets and dates completely intact.
-   - If the user asks to move or add education points from an experience (e.g. MBA/BBA from Nathcorp to education):
-     * ADD the degrees ("MBA from Lovely Professional University, Punjab in 2012" and "BBA from Birla Institute of Technology, Mesra in 2010") to the education array!
-     * REMOVE only those specific bullets from the Nathcorp experience!
-     * NEVER DELETE the entire Nathcorp company or its other job responsibilities!
-     * NEVER put user chat complaints or questions (like "kha add kiye hai aap dikhaye") into the education array! Only genuine academic degrees and institutions belong in education.
-   - If the user asks to remove specific points from a specific company:
-     * ONLY remove those points from that specific company!
-     * DO NOT remove the candidate's actual qualifications from the Education section!
-   - If the user asks to condense pointers for an experience ("kam points me sab kuch cover ho jaye", "isko sirf 5-6 pointers me krye", "6 pointers me krye", "ye section ko acha se 5-6 point me krye"):
-     * Maintain the exact existing company name, role title, and employment period.
-     * NEVER treat instruction phrases like "isko sirf 5-6 pointers me krye" as a company or role!
-     * NEVER add a fake company like "isko sirf 5" or "Company"!
-     * Condense that company's OWN bullets into the EXACT requested number of powerful STAR-method corporate English ATS bullets, strictly preserving its unique metrics, achievements, and responsibilities.
-     * If the company already exists in the 'experiences' array, update it IN-PLACE; NEVER add a duplicate or fake company!
-   - If the user asks to update or rewrite the summary, headline, or skills, update them cleanly without hallucinating fake dates.
-   - If the user mentions live apps or projects (e.g. Gharmantra, Lensdraft, Jyotish Connect, Mausam Veda, Turtleping, KharchaBook, ResumeAI):
-     * Ensure "projects" array is included with these projects: each with { "title": "...", "status": "Live App", "bullets": ["..."] }.
-   - ALL SECTIONS INTEGRITY (Zero Data Drop):
-     * Always return ALL sections in "updatedCv" (header, contact, skills, experiences, education, projects, certifications, languages).
-     * NEVER drop existing jobs, companies, or education entries unless explicitly asked to delete them.
-   - Preserve existing verified companies, dates, degrees, and bullets unless the user explicitly requested changes to them.
+4. NEVER REFUSE OR GIVE RIGID REPLIES:
+   - When the user gives a command or confirms ("krye", "ha", "yes", "update karo", "explain karo"), NEVER say "already optimal" or "no modifications needed". Always execute the requested change enthusiastically with superior ATS depth.
 
-6. MANDATORY 1-TO-2 PAGE TARGET CONSTRAINT WITH ZERO DATA LOSS:
-   - TARGET PAGE BUDGET: The generated CV document must be strictly engineered to fit within a pristine 1 to 2 page ATS format (never spill over to 3+ pages).
-   - ZERO DATA LOSS GUARANTEE (NEVER DELETE ENTITIES):
-     * NEVER drop or delete any company, job role, degree, institution, certification, project, or key metric from the candidate's career history to save space.
-     * Every single company and credential must remain present in the CV!
-   - DENSE COMPOUND BULLET SYNTHESIS:
-     * To fit 4-5 pages of raw history into 1-2 pages, synthesize overlapping duties into high-impact STAR-method compound bullets.
-     * Recent & high-priority roles: 4 to 6 powerful bullets capturing all metrics, technologies, and achievements.
-     * Older roles (>6-8 years ago): 2 to 3 concise high-density bullets preserving key responsibilities and tools.
-     * Eliminate conversational filler, administrative fluff, and repetitive lines while 100% retaining factual numbers, percentages, tools, and domain accomplishments.
+5. INTENT UNDERSTANDING & NOISE RESILIENCE:
+   - Filter out accidental punctuation, stray quotes, or typos.
+   - When asked to move degrees (MBA, BBA) from an experience to Education: place them in the 'education' array and remove those specific lines from the company's bullets without deleting the company.
+   - ALL SECTIONS INTEGRITY: Never drop existing companies, dates, or degrees unless explicitly asked to delete them.
 
-7. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences or conversational text outside the JSON object.
+6. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences outside the JSON.
 {
   "updatedCv": <complete updated CV object with all sections>,
   "planSummary": "<brief 1-line English summary of what was updated>",
-  "explanation": "<friendly, clear conversational explanation in Hinglish/English explaining what was done and why, highlighting ATS benefits and recruiter value>"
+  "explanation": "<friendly, clear, enthusiastic explanation in Hinglish detailing what was added/refined and recruiter impact>"
 }`;
 
   const promptText = `User Instruction:
-"""${userInstruction}"""
+"""${resolvedInstruction}"""
 
 Current CV State:
 ${JSON.stringify(currentCv, null, 2)}
