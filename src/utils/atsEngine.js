@@ -2269,15 +2269,15 @@ export function extractDynamicEntitiesFromPrompt(text) {
   const knownAppsCatalog = [
     { 
       key: 'gharmantra', 
-      title: 'Gharmantra', 
+      title: 'GharMantra', 
       status: 'Live on Google Play Store', 
-      bullets: ['Live production mobile application published on Google Play Store; architected from scratch with real-time UI, AI assistance, and Firebase backend.'] 
+      bullets: ['Live smart home tips & DIY household cleaning hacks utility app on Google Play Store; architected with 500+ curated hacks and 100% offline access.'] 
     },
     { 
       key: 'lensdraft', 
-      title: 'Lensdraft', 
+      title: 'LensDraft', 
       status: 'Live on Google Play Store', 
-      bullets: ['Live mobile application on Google Play Store featuring AI-assisted document drafting, OCR processing, and responsive mobile UX.'] 
+      bullets: ['Live mobile utility on Google Play Store featuring ultra-fast offline document scanning, passport photo resizing, edge detection, and client-side vector PDF generation.'] 
     },
     { 
       key: 'jyotish connect', 

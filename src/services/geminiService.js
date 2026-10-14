@@ -151,7 +151,7 @@ CRITICAL CONVERSATIONAL RULES:
 5. CANDIDATE BACKGROUND & POSITIONING CONTEXT:
    - The candidate possesses 9+ years of Global Talent Acquisition & Recruitment leadership (Execo/Cacti Global, Infogain India, Pulse Solutions, Nathcorp).
    - The candidate is simultaneously an Autonomous AI Agentic Developer & Full-Stack Vibe Coder who has built 7+ production web and mobile software platforms from scratch using Google Antigravity IDE alongside AI copilots (Claude 3.5 Sonnet, ChatGPT, and Z.ai).
-   - Projects include: Jyotish Connect (Vedic astrology & Sarvagya AI agent), Mausam Veda (agro-climatic & CPCB AQI telemetry), Turtleping (multi-stream CDN edge speed test), Gharmantra (Play Store real estate app), Lensdraft (Play Store camera AI scanner), ResumeAI Pro (ATS optimization engine), and KharchaBook (fintech expense ledger).
+   - Projects include: Jyotish Connect (Vedic astrology & Sarvagya AI agent), Mausam Veda (agro-climatic & CPCB AQI telemetry), Turtleping (multi-stream CDN edge speed test), Gharmantra (Play Store smart home tips & DIY household cleaning hacks app with 100% offline access), Lensdraft (Play Store offline document scanner, passport photo resizer & PDF utility), ResumeAI Pro (ATS optimization engine), and KharchaBook (fintech expense ledger).
    - Technical positioning: Position the candidate as an elite Agentic / Vibe Developer orchestrating Google Antigravity IDE with Claude, ChatGPT, and Z.ai for rapid full-stack delivery and system design. Never position as training neural nets from scratch, so interviewers focus on practical architecture, speed, and product mastery.`;
 
   const cvSummary = {
@@ -235,14 +235,14 @@ RULES:
       - Multi-threaded download (10 streams) and upload (8 streams) throughput benchmarking against Cloudflare CDN edge nodes.
       - Ultra-low latency microsecond ping measurement, RFC 3550 jitter calculation, and loaded latency/bufferbloat diagnostics.
       - 100% client-side execution with strict zero-telemetry and zero-data-retention privacy policy.
-   4) Gharmantra (Google Play Store Android App | com.gharmantra.app):
-      - Comprehensive real estate discovery & verified home service ecosystem.
-      - Offline-first SQLite local caching synchronized with Supabase PostgreSQL cloud backend.
-      - Real-time service booking, property listings, geolocation filters, and instant push notifications; 99.8% crash-free sessions.
-   5) Lensdraft (Google Play Store Android App | com.smartscan.ai.pdfscanner):
-      - AI-powered camera scanner & PDF document imaging utility on Google Play Store.
-      - Real-time edge detection, perspective transformation, adaptive thresholding / binarization, and local OCR.
-      - Client-side document compilation to high-resolution vector PDF with zero server upload for user privacy.
+   4) GharMantra (Google Play Store Android App | com.gharmantra.app):
+      - Smart home lifestyle tips, daily household cleaning hacks, kitchen organization tricks, and DIY home maintenance utility ("ghar ke aasan jugaad aur cleaning hacks").
+      - 500+ handpicked household hacks, eco-friendly DIY stain removal, and appliance care guides using natural household ingredients (baking soda, vinegar, lemon).
+      - 100% offline-first architecture with lightweight local embedded database, zero network dependency, and high user retention; 99.8% crash-free session stability.
+   5) LensDraft - Scanner & Resizer (Google Play Store Android App | com.smartscan.ai.pdfscanner):
+      - Ultra-fast, 100% offline mobile document scanner, passport photo resizer, and PDF utility.
+      - Real-time camera edge detection, perspective correction, adaptive thresholding / binarization, and passport-size photo cropping to exact DPI/dimension standards.
+      - 100% client-side on-device vector PDF compilation and image compression with zero server upload for absolute user privacy.
    6) ResumeAI Pro (Production App in Testing / Staging):
       - Enterprise-grade ATS optimization engine and live interactive canvas.
       - Deterministic AST resume parsing, multi-template vector PDF compilation, and real-time LLM-driven keyword alignment.

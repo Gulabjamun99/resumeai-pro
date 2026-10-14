@@ -828,17 +828,17 @@ export function parseConsultantAndVibeCodingRequest(promptText, currentCvState) 
   const knownProjectsCatalog = [
     {
       key: 'gharmantra',
-      title: 'Gharmantra',
+      title: 'GharMantra',
       status: 'Live on Google Play Store',
       type: 'mobile',
-      description: 'Engineered and deployed comprehensive real-estate & home service Android application live on Google Play Store featuring real-time booking, search filters, and cloud synchronization.'
+      description: 'Engineered smart home lifestyle & DIY maintenance utility app on Google Play Store featuring 500+ household hacks, natural cleaning solutions, and 100% offline access.'
     },
     {
       key: 'lensdraft',
-      title: 'Lensdraft',
+      title: 'LensDraft',
       status: 'Live on Google Play Store',
       type: 'mobile',
-      description: 'Published live camera and document imaging utility on Google Play Store with responsive UI and optimized client-side processing.'
+      description: 'Published ultra-fast, 100% offline document scanner, passport photo resizer, and PDF utility on Google Play Store with client-side edge detection and zero server upload.'
     },
     {
       key: 'jyotish connect',
