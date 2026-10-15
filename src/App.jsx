@@ -24,17 +24,70 @@ import { exportResumeToDocx } from './utils/docxExporter';
 import { computeResumeDiff } from './utils/changeDiffDetector';
 import { refineCvWithAi } from './services/geminiService';
 import InteractiveLiveStudio from './components/InteractiveLiveStudio';
-import FreshCvBuilder from './components/FreshCvBuilder';
-import JdOptimizer from './components/JdOptimizer';
 import { DEFAULT_DESIGN_THEME } from './data/themePresets';
-import { Download, Printer, FileText, Sparkles, Columns, RefreshCw, Upload, Edit3, RotateCcw, AlertTriangle, CheckCircle2, Trash2, Target, Wand2 } from 'lucide-react';
+import { Download, Printer, FileText, Sparkles, Columns, RefreshCw, Upload, Edit3, RotateCcw, AlertTriangle, CheckCircle2, Trash2, Target, Wand2, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 const STORAGE_KEY = 'resumeai_pro_session_v1';
 
+const STARTER_FRESH_CV = {
+  header: {
+    name: "Your Full Name",
+    headline: "Target Role / Professional Title",
+    email: "your.email@example.com",
+    phone: "+91 98765 43210",
+    location: "City, Country",
+    links: [
+      { label: "LinkedIn", url: "https://linkedin.com/in/yourprofile" },
+      { label: "GitHub", url: "https://github.com/yourhandle" }
+    ]
+  },
+  summary: "Driven and detail-oriented professional with demonstrated capability in modern problem-solving and rapid execution. Adept at cross-functional collaboration, leveraging AI-assisted workflows, and delivering high-quality deliverables that meet strict industry benchmarks.",
+  experiences: [
+    {
+      role: "Software / Business Analyst Intern",
+      company: "Innovation Tech Labs",
+      duration: "Jan 2024 – Present",
+      location: "Bangalore, India",
+      bullets: [
+        "Collaborated with cross-functional engineering and product teams to streamline workflow efficiencies by 25%.",
+        "Assisted in developing and testing scalable components using modern web technologies and agile methodologies.",
+        "Synthesized stakeholder requirements into actionable task roadmaps, reducing cycle turnaround time."
+      ]
+    }
+  ],
+  education: [
+    {
+      degree: "Bachelor of Technology in Computer Science",
+      institution: "National Institute of Technology",
+      duration: "2020 – 2024",
+      details: "Graduated with First Class Honors; core focus on Data Structures, Algorithms, and Software Engineering."
+    }
+  ],
+  skills: {
+    "Core Competencies": ["Problem Solving", "Agile Collaboration", "Requirement Analysis", "Workflow Optimization"],
+    "Technical & AI Tools": ["JavaScript", "React", "Python", "Git", "ChatGPT", "Claude", "Gemini", "Antigravity"]
+  },
+  projects: [
+    {
+      name: "Smart Resume Optimizer",
+      tech: "React, Node.js, AI APIs",
+      bullets: [
+        "Built an interactive web tool enabling instant resume parsing and keyword optimization with 95%+ ATS match.",
+        "Implemented real-time dual-pane preview rendering with instant client-side PDF export."
+      ]
+    }
+  ],
+  certifications: []
+};
+
 export default function App() {
   const [currentScreen, setScreen] = useState(1); // Production Flow starts on Screen 1 Upload
   const [homeMode, setHomeMode] = useState('upload'); // 'upload' | 'fresh' | 'jd'
+  const [studioInitialMode, setStudioInitialMode] = useState('upload'); // 'upload' | 'fresh' | 'jd'
+  const [studioInitialJd, setStudioInitialJd] = useState('');
+  const [homeJdInput, setHomeJdInput] = useState('');
+  const [homeJdFile, setHomeJdFile] = useState(null);
   
   // Core State Architecture (Rule #1, #2, #3)
   const [sourceResume, setSourceResume] = useState(null); // Immutable SOURCE_CV_MASTER
@@ -82,6 +135,11 @@ export default function App() {
     setPromptText("");
     setActiveChangePlan(null);
     setStorageError(null);
+    setStudioInitialMode('upload');
+    setStudioInitialJd('');
+    setHomeJdInput('');
+    setHomeJdFile(null);
+    setHomeMode('upload');
     setScreen(1);
   };
 
@@ -119,6 +177,8 @@ export default function App() {
       setVersionHistory([v1Snapshot]);
       setCurrentVersion(1);
       setSelectedTemplateId('source-template');
+      setStudioInitialMode('upload');
+      setStudioInitialJd('');
       setPromptText("");
       setScreen(7); // Jump directly to Live Studio (like ChatGPT / Claude)
     } catch (err) {
@@ -422,64 +482,73 @@ export default function App() {
     };
   };
 
-  // Persona 2: Handle Fresh CV Completion
-  const handleFreshCvCompleted = (freshResume) => {
-    setSourceResume(freshResume);
-    setCurrentCvState(freshResume);
-    const initialSnapshot = {
+  // Persona 2: Launch Live Studio in Fresh CV Builder Mode directly
+  const handleLaunchFreshStudio = (starterRole = null) => {
+    const starterCv = JSON.parse(JSON.stringify(STARTER_FRESH_CV));
+    if (starterRole) {
+      starterCv.header.headline = starterRole;
+      if (starterCv.experiences && starterCv.experiences[0]) {
+        starterCv.experiences[0].role = starterRole;
+      }
+    }
+
+    const v1Snapshot = {
       version: 1,
       id: 'v1',
-      title: 'Version 1 (AI Assembled Fresh CV)',
-      summary: 'Initial fresh candidate profile generated via AI Guided Builder',
+      title: 'Version 1 (AI Guided Fresh CV)',
+      summary: starterRole ? `Fresh profile canvas initialized for ${starterRole}` : 'Clean fresh candidate profile canvas loaded for AI synthesis',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      cvState: JSON.parse(JSON.stringify(freshResume)),
-      bulletsCount: freshResume.experiences?.flatMap(e => e.bullets)?.length || 0
+      cvState: starterCv,
+      bulletsCount: starterCv.experiences?.flatMap(e => e.bullets)?.length || 0
     };
-    setVersionHistory([initialSnapshot]);
+
+    setSourceResume(starterCv);
+    setCurrentCvState(starterCv);
+    setVersionHistory([v1Snapshot]);
     setCurrentVersion(1);
-    setSelectedTemplateId('tech-developer');
-    setHomeMode('upload');
-    setScreen(7); // Jump directly to Studio
+    setSelectedTemplateId('designer-dual');
+    setStudioInitialMode('fresh');
+    setStudioInitialJd('');
+    setErrorMessage(null);
+    setScreen(7);
   };
 
-  // Persona 3: Handle JD Tailoring Completion (matches candidate CV with JD)
-  const handleJdTailoringCompleted = (tailoredResume, baseResume = null) => {
-    const originalMaster = baseResume || sourceResume || tailoredResume;
-    if (!sourceResume && originalMaster) {
-      setSourceResume(originalMaster);
+  // Persona 3: Launch Live Studio in JD Tailoring Mode directly
+  const handleLaunchJdStudio = async (jdText, file = null) => {
+    let baseCv = currentCvState || sourceResume;
+
+    if (file) {
+      try {
+        baseCv = await parseUploadedDocument(file);
+      } catch (err) {
+        console.error("CV Upload/Parsing Error in JD mode:", err);
+        setErrorMessage(err.message || "Failed to process uploaded CV document.");
+        return;
+      }
     }
 
-    const nextVer = (versionHistory.length || 0) + 1;
-    const newSnapshot = {
-      version: nextVer,
-      id: `v${nextVer}`,
-      title: `Version ${nextVer} (JD Tailored)`,
-      summary: 'Optimized for Target Job Description with high-impact ATS keywords',
+    if (!baseCv) {
+      baseCv = JSON.parse(JSON.stringify(STARTER_FRESH_CV));
+    }
+
+    const v1Snapshot = {
+      version: 1,
+      id: 'v1',
+      title: 'Version 1 (Base Candidate Resume)',
+      summary: 'Baseline candidate profile loaded for JD optimization',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      cvState: JSON.parse(JSON.stringify(tailoredResume)),
-      bulletsCount: tailoredResume.experiences?.flatMap(e => e.bullets)?.length || 0
+      cvState: baseCv,
+      bulletsCount: baseCv.experiences?.flatMap(e => e.bullets)?.length || 0
     };
 
-    if (versionHistory.length === 0 && originalMaster) {
-      const v1Snapshot = {
-        version: 1,
-        id: 'v1',
-        title: 'Version 1 (Original Upload)',
-        summary: 'Baseline copy prior to JD tailoring',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        cvState: JSON.parse(JSON.stringify(originalMaster)),
-        bulletsCount: originalMaster.experiences?.flatMap(e => e.bullets)?.length || 0
-      };
-      setVersionHistory([v1Snapshot, { ...newSnapshot, version: 2, id: 'v2', title: 'Version 2 (JD Tailored)' }]);
-      setCurrentVersion(2);
-    } else {
-      setVersionHistory(prev => [...prev, newSnapshot]);
-      setCurrentVersion(nextVer);
-    }
-
-    setCurrentCvState(JSON.parse(JSON.stringify(tailoredResume)));
-    setSelectedTemplateId('dual-column');
-    setHomeMode('upload');
+    setSourceResume(baseCv);
+    setCurrentCvState(baseCv);
+    setVersionHistory([v1Snapshot]);
+    setCurrentVersion(1);
+    setSelectedTemplateId('tech-developer');
+    setStudioInitialMode('jd');
+    setStudioInitialJd(jdText || '');
+    setErrorMessage(null);
     setScreen(7);
   };
 
@@ -543,28 +612,17 @@ export default function App() {
         )}
 
         {/* SCREEN 1: TRI-MODE ENTERPRISE HUB (HUBAHU UPLOAD, FRESH BUILDER, JD TAILOR) */}
-        {currentScreen === 1 && homeMode === 'fresh' && (
-          <FreshCvBuilder 
-            onComplete={handleFreshCvCompleted}
-            onCancel={() => setHomeMode('upload')}
-          />
-        )}
-
-        {currentScreen === 1 && homeMode === 'jd' && (
-          <JdOptimizer 
-            currentResume={currentCvState || sourceResume}
-            onApplyOptimization={handleJdTailoringCompleted}
-            onCancel={() => setHomeMode('upload')}
-          />
-        )}
-
-        {currentScreen === 1 && homeMode === 'upload' && (
+        {currentScreen === 1 && (
           <div className="flex flex-col gap-6 max-w-4xl mx-auto my-4">
             {/* 3-Persona Mode Switcher Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div 
                 onClick={() => setHomeMode('upload')}
-                className="bg-sky-950/40 border-2 border-sky-500 rounded-xl p-4 shadow-lg flex flex-col gap-1.5 cursor-pointer"
+                className={`rounded-xl p-4 shadow-lg flex flex-col gap-1.5 cursor-pointer transition ${
+                  homeMode === 'upload' 
+                    ? 'bg-sky-950/50 border-2 border-sky-500 shadow-sky-500/10' 
+                    : 'bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700'
+                }`}
               >
                 <div className="flex items-center gap-2 text-sky-400">
                   <Upload className="w-4 h-4" />
@@ -572,13 +630,17 @@ export default function App() {
                 </div>
                 <h3 className="text-sm font-bold text-white">Update Existing Resume (Pixel-Exact)</h3>
                 <p className="text-[11px] text-slate-400">
-                  Preserve exact layout, fonts, and sidebars while making surgical in-place edits.
+                  Upload PDF/DOCX to make surgical changes while preserving layout, fonts, and sidebars.
                 </p>
               </div>
 
               <div 
                 onClick={() => setHomeMode('fresh')}
-                className="bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-xl p-4 shadow transition flex flex-col gap-1.5 cursor-pointer"
+                className={`rounded-xl p-4 shadow-lg flex flex-col gap-1.5 cursor-pointer transition ${
+                  homeMode === 'fresh' 
+                    ? 'bg-purple-950/50 border-2 border-purple-500 shadow-purple-500/10' 
+                    : 'bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700'
+                }`}
               >
                 <div className="flex items-center gap-2 text-purple-400">
                   <Wand2 className="w-4 h-4" />
@@ -586,13 +648,17 @@ export default function App() {
                 </div>
                 <h3 className="text-sm font-bold text-white">Build Fresh Resume with AI Guide</h3>
                 <p className="text-[11px] text-slate-400">
-                  Conversational smart assistant for students, freshers, and career starters.
+                  Start from scratch in Live Studio. Describe background in any language — AI writes executive English CV.
                 </p>
               </div>
 
               <div 
                 onClick={() => setHomeMode('jd')}
-                className="bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-xl p-4 shadow transition flex flex-col gap-1.5 cursor-pointer"
+                className={`rounded-xl p-4 shadow-lg flex flex-col gap-1.5 cursor-pointer transition ${
+                  homeMode === 'jd' 
+                    ? 'bg-emerald-950/50 border-2 border-emerald-500 shadow-emerald-500/10' 
+                    : 'bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700'
+                }`}
               >
                 <div className="flex items-center gap-2 text-emerald-400">
                   <Target className="w-4 h-4" />
@@ -600,56 +666,224 @@ export default function App() {
                 </div>
                 <h3 className="text-sm font-bold text-white">Tailor to Job Description (JD)</h3>
                 <p className="text-[11px] text-slate-400">
-                  Compare candidate resume with job posting to unlock 95%+ ATS semantic match.
+                  Align candidate resume with target job posting to unlock 95%+ ATS semantic match.
                 </p>
               </div>
             </div>
 
             {/* Persona 1 Upload Area */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 md:p-10 shadow-2xl flex flex-col items-center justify-center text-center gap-6">
-              <div className="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-                <Upload className="w-8 h-8" />
-              </div>
+            {homeMode === 'upload' && (
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 md:p-10 shadow-2xl flex flex-col items-center justify-center text-center gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                  <Upload className="w-8 h-8" />
+                </div>
 
-              <div>
-                <h2 className="text-xl font-bold text-white mb-1.5">Upload Your Existing Resume for Exact In-Place Editing</h2>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  PDF, DOCX, TXT formats up to 25 MB. Dynamic spatial column decomposition guarantees zero layout disruption.
-                </p>
-              </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white mb-1.5">Upload Your Existing Resume for Exact In-Place Editing</h2>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    PDF, DOCX, TXT formats up to 25 MB. Dynamic spatial column decomposition guarantees zero layout disruption.
+                  </p>
+                </div>
 
-              <div className="flex flex-col sm:flex-row justify-center gap-3">
-                <label className="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-8 py-3.5 rounded-lg shadow flex items-center gap-2.5 transition">
-                  <Upload className="w-4 h-4" />
-                  <span>Upload Candidate Resume (PDF / DOCX / TXT)</span>
-                  <input type="file" accept=".pdf,.docx,.txt,.png,.jpg" onChange={handleProductionFileUpload} className="hidden" />
-                </label>
-              </div>
+                <div className="flex flex-col sm:flex-row justify-center gap-3">
+                  <label className="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-8 py-3.5 rounded-lg shadow flex items-center gap-2.5 transition">
+                    <Upload className="w-4 h-4" />
+                    <span>Upload Candidate Resume (PDF / DOCX / TXT)</span>
+                    <input type="file" accept=".pdf,.docx,.txt,.png,.jpg" onChange={handleProductionFileUpload} className="hidden" />
+                  </label>
+                </div>
 
-              {/* 4-Step Concise User Guidance */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mt-2 text-left">
-                <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
-                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 1</span>
-                  <span className="text-xs text-slate-200 font-semibold block">Exact Parsing</span>
-                  <span className="text-[11px] text-slate-400">Spatial multi-column</span>
-                </div>
-                <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
-                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 2</span>
-                  <span className="text-xs text-slate-200 font-semibold block">Describe Changes</span>
-                  <span className="text-[11px] text-slate-400">Natural language AI</span>
-                </div>
-                <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
-                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 3</span>
-                  <span className="text-xs text-slate-200 font-semibold block">Live Studio</span>
-                  <span className="text-[11px] text-slate-400">Split-screen refine</span>
-                </div>
-                <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
-                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 4</span>
-                  <span className="text-xs text-slate-200 font-semibold block">WYSIWYG Export</span>
-                  <span className="text-[11px] text-slate-400">Vector PDF & DOCX</span>
+                {/* 4-Step Concise User Guidance */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mt-2 text-left">
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 1</span>
+                    <span className="text-xs text-slate-200 font-semibold block">Exact Parsing</span>
+                    <span className="text-[11px] text-slate-400">Spatial multi-column</span>
+                  </div>
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 2</span>
+                    <span className="text-xs text-slate-200 font-semibold block">Describe Changes</span>
+                    <span className="text-[11px] text-slate-400">Natural language AI</span>
+                  </div>
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 3</span>
+                    <span className="text-xs text-slate-200 font-semibold block">Live Studio</span>
+                    <span className="text-[11px] text-slate-400">Split-screen refine</span>
+                  </div>
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider block mb-1">Step 4</span>
+                    <span className="text-xs text-slate-200 font-semibold block">WYSIWYG Export</span>
+                    <span className="text-[11px] text-slate-400">Vector PDF & DOCX</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Persona 2 AI Guided Fresh Builder */}
+            {homeMode === 'fresh' && (
+              <div className="bg-slate-900 border border-purple-500/30 rounded-2xl p-8 md:p-10 shadow-2xl flex flex-col items-center justify-center text-center gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                  <Wand2 className="w-8 h-8" />
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-bold text-white mb-1.5">Build Fresh Resume with AI Guide in Live Studio</h2>
+                  <p className="text-xs text-slate-400 max-w-lg mx-auto">
+                    No prior resume needed! Opens directly in the ChatGPT-style split-screen Live Studio with a live A4 canvas. Speak or type naturally in Hindi, Hinglish, or English — the AI will assemble your executive English CV in real time.
+                  </p>
+                </div>
+
+                {/* Quick starter role chips */}
+                <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg">
+                  <span className="text-[11px] text-slate-400 font-medium">Quick Start:</span>
+                  {[
+                    "🎓 College Fresher / Graduate",
+                    "💻 Full-Stack Web Developer",
+                    "🤖 AI & Vibe Coding Specialist",
+                    "📊 Business & Marketing Executive"
+                  ].map((role, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleLaunchFreshStudio(role.replace(/^[\uD800-\uDBFF\uDC00-\uDFFF\s]+/, ''))}
+                      className="text-xs px-3 py-1.5 rounded-full bg-slate-800 hover:bg-purple-900/40 text-slate-300 hover:text-purple-200 border border-slate-700 hover:border-purple-500/50 transition cursor-pointer"
+                    >
+                      {role}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleLaunchFreshStudio()}
+                    className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold px-8 py-3.5 rounded-lg shadow-lg flex items-center gap-2.5 transition cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>Launch Live AI Studio (Build from Scratch)</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* 4-Step Flow */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mt-2 text-left">
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block mb-1">Step 1</span>
+                    <span className="text-xs text-slate-200 font-semibold block">Live Canvas</span>
+                    <span className="text-[11px] text-slate-400">Blank A4 ready</span>
+                  </div>
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block mb-1">Step 2</span>
+                    <span className="text-xs text-slate-200 font-semibold block">Chat with AI</span>
+                    <span className="text-[11px] text-slate-400">Hinglish or English</span>
+                  </div>
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block mb-1">Step 3</span>
+                    <span className="text-xs text-slate-200 font-semibold block">Instant Synthesis</span>
+                    <span className="text-[11px] text-slate-400">STAR bullet points</span>
+                  </div>
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider block mb-1">Step 4</span>
+                    <span className="text-xs text-slate-200 font-semibold block">WYSIWYG Export</span>
+                    <span className="text-[11px] text-slate-400">Vector PDF & DOCX</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Persona 3 Job Description Tailoring */}
+            {homeMode === 'jd' && (
+              <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-8 md:p-10 shadow-2xl flex flex-col items-center justify-center text-center gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                  <Target className="w-8 h-8" />
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-bold text-white mb-1.5">Tailor Resume to Target Job Description (JD)</h2>
+                  <p className="text-xs text-slate-400 max-w-lg mx-auto">
+                    Paste the Job Description from LinkedIn, Naukri, or any company job board. The AI will align your experience and inject verified keywords for a 95%+ ATS semantic match.
+                  </p>
+                </div>
+
+                <div className="w-full flex flex-col gap-3 text-left">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                      Target Job Description (JD)
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={homeJdInput}
+                      onChange={(e) => setHomeJdInput(e.target.value)}
+                      placeholder="Paste job posting text here (responsibilities, required qualifications, technical skills)..."
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none resize-none transition"
+                    />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-950/60 border border-slate-800 p-3 rounded-xl">
+                    <div className="flex items-center gap-2.5">
+                      <Upload className="w-4 h-4 text-emerald-400" />
+                      <div className="text-left">
+                        <span className="text-xs font-medium text-slate-200 block">
+                          {homeJdFile ? homeJdFile.name : currentCvState ? 'Current working resume loaded' : 'Upload Base Candidate Resume (Optional)'}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {homeJdFile ? `${(homeJdFile.size / 1024).toFixed(1)} KB` : currentCvState ? 'Will tailor current CV canvas' : 'PDF, DOCX, or TXT (or start with sample profile)'}
+                        </span>
+                      </div>
+                    </div>
+                    <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-4 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+                      <span>{homeJdFile || currentCvState ? 'Change File' : 'Select File'}</span>
+                      <input 
+                        type="file" 
+                        accept=".pdf,.docx,.txt,.png,.jpg" 
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) setHomeJdFile(f);
+                        }} 
+                        className="hidden" 
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleLaunchJdStudio(homeJdInput, homeJdFile)}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-8 py-3.5 rounded-lg shadow-lg flex items-center gap-2.5 transition cursor-pointer"
+                  >
+                    <Target className="w-4 h-4" />
+                    <span>Launch Live AI Studio & Tailor Resume</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* 4-Step Flow */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mt-2 text-left">
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">Step 1</span>
+                    <span className="text-xs text-slate-200 font-semibold block">JD Parsing</span>
+                    <span className="text-[11px] text-slate-400">Extract requirements</span>
+                  </div>
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">Step 2</span>
+                    <span className="text-xs text-slate-200 font-semibold block">Semantic Match</span>
+                    <span className="text-[11px] text-slate-400">Evidenced alignment</span>
+                  </div>
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">Step 3</span>
+                    <span className="text-xs text-slate-200 font-semibold block">Canvas Update</span>
+                    <span className="text-[11px] text-slate-400">Live STAR bullets</span>
+                  </div>
+                  <div className="bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block mb-1">Step 4</span>
+                    <span className="text-xs text-slate-200 font-semibold block">ATS Audit 95%+</span>
+                    <span className="text-[11px] text-slate-400">Direct export</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -826,6 +1060,8 @@ export default function App() {
                 designTheme={designTheme}
                 onUpdateDesignTheme={setDesignTheme}
                 onToggleCompare={() => setActiveTab('split')}
+                initialMode={studioInitialMode}
+                initialJd={studioInitialJd}
               />
             )}
 

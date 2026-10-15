@@ -4,7 +4,7 @@ import {
   Eye, RefreshCw, ZoomIn, ZoomOut, Layout, MessageSquare, 
   ShieldCheck, Filter, Check, Trash2, Edit3, Palette, Sliders, 
   Type, Columns, AlignLeft, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Maximize2, 
-  Minimize2, CheckCheck, AlertCircle, PlusCircle, MinusCircle, Flame, Search
+  Minimize2, CheckCheck, AlertCircle, PlusCircle, MinusCircle, Flame, Search, Target, Wand2, Upload
 } from 'lucide-react';
 import ResumeDocument from './ResumeDocument';
 import { exportResumeToPdf } from '../utils/pdfExporter';
@@ -35,7 +35,9 @@ export default function InteractiveLiveStudio({
   versionHistory = [],
   designTheme = DEFAULT_DESIGN_THEME,
   onUpdateDesignTheme,
-  onToggleCompare
+  onToggleCompare,
+  initialMode = 'upload',
+  initialJd = ''
 }) {
   const latestVersionSnapshot = versionHistory.length > 0 ? versionHistory[versionHistory.length - 1] : null;
   const isPostChangeVersion = currentVersion > 1 || (versionHistory.length > 1);
@@ -50,15 +52,27 @@ export default function InteractiveLiveStudio({
   const [activeTemplateTag, setActiveTemplateTag] = useState('All');
   const [templateSearch, setTemplateSearch] = useState('');
   const [toastMessage, setToastMessage] = useState(null);
+  const [isJdModalOpen, setIsJdModalOpen] = useState(false);
+  const [jdInputText, setJdInputText] = useState('');
 
   const currentTheme = designTheme || DEFAULT_DESIGN_THEME;
 
   // Compute exact diff between original baseline and current working version
   const diffReport = computeResumeDiff(sourceResume, resume);
 
-  const initialGreetingText = isPostChangeVersion && latestVersionSnapshot?.summary
-    ? `✅ Version ${currentVersion} update applied: "${latestVersionSnapshot.summary}". Live canvas updated! Aap koi aur change bol sakte hain.`
-    : 'Aapka resume live canvas par loaded hai! ChatGPT/Gemini ki tarah kisi bhi language (Hindi, Hinglish, English) me batayein — kya add karna hai, kya change karna hai, ya kaisa resume banana hai.';
+  const isFreshMode = initialMode === 'fresh' || resume?.header?.name === 'Your Full Name' || resume?.header?.name === 'Your Name';
+  const isJdMode = initialMode === 'jd';
+
+  let initialGreetingText;
+  if (isPostChangeVersion && latestVersionSnapshot?.summary) {
+    initialGreetingText = `✅ Version ${currentVersion} update applied: "${latestVersionSnapshot.summary}". Live canvas updated! Aap koi aur change bol sakte hain.`;
+  } else if (isFreshMode) {
+    initialGreetingText = `👋 Welcome to AI Career Builder!\n\nMain aapka AI Career Architect hoon. ChatGPT ya Gemini ki tarah kisi bhi language (Hindi, Hinglish, English) me mujhe apne baare me batayein — aapka naam, target role, education, projects, skills ya experience.\n\nJaise hi aap batayenge, main realtime me aapka resume live canvas par assemble aur ATS-optimize karta jaunga!`;
+  } else if (isJdMode) {
+    initialGreetingText = `🎯 Job Description (JD) Semantic Tailoring Mode:\n\nAap jis job ke liye apply karna chahte hain, uski Job Description (JD) yahan chat me paste karein ya "Tailor to JD" button dabayein. Main aapke resume ko 95%+ ATS semantic match ke sath optimize kar dunga!`;
+  } else {
+    initialGreetingText = 'Aapka resume live canvas par loaded hai! ChatGPT/Gemini ki tarah kisi bhi language (Hindi, Hinglish, English) me batayein — kya add karna hai, kya change karna hai, ya kaisa resume banana hai.';
+  }
 
   const [chatLog, setChatLog] = useState([
     {
@@ -92,6 +106,15 @@ export default function InteractiveLiveStudio({
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatLog]);
+
+  useEffect(() => {
+    if (initialJd && initialJd.trim()) {
+      const timer = setTimeout(() => {
+        handleSendPrompt(`Tailor this resume to strictly match the following target Job Description. Align experience bullets with measurable STAR outcomes, incorporate key required technical and domain competencies, and optimize for 95%+ ATS parseability:\n\n${initialJd.trim()}`);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Show auto-dismissing toast notifications for user actions
   const showToast = (msg) => {
@@ -670,9 +693,19 @@ export default function InteractiveLiveStudio({
                   <Sparkles className="w-4 h-4 text-blue-400" />
                   <span>Conversational AI Assistant</span>
                 </div>
-                <span className="text-[10px] text-slate-300 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded font-mono">
-                  Online
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsJdModalOpen(true)}
+                    className="text-[11px] bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/50 text-emerald-300 font-medium px-2.5 py-1 rounded-md flex items-center gap-1.5 transition cursor-pointer shadow-sm"
+                    title="Paste target Job Description to tailor resume"
+                  >
+                    <Target className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Tailor to JD</span>
+                  </button>
+                  <span className="text-[10px] text-slate-300 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded font-mono">
+                    Online
+                  </span>
+                </div>
               </div>
 
               {/* Chat Stream */}
@@ -736,13 +769,40 @@ export default function InteractiveLiveStudio({
               </div>
 
               {/* Quick Prompt Suggestions */}
-              <div className="px-3 py-2 bg-slate-950/70 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[11px]">
+              <div className="px-3 py-2 bg-slate-950/70 border-t border-slate-800 flex items-center gap-1.5 overflow-x-auto text-[11px] no-scrollbar">
                 <span className="text-slate-500 shrink-0 font-medium">Suggestions:</span>
-                {['Add STAR metrics to bullets', 'Make summary concise & executive', 'Add experience or degrees', 'Tailor for Senior role'].map((suggestion, sIdx) => (
+                {(isFreshMode ? [
+                  'Mera naam aur target role set karo',
+                  'Degree aur education add karo',
+                  'Core technical skills add karo',
+                  'College / personal project add karo',
+                  'ATS executive summary banao'
+                ] : isJdMode ? [
+                  '🎯 Paste Target JD to Tailor',
+                  'Boost ATS keyword density',
+                  'Align STAR bullets to JD',
+                  'Tailor for Senior position'
+                ] : [
+                  '🎯 Tailor to Job Description',
+                  'Add STAR metrics to bullets',
+                  'Make summary concise & executive',
+                  'Add experience or degrees',
+                  'Tailor for Senior role'
+                ]).map((suggestion, sIdx) => (
                   <button
                     key={sIdx}
-                    onClick={() => handleSendPrompt(suggestion)}
-                    className="bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white px-2.5 py-1 rounded-md border border-slate-800 whitespace-nowrap transition cursor-pointer"
+                    onClick={() => {
+                      if (suggestion.includes('Tailor to Job Description') || suggestion.includes('Paste Target JD')) {
+                        setIsJdModalOpen(true);
+                      } else {
+                        handleSendPrompt(suggestion);
+                      }
+                    }}
+                    className={`px-2.5 py-1 rounded-md border whitespace-nowrap transition cursor-pointer ${
+                      suggestion.includes('Tailor') || suggestion.includes('JD')
+                        ? 'bg-emerald-950/70 hover:bg-emerald-900 border-emerald-700/60 text-emerald-300'
+                        : 'bg-slate-900 hover:bg-slate-850 text-slate-300 hover:text-white border-slate-800'
+                    }`}
                   >
                     {suggestion}
                   </button>
@@ -770,7 +830,11 @@ export default function InteractiveLiveStudio({
                         }
                       }
                     }}
-                    placeholder="Type any instruction (e.g. 'Add Docker to skills', 'Move Pulse Solutions to experience', 'Make summary punchy')..."
+                    placeholder={
+                      isFreshMode 
+                        ? "Apne bare me batayein (naam, degree, skills, projects)..." 
+                        : "Type any instruction (e.g. 'Add Docker to skills', 'Make summary punchy')..."
+                    }
                     disabled={isProcessing}
                     className="w-full bg-slate-900 border border-slate-800 focus:border-blue-500 rounded-lg pl-3 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition resize-none disabled:opacity-50"
                   />
@@ -784,6 +848,60 @@ export default function InteractiveLiveStudio({
                   </button>
                 </form>
               </div>
+
+              {/* Tailor to Job Description (JD) Modal */}
+              {isJdModalOpen && (
+                <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl flex flex-col gap-4 text-left animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                        <Target className="w-5 h-5" />
+                        <span>Tailor Resume to Target Job Description (JD)</span>
+                      </div>
+                      <button 
+                        onClick={() => setIsJdModalOpen(false)}
+                        className="text-slate-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-slate-800 transition cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <p className="text-xs text-slate-400">
+                      Paste the target job posting below. AI will perform ATS semantic gap analysis, align STAR experience bullets, and inject missing keywords to achieve a 95%+ match score.
+                    </p>
+
+                    <textarea
+                      value={jdInputText}
+                      onChange={(e) => setJdInputText(e.target.value)}
+                      placeholder="Paste job posting here (roles, responsibilities, required skills, technical requirements)..."
+                      rows={8}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition resize-none"
+                    />
+
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setIsJdModalOpen(false)}
+                        className="px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white bg-slate-800/60 transition cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        disabled={!jdInputText.trim() || isProcessing}
+                        onClick={() => {
+                          const text = jdInputText.trim();
+                          setIsJdModalOpen(false);
+                          setJdInputText('');
+                          handleSendPrompt(`Tailor this resume to strictly match the following target Job Description. Align experience bullets with measurable STAR outcomes, incorporate key required technical and domain competencies, and optimize for 95%+ ATS parseability:\n\n${text}`);
+                        }}
+                        className="px-5 py-2 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition disabled:opacity-50 cursor-pointer flex items-center gap-1.5 shadow-lg shadow-emerald-950"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Analyze & Tailor Resume Live</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
