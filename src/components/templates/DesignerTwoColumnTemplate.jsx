@@ -54,21 +54,27 @@ export default function DesignerTwoColumnTemplate({
       }}
     >
       {/* Candidate Monogram Badge */}
-      <div className="flex items-center gap-3 border-b pb-4" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
-        <div 
-          className="w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg shadow-lg tracking-wider shrink-0"
-          style={{ 
-            backgroundColor: currentTheme.primaryColor,
-            color: '#ffffff'
-          }}
-        >
-          {initials}
+      {header.name && (
+        <div className="flex items-center gap-3 border-b pb-4" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+          <div 
+            className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-base shadow-lg tracking-wider shrink-0"
+            style={{ 
+              backgroundColor: currentTheme.primaryColor,
+              color: '#ffffff'
+            }}
+          >
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-xs font-bold block truncate text-white">{header.name}</span>
+            {header.title && (
+              <span className="text-[10.5px] block truncate text-slate-300 font-medium">
+                {header.title}
+              </span>
+            )}
+          </div>
         </div>
-        <div>
-          <span className="text-[11px] uppercase tracking-widest block opacity-70 font-semibold">Executive CV</span>
-          <span className="text-xs font-bold block truncate max-w-[150px]">{header.title || "Professional"}</span>
-        </div>
-      </div>
+      )}
 
       {/* Contact Details */}
       <div className="flex flex-col gap-2.5">

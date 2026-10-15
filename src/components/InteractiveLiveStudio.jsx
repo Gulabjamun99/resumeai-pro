@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Sparkles, Send, RotateCcw, Download, FileText, CheckCircle2, 
+  Sparkles, Send, RotateCcw, RotateCw, Download, FileText, CheckCircle2, 
   Eye, RefreshCw, ZoomIn, ZoomOut, Layout, MessageSquare, 
   ShieldCheck, Filter, Check, Trash2, Edit3, Palette, Sliders, 
   Type, Columns, AlignLeft, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Maximize2, 
   Minimize2, CheckCheck, AlertCircle, PlusCircle, MinusCircle, Flame, Search, Target, Wand2, Upload
 } from 'lucide-react';
 import ResumeDocument from './ResumeDocument';
+import QuickEditPanel from './QuickEditPanel';
 import { exportResumeToPdf } from '../utils/pdfExporter';
 import { exportResumeToDocx } from '../utils/docxExporter';
 import { RESUME_TEMPLATES_CATALOG, TEMPLATE_TAG_FILTERS } from '../data/templateCatalog';
@@ -18,7 +19,7 @@ import { getGeminiChatResponse } from '../services/geminiService';
  * RESUMEAI PRO — MODERN ULTRA-CLEAN SPLIT STUDIO
  * 
  * Inspired by Canva, Figma, and Resume.io:
- * - Left Panel (42%): Unified Workspace Tools (Templates Gallery [Default], AI Chat Editor, Colors & Fonts)
+ * - Left Panel (42%): Unified Workspace Tools (AI Chat, Quick Direct Edit, Templates, Colors & Fonts)
  * - Right Panel (58%): Live A4 Document Canvas with Zoom Controls and Docked AI Quick-Edit Bar
  * - Real-Time Instant 1-Click Template Switching
  * - Zero Developer Jargon or Intimidating Banners
@@ -37,10 +38,51 @@ export default function InteractiveLiveStudio({
   onUpdateDesignTheme,
   onToggleCompare,
   initialMode = 'upload',
-  initialJd = ''
+  initialJd = '',
+  onDirectUpdateCv,
+  onLiveSyncCv
 }) {
   const latestVersionSnapshot = versionHistory.length > 0 ? versionHistory[versionHistory.length - 1] : null;
   const isPostChangeVersion = currentVersion > 1 || (versionHistory.length > 1);
+
+  // Undo / Redo State & Handlers
+  const canUndo = currentVersion > 1;
+  const canRedo = currentVersion < (versionHistory?.length || 0);
+
+  const handleUndo = () => {
+    if (canUndo && onRollback) {
+      onRollback(currentVersion - 1);
+      showToast(`Undo applied: Restored Version ${currentVersion - 1}`);
+    }
+  };
+
+  const handleRedo = () => {
+    if (canRedo && onRollback) {
+      onRollback(currentVersion + 1);
+      showToast(`Redo applied: Advanced to Version ${currentVersion + 1}`);
+    }
+  };
+
+  // Keyboard shortcut listener for Ctrl+Z and Ctrl+Y
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target?.tagName)) return;
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        if (e.shiftKey) {
+          e.preventDefault();
+          handleRedo();
+        } else {
+          e.preventDefault();
+          handleUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentVersion, versionHistory]);
 
   // Main Studio Tabs: Default to 'chat' like ChatGPT / Claude
   const [activeTab, setActiveTab] = useState('chat');
@@ -390,24 +432,63 @@ export default function InteractiveLiveStudio({
           </div>
         </div>
 
-        {/* Center: Undo & Rollback Control */}
+        {/* Center: Undo & Redo Controls + Quick Edit Access */}
         <div className="flex items-center gap-2">
-          {versionHistory && versionHistory.length > 1 && (
+          <div className="flex items-center gap-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800 shadow-inner">
             <button
-              onClick={() => onRollback && onRollback(versionHistory.length - 1)}
-              className="text-xs text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-750 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 transition cursor-pointer font-medium active:scale-95 shadow-sm"
-              title="Undo last modification"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md flex items-center gap-1.5 transition ${
+                canUndo 
+                  ? 'text-slate-200 hover:text-white hover:bg-slate-800 cursor-pointer active:scale-95' 
+                  : 'text-slate-600 opacity-50 cursor-not-allowed'
+              }`}
+              title="Undo change (Ctrl+Z)"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-              <span>Undo Last Edit (v{currentVersion})</span>
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Undo</span>
             </button>
-          )}
+
+            <span className="text-slate-700 font-mono">|</span>
+
+            <button
+              onClick={handleRedo}
+              disabled={!canRedo}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md flex items-center gap-1.5 transition ${
+                canRedo 
+                  ? 'text-slate-200 hover:text-white hover:bg-slate-800 cursor-pointer active:scale-95' 
+                  : 'text-slate-600 opacity-50 cursor-not-allowed'
+              }`}
+              title="Redo change (Ctrl+Y)"
+            >
+              <RotateCw className="w-3.5 h-3.5" />
+              <span>Redo</span>
+            </button>
+
+            <span className="text-[10px] font-mono text-slate-400 px-1.5 bg-slate-900 rounded py-0.5 border border-slate-800">
+              v{currentVersion}/{versionHistory?.length || 1}
+            </span>
+          </div>
+
+          {/* Quick Edit Direct Access Button */}
+          <button
+            onClick={() => setActiveTab('edit')}
+            className={`text-xs px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition cursor-pointer shadow-sm ${
+              activeTab === 'edit'
+                ? 'bg-amber-600 border-amber-500 text-white font-bold'
+                : 'bg-slate-800 hover:bg-slate-750 text-amber-300 hover:text-amber-200 border-slate-700'
+            }`}
+            title="Edit fields directly without using AI credits"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Direct Edit (0 Credits)</span>
+          </button>
 
           {/* Diff Tag if changes made */}
           {diffReport.hasChanges && (
             <div className="hidden sm:flex items-center gap-1.5 bg-slate-800/80 border border-slate-700 px-2.5 py-1 rounded-lg text-[11px] text-emerald-400 font-medium">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{diffReport.totalChangesCount} Changes Verified</span>
+              <span>{diffReport.totalChangesCount} Changes</span>
             </div>
           )}
         </div>
@@ -496,43 +577,69 @@ export default function InteractiveLiveStudio({
         <aside className="lg:col-span-5 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden h-[calc(100vh-140px)] min-h-[620px]">
           
           {/* Main Segmented Tool Tabs */}
-          <div className="p-2 bg-slate-950 border-b border-slate-800 grid grid-cols-3 gap-1.5 shrink-0">
+          {/* Main Segmented Tool Tabs (AI Chat, Direct Edit, Templates, Styles) */}
+          <div className="p-2 bg-slate-950 border-b border-slate-800 grid grid-cols-4 gap-1 shrink-0">
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`py-2 px-1 rounded-lg font-semibold text-xs flex items-center justify-center gap-1 transition cursor-pointer ${
+                activeTab === 'chat'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>AI Chat</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('edit')}
+              className={`py-2 px-1 rounded-lg font-semibold text-xs flex items-center justify-center gap-1 transition cursor-pointer ${
+                activeTab === 'edit'
+                  ? 'bg-amber-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
+              }`}
+              title="Edit fields directly without using AI credits"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Quick Edit</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('templates')}
-              className={`py-2 px-1 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+              className={`py-2 px-1 rounded-lg font-semibold text-xs flex items-center justify-center gap-1 transition cursor-pointer ${
                 activeTab === 'templates'
                   ? 'bg-slate-800 text-white border border-slate-700 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
               }`}
             >
               <Layout className="w-3.5 h-3.5" />
-              <span>36 Templates</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`py-2 px-1 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                activeTab === 'chat'
-                  ? 'bg-slate-800 text-white border border-slate-700 shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
-              }`}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>AI Assistant</span>
+              <span>Templates</span>
             </button>
 
             <button
               onClick={() => setActiveTab('styling')}
-              className={`py-2 px-1 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
+              className={`py-2 px-1 rounded-lg font-semibold text-xs flex items-center justify-center gap-1 transition cursor-pointer ${
                 activeTab === 'styling'
                   ? 'bg-slate-800 text-white border border-slate-700 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-slate-900/60'
               }`}
             >
               <Palette className="w-3.5 h-3.5" />
-              <span>Design & Fonts</span>
+              <span>Styles</span>
             </button>
           </div>
+
+          {/* ----------------------------------------------------
+              TAB 0: DIRECT QUICK EDIT (ZERO AI CREDITS / INSTANT WYSIWYG)
+              ---------------------------------------------------- */}
+          {activeTab === 'edit' && (
+            <QuickEditPanel 
+              resume={resume}
+              onLiveSync={onLiveSyncCv}
+              onCommit={onDirectUpdateCv}
+              currentVersion={currentVersion}
+            />
+          )}
 
           {/* ----------------------------------------------------
               TAB 1: 36 TEMPLATES SHOWCASE (BIG VISUAL CARDS GRID)
@@ -1092,6 +1199,29 @@ export default function InteractiveLiveStudio({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Quick Canvas Undo/Redo */}
+              <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-[10.5px]">
+                <button
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  className="px-2 py-0.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center gap-1 transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  title="Undo (Ctrl+Z)"
+                >
+                  <RotateCcw className="w-3 h-3 text-slate-400" />
+                  <span>Undo</span>
+                </button>
+                <span className="text-slate-700">|</span>
+                <button
+                  onClick={handleRedo}
+                  disabled={!canRedo}
+                  className="px-2 py-0.5 text-slate-300 hover:text-white hover:bg-slate-800 rounded flex items-center gap-1 transition disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  title="Redo (Ctrl+Y)"
+                >
+                  <RotateCw className="w-3 h-3 text-slate-400" />
+                  <span>Redo</span>
+                </button>
+              </div>
+
               {/* Scroll Jump Controls */}
               <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-[10.5px]">
                 <button

@@ -482,6 +482,31 @@ export default function App() {
     };
   };
 
+  // Direct Quick Edit: Instant zero-AI client-side edit with version snapshot
+  const handleDirectUpdateCv = (newCv, summary = "Direct manual edit") => {
+    if (!newCv) return;
+    const nextVer = versionHistory.length + 1;
+    const newVersionSnapshot = {
+      version: nextVer,
+      id: `v${nextVer}`,
+      title: `Version ${nextVer} (${summary})`,
+      summary: summary,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      cvState: JSON.parse(JSON.stringify(newCv)),
+      bulletsCount: newCv.experiences?.flatMap(e => e.bullets)?.length || 0
+    };
+
+    setVersionHistory(prev => [...prev, newVersionSnapshot]);
+    setCurrentCvState(JSON.parse(JSON.stringify(newCv)));
+    setCurrentVersion(nextVer);
+  };
+
+  // Instant live sync without committing new version history on every keystroke
+  const handleLiveSyncCv = (newCv) => {
+    if (!newCv) return;
+    setCurrentCvState(JSON.parse(JSON.stringify(newCv)));
+  };
+
   // Persona 2: Launch Live Studio in Fresh CV Builder Mode directly
   const handleLaunchFreshStudio = (starterRole = null) => {
     const starterCv = JSON.parse(JSON.stringify(STARTER_FRESH_CV));
@@ -1062,6 +1087,8 @@ export default function App() {
                 onToggleCompare={() => setActiveTab('split')}
                 initialMode={studioInitialMode}
                 initialJd={studioInitialJd}
+                onDirectUpdateCv={handleDirectUpdateCv}
+                onLiveSyncCv={handleLiveSyncCv}
               />
             )}
 
