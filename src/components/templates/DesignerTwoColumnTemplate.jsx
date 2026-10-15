@@ -37,13 +37,14 @@ export default function DesignerTwoColumnTemplate({
     ? `${nameParts[0].charAt(0)}${nameParts[nameParts.length - 1].charAt(0)}`.toUpperCase()
     : nameParts[0]?.substring(0, 2).toUpperCase() || "CV";
 
+  const isCompact = currentTheme.density === 'compact';
   const isTwoColumn = currentTheme.layoutMode !== 'single-column';
   const isRightSidebar = currentTheme.sidebarPosition === 'right';
 
   // Sidebar Component (Reusable for 2-column left/right or single-column bottom)
   const SidebarContent = () => (
     <div 
-      className="p-6 flex flex-col gap-5 text-left resume-sidebar"
+      className={`flex flex-col text-left resume-sidebar ${isCompact ? 'p-4 gap-3.5' : 'p-6 gap-5'}`}
       style={{
         backgroundColor: currentTheme.sidebarBg,
         color: currentTheme.sidebarText,
@@ -273,7 +274,7 @@ export default function DesignerTwoColumnTemplate({
   // Main Body Content
   const MainContent = () => (
     <div 
-      className="p-7 flex flex-col gap-5 flex-1 text-left"
+      className={`flex flex-col flex-1 text-left resume-main-content ${isCompact ? 'p-5 gap-3.5' : 'p-7 gap-5'}`}
       style={{
         backgroundColor: currentTheme.pageBg,
         color: currentTheme.textColor,
@@ -478,13 +479,14 @@ export default function DesignerTwoColumnTemplate({
       style={{
         width: '210mm',
         minHeight: '297mm',
+        maxHeight: isCompact ? '297mm' : '594mm',
         boxSizing: 'border-box',
         display: isTwoColumn ? 'flex' : 'block',
         flexDirection: isRightSidebar ? 'row-reverse' : 'row',
         alignItems: 'stretch',
         fontFamily: currentTheme.fontFamily,
         backgroundColor: currentTheme.pageBg,
-        lineHeight: '1.4'
+        lineHeight: isCompact ? '1.3' : '1.4'
       }}
     >
       {isTwoColumn ? (

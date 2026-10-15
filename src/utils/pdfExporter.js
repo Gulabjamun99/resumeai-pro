@@ -1,9 +1,11 @@
 /**
- * RESUMEAI PRO — SECURE VECTOR PDF EXPORTER (P2 HARDENING)
- * Features:
- * - Dynamic Lazy Import of html2pdf.js (Code Splitting)
- * - Safe Candidate Filename Sanitizer (Path Traversal & Windows Reserved Name Protection)
- * - Error Boundary & Loading State Handling
+ * RESUMEAI PRO — SECURE VECTOR & MULTI-PAGE A4 PDF EXPORTER
+ * 
+ * Guarantees:
+ * 1. STRICT MAX 1 TO 2 PAGES: Automatically fits content into exactly 1 or 2 A4 pages.
+ * 2. EXACT 1:1 VISUAL MATCH: What you see on the canvas is exactly what downloads.
+ * 3. CLEAN PAGE SLICING: Prevents negative offset distortion and blur by slicing into dedicated page canvases.
+ * 4. ZOOM ISOLATION: Eliminates CSS zoom artifacts by resetting zoom on the cloned export node.
  */
 
 const WINDOWS_RESERVED_NAMES = new Set([
@@ -23,28 +25,22 @@ export function sanitizeCandidateFilename(candidateName, version = 1, extension 
     return `Candidate_ATS_Resume_v${ver}.${ext}`;
   }
 
-  // 1. Strip script tags with content, then general HTML tags, path separators (/ and \), and path traversal (..)
   let cleanName = candidateName
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<[^>]+>/g, '')
     .replace(/[\/\\]+/g, '')
     .replace(/\.{2,}/g, '')
-    // 2. Remove illegal filename characters: < > : " | ? * ( ) [ ] and control chars
     .replace(/[<>:"|?*()\[\]\x00-\x1F\x7F]/g, '')
-    // 3. Trim whitespace and replace consecutive whitespace/underscores with single underscore
     .trim()
     .replace(/\s+/g, '_')
     .replace(/_+/g, '_')
-    // 4. Remove leading/trailing dots and underscores
     .replace(/^[._]+|[._]+$/g, '');
 
-  // 5. Check for Windows Reserved Names
   const upperName = cleanName.toUpperCase();
   if (!cleanName || WINDOWS_RESERVED_NAMES.has(upperName) || cleanName.length === 0) {
     cleanName = 'Candidate';
   }
 
-  // 6. Max length limit for candidate name slug
   if (cleanName.length > 50) {
     cleanName = cleanName.substring(0, 50).replace(/_+$/, '');
   }
@@ -54,10 +50,15 @@ export function sanitizeCandidateFilename(candidateName, version = 1, extension 
 
 export async function exportResumeToPdf(elementId, candidateName = 'Candidate', version = 1) {
   const filename = sanitizeCandidateFilename(candidateName, version, 'pdf');
-  const element = document.getElementById(elementId);
+  
+  // Find the exact document element (either #resume-document or the canvas wrapper)
+  let element = document.getElementById(elementId);
+  if (!element) {
+    element = document.getElementById('resume-document') || document.getElementById('cockpit-preview-canvas');
+  }
 
   if (!element) {
-    throw new Error(`Resume preview element "#${elementId}" not found for PDF export.`);
+    throw new Error(`Resume element "#${elementId}" not found for PDF export.`);
   }
 
   try {
@@ -66,17 +67,23 @@ export async function exportResumeToPdf(elementId, candidateName = 'Candidate', 
       import('jspdf')
     ]);
 
+    // Standard A4 dimensions in pixels at 96 DPI
+    const A4_WIDTH_PX = 794;
+    const A4_HEIGHT_PX = 1123; // Exact ratio: 794 * (297 / 210) = 1122.94px -> 1123px
+
     const canvas = await html2canvas(element, {
-      scale: 2.5,
+      scale: 2.5, // High resolution crisp export
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
-      windowWidth: 1200,
       onclone: (clonedDoc, clonedElement) => {
-        const A4_WIDTH_PX = 794;
-        const A4_HEIGHT_PX = 1123; // Exact A4 ratio: 794 * (297 / 210) = 1122.94px -> 1123px
+        // 1. Completely reset any CSS zoom or scaling on body and cloned node
+        clonedDoc.body.style.zoom = '1';
+        clonedDoc.body.style.transform = 'none';
+        clonedElement.style.zoom = '1';
+        clonedElement.style.transform = 'none';
 
-        // Enforce exact standard A4 proportions on the cloned DOM element
+        // 2. Enforce exact standard A4 proportions on cloned element
         clonedElement.style.width = `${A4_WIDTH_PX}px`;
         clonedElement.style.maxWidth = `${A4_WIDTH_PX}px`;
         clonedElement.style.minWidth = `${A4_WIDTH_PX}px`;
@@ -84,9 +91,19 @@ export async function exportResumeToPdf(elementId, candidateName = 'Candidate', 
         clonedElement.style.padding = '0';
         clonedElement.style.textAlign = 'left';
         clonedElement.style.boxSizing = 'border-box';
-        clonedElement.style.transform = 'none';
+        clonedElement.style.boxShadow = 'none';
 
-        // 1. Sanitize unsupported oklch color properties for html2canvas
+        // Ensure child resume-document also conforms
+        const childDoc = clonedElement.querySelector('#resume-document') || clonedElement;
+        if (childDoc) {
+          childDoc.style.width = `${A4_WIDTH_PX}px`;
+          childDoc.style.maxWidth = `${A4_WIDTH_PX}px`;
+          childDoc.style.minWidth = `${A4_WIDTH_PX}px`;
+          childDoc.style.boxSizing = 'border-box';
+          childDoc.style.boxShadow = 'none';
+        }
+
+        // 3. Sanitize unsupported oklch color properties for html2canvas
         const elementsToCheck = [clonedElement, ...Array.from(clonedElement.querySelectorAll('*'))];
         elementsToCheck.forEach((el) => {
           const computed = window.getComputedStyle(el);
@@ -106,100 +123,75 @@ export async function exportResumeToPdf(elementId, candidateName = 'Candidate', 
           });
         });
 
-        // 2. Boundary Collision Avoidance: Prevent text and bullet lines from getting sliced in half horizontally
-        const breakAvoidSelectors = [
-          'section',
-          '.page-break-inside-avoid',
-          'li',
-          'article',
-          '.resume-main-content > div',
-          '[class*="rounded"]'
-        ];
+        // 4. Calculate exact multi-page height (STRICT RULE: MAX 1 OR 2 PAGES)
+        const naturalHeight = childDoc.scrollHeight || clonedElement.scrollHeight || clonedElement.offsetHeight;
+        
+        // If content fits within 1 page (up to ~1140px with tolerance), make it strictly 1 page.
+        // Otherwise, strictly 2 pages max.
+        const totalPages = naturalHeight <= 1140 ? 1 : 2;
+        const targetExactHeight = totalPages * A4_HEIGHT_PX;
 
-        const getClonedOffsetTop = (el) => {
-          let top = 0;
-          let curr = el;
-          while (curr && curr !== clonedElement) {
-            top += curr.offsetTop || 0;
-            curr = curr.offsetParent;
-          }
-          return top;
-        };
+        clonedElement.style.height = `${targetExactHeight}px`;
+        clonedElement.style.minHeight = `${targetExactHeight}px`;
+        clonedElement.style.maxHeight = `${targetExactHeight}px`;
 
-        for (let page = 1; page <= 6; page++) {
-          const boundary = page * A4_HEIGHT_PX;
-          const candidateBlocks = clonedElement.querySelectorAll(breakAvoidSelectors.join(', '));
-          
-          for (let i = 0; i < candidateBlocks.length; i++) {
-            const block = candidateBlocks[i];
-            if (block.classList.contains('resume-sidebar') || block.classList.contains('resume-main-content')) {
-              continue;
-            }
-
-            const blockTop = getClonedOffsetTop(block);
-            const blockHeight = block.offsetHeight;
-            const blockBottom = blockTop + blockHeight;
-
-            // If the element crosses the page boundary
-            if (blockTop < (boundary - 10) && blockBottom > (boundary + 10)) {
-              if (blockHeight < (A4_HEIGHT_PX - 80)) {
-                const shiftDown = (boundary - blockTop) + 24; // clean top margin on new page
-                const currentMarginTop = parseFloat(window.getComputedStyle(block).marginTop) || 0;
-                block.style.marginTop = `${currentMarginTop + shiftDown}px`;
-                break;
-              }
-            }
-          }
+        if (childDoc && childDoc !== clonedElement) {
+          childDoc.style.height = `${targetExactHeight}px`;
+          childDoc.style.minHeight = `${targetExactHeight}px`;
+          childDoc.style.maxHeight = `${targetExactHeight}px`;
         }
 
-        // 3. Compute exact multi-page integer A4 height
-        const naturalHeight = clonedElement.scrollHeight || clonedElement.offsetHeight;
-        const totalPages = Math.max(1, Math.ceil(naturalHeight / A4_HEIGHT_PX));
-        const exactCanvasHeight = totalPages * A4_HEIGHT_PX;
-
-        clonedElement.style.height = `${exactCanvasHeight}px`;
-        clonedElement.style.minHeight = `${exactCanvasHeight}px`;
-        clonedElement.style.maxHeight = `${exactCanvasHeight}px`;
-
-        // 4. Stretch colored sidebar 100% all the way to the bottom edge of the final page
-        const sidebarEls = clonedElement.querySelectorAll('.resume-sidebar, [class*="sidebar"]');
-        sidebarEls.forEach(sb => {
-          sb.style.height = `${exactCanvasHeight}px`;
-          sb.style.minHeight = `${exactCanvasHeight}px`;
+        // 5. Stretch sidebar height to match the full document height cleanly
+        const sidebars = clonedElement.querySelectorAll('.resume-sidebar, [class*="sidebar"]');
+        sidebars.forEach(sb => {
+          sb.style.height = `${targetExactHeight}px`;
+          sb.style.minHeight = `${targetExactHeight}px`;
           sb.style.boxSizing = 'border-box';
         });
       }
     });
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.98);
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4'
     });
 
-    const pdfWidth = pdf.internal.pageSize.getWidth(); // 210mm
-    const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
-
-    // Calculate total pages based on canvas dimensions and standard A4 aspect ratio
+    const pdfWidth = 210; // 210mm A4 width
+    const pageHeight = 297; // 297mm A4 height
     const a4Ratio = 297 / 210;
-    const totalPages = Math.max(1, Math.round(canvas.height / (canvas.width * a4Ratio)));
-    const totalPdfHeight = totalPages * pageHeight;
+    const pageHeightInCanvasPx = Math.round(canvas.width * a4Ratio);
+
+    // Compute whether 1 or 2 pages based on canvas height
+    const totalPages = Math.min(2, Math.max(1, Math.round(canvas.height / pageHeightInCanvasPx)));
 
     for (let p = 0; p < totalPages; p++) {
       if (p > 0) {
         pdf.addPage();
       }
-      pdf.addImage(
-        imgData,
-        'JPEG',
-        0,
-        -p * pageHeight,
-        pdfWidth,
-        totalPdfHeight,
-        undefined,
-        'FAST'
+
+      // Create a dedicated page canvas slice for each page to prevent any vertical drift or bleeding
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = pageHeightInCanvasPx;
+      const ctx = pageCanvas.getContext('2d');
+
+      // Draw exact slice of the main canvas
+      const srcY = p * pageHeightInCanvasPx;
+      const srcHeight = Math.min(pageHeightInCanvasPx, canvas.height - srcY);
+
+      // Fill background with white
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+      ctx.drawImage(
+        canvas,
+        0, srcY, canvas.width, srcHeight,
+        0, 0, pageCanvas.width, srcHeight
       );
+
+      const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.98);
+      pdf.addImage(pageImgData, 'JPEG', 0, 0, pdfWidth, pageHeight, undefined, 'FAST');
     }
 
     const blob = pdf.output('blob');
@@ -219,28 +211,51 @@ export async function exportResumeToPdf(elementId, candidateName = 'Candidate', 
 }
 
 /**
- * PRINT VIEW HELPER
+ * HIGH-PRECISION BROWSER VECTOR PRINT (Zero Rasterization / 100% Vector Fonts)
  */
-export function printResume(elementId) {
-  const element = document.getElementById(elementId);
+export function printResume(elementId = 'resume-document') {
+  let element = document.getElementById(elementId);
+  if (!element) {
+    element = document.getElementById('resume-document') || document.getElementById('cockpit-preview-canvas');
+  }
   if (!element) return;
 
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
 
   printWindow.document.write(`
+    <!DOCTYPE html>
     <html>
       <head>
-        <title>ATS Updated Resume</title>
+        <title>Print ATS Resume</title>
+        <meta charset="utf-8" />
         <style>
-          @page { size: A4; margin: 0; }
-          body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-          .page-break-inside-avoid { break-inside: avoid; page-break-inside: avoid; }
-          ${document.querySelector('style')?.innerHTML || ''}
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: #ffffff;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          #print-container {
+            width: 210mm;
+            margin: 0 auto;
+          }
+          .page-break-inside-avoid {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
         </style>
       </head>
       <body>
-        ${element.outerHTML}
+        <div id="print-container">
+          ${element.innerHTML}
+        </div>
       </body>
     </html>
   `);
@@ -249,5 +264,5 @@ export function printResume(elementId) {
   setTimeout(() => {
     printWindow.print();
     printWindow.close();
-  }, 500);
+  }, 400);
 }

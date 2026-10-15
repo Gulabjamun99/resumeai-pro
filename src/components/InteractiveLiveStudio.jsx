@@ -4,11 +4,11 @@ import {
   Eye, RefreshCw, ZoomIn, ZoomOut, Layout, MessageSquare, 
   ShieldCheck, Filter, Check, Trash2, Edit3, Palette, Sliders, 
   Type, Columns, AlignLeft, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Maximize2, 
-  Minimize2, CheckCheck, AlertCircle, PlusCircle, MinusCircle, Flame, Search, Target, Wand2, Upload
+  Minimize2, CheckCheck, AlertCircle, PlusCircle, MinusCircle, Flame, Search, Target, Wand2, Upload, Printer
 } from 'lucide-react';
 import ResumeDocument from './ResumeDocument';
 import QuickEditPanel from './QuickEditPanel';
-import { exportResumeToPdf } from '../utils/pdfExporter';
+import { exportResumeToPdf, printResume } from '../utils/pdfExporter';
 import { exportResumeToDocx } from '../utils/docxExporter';
 import { RESUME_TEMPLATES_CATALOG, TEMPLATE_TAG_FILTERS } from '../data/templateCatalog';
 import { COLOR_PALETTES, FONT_FAMILIES, DENSITY_OPTIONS, DEFAULT_DESIGN_THEME } from '../data/themePresets';
@@ -539,6 +539,16 @@ export default function InteractiveLiveStudio({
           >
             <FileText className="w-3.5 h-3.5 text-slate-400" />
             <span>DOCX</span>
+          </button>
+
+          {/* Tertiary Action: High-Fidelity Browser Print / Vector PDF */}
+          <button
+            onClick={() => printResume('resume-document')}
+            className="bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-xs font-semibold px-3 py-2 rounded-lg border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+            title="Browser vector print / Save to PDF"
+          >
+            <Printer className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden md:inline">Print</span>
           </button>
 
           {/* Split Compare Button */}
@@ -1196,6 +1206,32 @@ export default function InteractiveLiveStudio({
               <span className="text-xs font-medium text-white bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
                 {activeTemplateObj?.name}
               </span>
+
+              {/* Strict Page Budget Switcher (Max 1 to 2 Pages) */}
+              <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 text-[10.5px]">
+                <button
+                  onClick={() => onUpdateDesignTheme && onUpdateDesignTheme(prev => ({ ...prev, density: 'compact' }))}
+                  className={`px-2 py-0.5 rounded transition cursor-pointer font-medium ${
+                    currentTheme.density === 'compact' 
+                      ? 'bg-sky-600 text-white font-bold shadow-xs' 
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Fit content strictly to 1 Page"
+                >
+                  Fit 1-Page
+                </button>
+                <button
+                  onClick={() => onUpdateDesignTheme && onUpdateDesignTheme(prev => ({ ...prev, density: 'normal' }))}
+                  className={`px-2 py-0.5 rounded transition cursor-pointer font-medium ${
+                    currentTheme.density !== 'compact' 
+                      ? 'bg-sky-600 text-white font-bold shadow-xs' 
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Fit content strictly to 2 Pages Max"
+                >
+                  Fit 2-Page Max
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
