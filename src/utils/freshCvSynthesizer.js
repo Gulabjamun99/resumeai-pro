@@ -218,10 +218,9 @@ export function extractFresherFacts(rawText, existingFacts = {}) {
 
       // Check nearby institution
       const surroundingSlice = text.slice(Math.max(0, match.index - 15), Math.min(text.length, match.index + match[0].length + 45));
-      if (surroundingSlice.toLowerCase().includes('lpu') || surroundingSlice.toLowerCase().includes('lovely professional university') || (matcher.type === 'MBA' && lower.includes('lpu'))) {
-        bestInstitution = 'Lovely Professional University, Punjab';
-      } else if (surroundingSlice.toLowerCase().includes('delhi university') || surroundingSlice.toLowerCase().includes('du')) {
-        bestInstitution = 'University of Delhi, New Delhi';
+      const instMatch = surroundingSlice.match(/(?:from|at|in|se)?\s*([A-Za-z\s.&'-]+(?:University|Institute|College|Academy|School|Board)[A-Za-z\s.&'-]*)/i);
+      if (instMatch && instMatch[1]) {
+        bestInstitution = instMatch[1].trim();
       }
     }
 
@@ -313,8 +312,6 @@ export function extractFresherFacts(rawText, existingFacts = {}) {
 
   // 8. EXTRACT PROJECTS
   const projectClues = [
-    { name: 'Gharmantra', regex: /\b(gharmantra)\b/i, defaultTech: 'Flutter, Dart, Firebase, Google Play Store' },
-    { name: 'Kharchabook', regex: /\b(kharchabook|kharcha\s*book)\b/i, defaultTech: 'React.js, Node.js, Express, MongoDB' },
     { name: 'E-Commerce Platform', regex: /\b(e-?commerce|shopping\s*app|online\s*store)\b/i, defaultTech: 'React, Redux Toolkit, Node.js, Stripe API' },
     { name: 'Expense Tracker', regex: /\b(expense\s*tracker|budget\s*app)\b/i, defaultTech: 'React.js, Chart.js, Tailwind CSS, LocalStorage' },
     { name: 'Chat Application', regex: /\b(chat\s*app|messaging\s*app|socket\.io)\b/i, defaultTech: 'React, Node.js, Socket.IO, Express' },
@@ -560,16 +557,12 @@ export function synthesizeDetailedFresherResume(facts) {
     const titleLower = pTitle.toLowerCase();
     const bullets = [];
 
-    if (titleLower.includes('gharmantra')) {
-      bullets.push('Engineered a cross-platform lifestyle and utility mobile application providing structured household maintenance guides and daily organizing routines.');
-      bullets.push('Designed an intuitive, friction-free mobile interface focused on clean navigation, accessibility, and high daily active user retention.');
-      bullets.push('Successfully deployed and managed production releases on Google Play Store with 99.9% crash-free session stability.');
-    } else if (titleLower.includes('kharchabook') || titleLower.includes('expense')) {
-      bullets.push('Developed a collaborative daily expense tracking solution enabling households and teams to record, categorize, and monitor shared finances seamlessly.');
-      bullets.push('Built interactive visual financial reports, monthly budget charts, and real-time transaction history using dynamic data visualization.');
-    } else if (titleLower.includes('e-commerce') || titleLower.includes('shopping')) {
-      bullets.push('Engineered a full-featured e-commerce web platform featuring real-time product catalogs, persistent shopping cart, and secure checkout.');
+    if (titleLower.includes('e-commerce') || titleLower.includes('shopping')) {
+      bullets.push('Engineered a full-featured e-commerce platform featuring dynamic product catalogs, persistent state management, and secure checkout.');
       bullets.push('Integrated global state management and implemented optimistic UI updates for rapid page navigation.');
+    } else if (titleLower.includes('expense') || titleLower.includes('finance') || titleLower.includes('ledger')) {
+      bullets.push('Developed a collaborative financial tracking solution enabling users to record, categorize, and monitor budgets seamlessly.');
+      bullets.push('Built interactive visual financial reports, monthly budget charts, and real-time transaction history using dynamic data visualization.');
     } else {
       bullets.push(`Planned and executed the ${pTitle} initiative leveraging ${p.techStack || 'industry-standard frameworks'} for end-to-end functionality.`);
       bullets.push('Implemented structured workflows, thorough documentation, and rigorous quality benchmarks to ensure project success.');

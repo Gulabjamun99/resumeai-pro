@@ -1,4 +1,4 @@
-import { ATS_KEYWORD_TAXONOMY } from '../data/rohitData.js';
+import { ATS_KEYWORD_TAXONOMY } from '../utils/ats/canonicalTaxonomy.js';
 
 /**
  * Full 6-Layer Quality Control Audit Engine (Corrected)

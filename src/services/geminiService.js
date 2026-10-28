@@ -242,9 +242,9 @@ RULES:
      * ALWAYS output a fully detailed object containing ALL fields:
        {
          "degree": "Full degree title (e.g. Master of Business Administration (MBA), Bachelor of Business Administration (BBA))",
-         "institution": "Full university/college name (e.g. Lovely Professional University, Birla Institute of Technology, Mesra)",
+         "institution": "Full university/college name (e.g. State University / National Institute / College Name)",
          "school": "Same as institution for 100% template compatibility",
-         "location": "State/City/Country (e.g. Punjab, India or Ranchi, Jharkhand)",
+         "location": "State/City/Country (e.g. California, USA or Bangalore, India)",
          "year": "Passing year or graduation timeline (e.g. 2012, 2010)",
          "duration": "Same as year",
          "details": "Specialization or academic honors (e.g. Core focus on Marketing & Strategic Business Management)"

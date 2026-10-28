@@ -809,8 +809,8 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       }
 
       // Check for trailing user deletion / transfer directive:
-      // e.g. '... " ye dono pointer ko yha nathcorp se hata ke education section me dalye'
-      // or '... " ye dono point education ke hai nathcorp se hataye'
+      // e.g. '... " ye dono pointer ko yha targetCompany se hata ke education section me dalye'
+      // or '... " ye dono point education ke hai targetCompany se hataye'
       const trailingDirectiveMatch = 
         rawText.match(/["'“”‘`]?\s*(?:ye|yeh|in|inhe|ye\s*dono|in\s*dono|ye\s*sabhi|ye\s*teeno)?\s*(?:dono|sabhi|teeno|\d+)?\s*(?:point|pointer|bullet|line)s?.*?(?:hataye|hatao|hata|hta|delete|remove|nikal\s*do|hta\s*de|hta\s*do|b=hataye).*$/i) ||
         rawText.match(/["'“”‘`]?\s*(?:ye|yeh|in|inhe|ye\s*dono|in\s*dono|ye\s*sabhi|ye\s*teeno)?\s*(?:dono|sabhi|teeno|\d+)?\s*(?:point|pointer|bullet|line)s?\s*(?:education\s*(?:ke|me)?\s*(?:hai|hain)?\s*)?([A-Za-z0-9\s.&'-]*?)\s*(?:se|me|ko)?\s*(?:hataye|hatao|delete|remove|nikal\s*do|hta\s*de|hta\s*do|b=hataye).*$/i);
@@ -1090,7 +1090,7 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       if (matchingByRole.length === 1) {
         targetExpsToDelete = matchingByRole;
       } else if (matchingByRole.length > 1) {
-        // Multiple experiences share this role title (e.g. Pulse Solutions and Nathcorp Pvt. Ltd.)!
+        // Multiple experiences share this role title (e.g. Previous Company and targetCompany Pvt. Ltd.)!
         // Disambiguate by dates/years if provided in the prompt:
         if (promptYears.length > 0) {
           const byYear = matchingByRole.filter(exp => {
@@ -1121,10 +1121,9 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       summaries.push(`Deleted experience entry for "${exp.company}"`);
     });
 
-    // Check for project deletion (e.g. "delete jyotish connect", "turtleping hata do")
+    // Check for project deletion dynamically from candidate's current projects
     const dynamicProjects = (currentCvState?.projects || []).map(p => (p.title || p.name || '').toLowerCase()).filter(t => t.length > 2);
-    const knownProjects = ['jyotish connect', 'turtleping', 'mausam veda', 'kharcha book', 'gharmantra', 'smartscanner', ...dynamicProjects];
-    const uniqueProjects = Array.from(new Set(knownProjects));
+    const uniqueProjects = Array.from(new Set(dynamicProjects));
 
     for (const proj of uniqueProjects) {
       if (proj.length >= 3 && lower.includes(proj)) {
@@ -1526,16 +1525,16 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       const roleTitle = extracted.roleTitle || "Full-Stack AI Developer & Vibe Coder";
       const periodStr = extracted.period || "May 2025 – Present";
 
-      const playStoreApps = products.filter(p => p.status?.includes('Play Store') || ['Gharmantra', 'Lensdraft'].includes(p.title)).map(p => p.title);
-      const cloudApps = products.filter(p => p.status?.includes('Cloud') || ['Jyotish Connect', 'Mausam Veda', 'Turtleping'].includes(p.title)).map(p => p.title);
-      const upcomingApps = products.filter(p => p.status?.includes('Upcoming') || ['KharchaBook', 'ResumeAI Pro'].includes(p.title)).map(p => p.title);
+      const playStoreApps = products.filter(p => p.status?.includes('Play Store') || p.type === 'mobile').map(p => p.title);
+      const cloudApps = products.filter(p => p.status?.includes('Cloud') || p.type === 'cloud' || p.type === 'web').map(p => p.title);
+      const upcomingApps = products.filter(p => p.status?.includes('Upcoming') || p.status?.includes('Staging')).map(p => p.title);
 
-      const bullet1 = `Pioneered end-to-end vibe coding and full-stack application development from scratch utilizing modern AI developer toolchains (${tools.slice(0, 5).join(', ') || 'Google Antigravity, Claude, Codex, ChatGPT'}).`;
+      const bullet1 = `Pioneered end-to-end full-stack software development and rapid prototyping from scratch utilizing modern developer toolchains (${tools.slice(0, 5).join(', ') || 'modern AI toolchains'}).`;
       const bullet2 = products.length > 0
-        ? `Architected, engineered, and launched ${products.length} live production applications: published ${playStoreApps.join(' and ') || 'Gharmantra & Lensdraft'} (Live on Google Play Store) and cloud platforms (${cloudApps.slice(0, 3).join(', ') || 'Jyotish Connect, Mausam Veda, Turtleping'}) with Firebase, Supabase, and Vercel cloud backends.`
-        : `Architected and launched live production mobile and cloud platforms with automated cloud infrastructure on Vercel, Supabase, and Firebase.`;
+        ? `Architected, engineered, and launched ${products.length} live production applications (${products.map(p => p.title).slice(0, 4).join(', ')}) with resilient cloud backends and automated CI/CD deployment pipelines.`
+        : `Architected and launched live production mobile and cloud platforms with automated cloud infrastructure and scalable APIs.`;
       const bullet3 = upcomingApps.length > 0
-        ? `Engineered impending production releases (${upcomingApps.join(', ')}), orchestrating automated CI/CD deployment pipelines on GitHub, prompt orchestration, and rapid zero-to-one prototyping.`
+        ? `Engineered impending production releases (${upcomingApps.join(', ')}), orchestrating automated CI/CD deployment pipelines on GitHub, rapid prototyping, and system reliability.`
         : `Implemented rapid zero-to-one prototyping, prompt orchestration, secure authentication, and CI/CD pipelines via GitHub to ensure high-performance production readiness.`;
 
       if (targetExistingExp) {
@@ -1597,9 +1596,11 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
       // 3. Professional Summary Synthesis
       const toolSummaryStr = tools.slice(0, 6).join(', ') || 'Google Antigravity, Claude, Codex, ChatGPT';
       
+      const allAppList = [...playStoreApps, ...cloudApps, ...upcomingApps];
+      const appSnippet = allAppList.length > 0 ? ` (${allAppList.join(', ')})` : '';
       const synthesizedSummary = targetExistingExp
-        ? `High-impact Talent Acquisition Leader and hands-on Full-Stack AI Vibe Developer with 9+ years of cross-functional excellence. Specialized in AI-driven recruitment automation alongside zero-to-one product engineering using modern AI toolchains (${toolSummaryStr}). Proven track record developing and deploying multiple live production applications on Google Play Store (${playStoreApps.join(', ') || 'Gharmantra, Lensdraft'}) and cloud ecosystems (Vercel, Supabase, Firebase), alongside active upcoming releases (${upcomingApps.join(', ') || 'KharchaBook, ResumeAI Pro'}). Adept at bridging executive stakeholder hiring with rapid modern software prototyping.`
-        : `Innovative ${roleTitle} with extensive hands-on expertise in rapid AI-assisted development and vibe coding using ${toolSummaryStr}. Demonstrated track record architecting, vibe-coding, and deploying live applications from scratch with modern cloud infrastructure on Vercel, Supabase, and Firebase. Proven ability to deliver responsive, scalable zero-to-one digital products with automated workflows and modern UI/UX.`;
+        ? `High-impact professional and hands-on Full-Stack Developer with extensive cross-functional excellence. Specialized in workflow automation alongside zero-to-one product engineering using modern developer toolchains (${toolSummaryStr}). Proven track record developing and deploying production applications${appSnippet} with modern cloud ecosystems (Vercel, Supabase, Firebase). Adept at transforming business vision into rapid, scalable digital solutions.`
+        : `Innovative ${roleTitle} with extensive hands-on expertise in rapid full-stack development and prototyping using ${toolSummaryStr}. Demonstrated track record architecting and deploying live applications from scratch with modern cloud infrastructure on Vercel, Supabase, and Firebase. Proven ability to deliver responsive, scalable zero-to-one digital products with automated workflows and modern UI/UX.`;
 
       operations.push({
         id: `op-summary-vibe-${Date.now()}`,
@@ -1805,28 +1806,13 @@ export function parseSingleDirectiveToChangePlan(promptText, currentCvState, sou
 
 /**
  * Extract structured project definitions from rich/detailed user prompts.
- * Handles multi-project blocks, e.g. "Gharmantra -(Developed...)"
+ * Handles multi-project blocks, e.g. "mobileApp -(Developed...)"
  */
 export function extractDetailedProjectsFromText(text, currentProjects = []) {
   if (!text || typeof text !== 'string') return null;
   const lower = text.toLowerCase();
 
-  const knownCatalog = [
-    { key: 'gharmantra', title: 'Gharmantra', defaultStatus: 'Live on Google Play Store' },
-    { key: 'kharchabook', title: 'KharchaBook', defaultStatus: 'Live App / Shared Finance' },
-    { key: 'lensdraft', title: 'Lensdraft', defaultStatus: 'Live on Google Play Store' },
-    { key: 'jyotish connect', title: 'Jyotish Connect', defaultStatus: 'Live Web Application' },
-    { key: 'jyotishconnect', title: 'Jyotish Connect', defaultStatus: 'Live Web Application' },
-    { key: 'mausamveda', title: 'Mausam Veda', defaultStatus: 'Live Cloud Application' },
-    { key: 'mausam veda', title: 'Mausam Veda', defaultStatus: 'Live Cloud Application' },
-    { key: 'turtleping', title: 'Turtleping', defaultStatus: 'Live Network Monitor' },
-    { key: 'resume ai pro', title: 'ResumeAI Pro', defaultStatus: 'Live Cloud Application' },
-    { key: 'resumeai pro', title: 'ResumeAI Pro', defaultStatus: 'Live Cloud Application' },
-    { key: 'resume ai', title: 'ResumeAI Pro', defaultStatus: 'Live Cloud Application' },
-    { key: 'resumeai', title: 'ResumeAI Pro', defaultStatus: 'Live Cloud Application' }
-  ];
-
-  const allKnown = [...knownCatalog];
+  const allKnown = [];
   (currentProjects || []).forEach(cp => {
     const title = cp.title || cp.name;
     if (title && !allKnown.some(k => k.title.toLowerCase() === title.toLowerCase())) {
@@ -1837,6 +1823,19 @@ export function extractDetailedProjectsFromText(text, currentProjects = []) {
       });
     }
   });
+
+  // Dynamically discover projects mentioned with descriptions, e.g. "AppName -(Details...)" or "Project: AppName"
+  const projectDefMatches = text.matchAll(/(?:project|app|platform)?\s*([A-Za-z0-9\s._'-]{3,35})\s*[:\-–—]\s*(?:\(?\s*(?:developed|built|engineered|architected|featuring|created|live|mobile|web|cloud|designed|[A-Z]))/gi);
+  for (const m of projectDefMatches) {
+    const rawName = (m[1] || '').trim();
+    if (rawName && rawName.length >= 3 && !allKnown.some(k => k.key === rawName.toLowerCase()) && !['company', 'role', 'experience', 'education', 'skills', 'profile'].includes(rawName.toLowerCase())) {
+      allKnown.push({
+        key: rawName.toLowerCase(),
+        title: rawName,
+        defaultStatus: lower.includes('play store') || lower.includes('playstore') ? 'Live on Google Play Store' : 'Production Application'
+      });
+    }
+  }
 
   const matches = [];
   allKnown.forEach(app => {
@@ -1885,7 +1884,7 @@ export function extractDetailedProjectsFromText(text, currentProjects = []) {
     }
 
     let content = blockText;
-    // Strip project name prefix: e.g. "Gharmantra -(" or "Web and app project- Jyotish connect- ("
+    // Strip project name prefix: e.g. "mobileApp -(" or "Web and app project- webPlatform- ("
     content = content.replace(/^[^\-(:]*[-:]?\s*\(?\s*/i, '');
     // Strip trailing closing paren if present
     content = content.replace(/\s*\)+$/, '').trim();
@@ -1935,7 +1934,7 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
 
   // 0. RESTORE / UNDO INTENT HANDLER:
   // Catches prompts like "educationa details kyu hata diye wo wapas rkhye", "education wapas lao", "restore education", "undo",
-  // "nathcorp nhi krna tha", "please wapas leke aye", "nathcopr employment kha hai?"
+  // "targetCompany nhi krna tha", "please wapas leke aye", "nathcopr employment kha hai?"
   const isRestoreIntent = (
     lower.includes('wapas') || lower.includes('restore') || lower.includes('undo') ||
     lower.includes('wapis') || lower.includes('re-add') || lower.includes('add back') ||
@@ -1971,7 +1970,8 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
       const tokens = compClean.split(/\s+/).filter(t => t.length >= 4 && !['pvt', 'ltd', 'india', 'services', 'company'].includes(t));
       return tokens.some(tok => {
         if (lower.includes(tok)) return true;
-        if (tok === 'nathcorp' && (lower.includes('nathcopr') || lower.includes('nath corp') || lower.includes('natcorp'))) return true;
+        const compactTok = tok.replace(/\s+/g, '');
+        if (compactTok.length >= 4 && lower.replace(/\s+/g, '').includes(compactTok)) return true;
         return false;
       }) || (compClean.length >= 4 && lower.includes(compClean));
     });
@@ -2076,7 +2076,7 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
   }
 
   // 1.25 HOLISTIC DELETION / BULLET REMOVAL CHECK:
-  // If user says "ye dono point ... nathcorp se hataye", evaluate deletion/removal BEFORE comprehensive structured employment parsing!
+  // If user says "ye dono point ... targetCompany se hataye", evaluate deletion/removal BEFORE comprehensive structured employment parsing!
   const hasDeleteWord = checkHasDeleteWord(rawText);
   if (hasDeleteWord) {
     const singlePlan = parseSingleDirectiveToChangePlan(rawText, currentCvState, sourceMaster);
@@ -2116,7 +2116,7 @@ export function parseUserIntentToChangePlan(promptText, currentCvState, sourceMa
   }
 
   // 3. SPECIALIZED MULTI-PROJECT EXTRACTION:
-  // If prompt contains structured project specifications (e.g. "Gharmantra -(...)", "Kharchabook -(...)", etc.)
+  // If prompt contains structured project specifications (e.g. "mobileApp -(...)", "financeApp -(...)", etc.)
   // process all projects holistically instead of breaking the text into arbitrary newline fragments!
   const hasEmploymentIntent = /(?:consultant|freelanc|experience|employment|naya\s*job|vibe\s*coding|from\s*scratch|from\s*scratv)/i.test(rawText);
   const detailedProjects = !hasEmploymentIntent ? extractDetailedProjectsFromText(rawText, currentCvState?.projects) : null;
@@ -2265,64 +2265,24 @@ export function extractDynamicEntitiesFromPrompt(text) {
     }
   });
 
-  // 3. Extract Products & Apps with Status and Details
-  const knownAppsCatalog = [
-    { 
-      key: 'gharmantra', 
-      title: 'GharMantra', 
-      status: 'Live on Google Play Store', 
-      bullets: ['Live smart home tips & DIY household cleaning hacks utility app on Google Play Store; architected with 500+ curated hacks and 100% offline access.'] 
-    },
-    { 
-      key: 'lensdraft', 
-      title: 'LensDraft', 
-      status: 'Live on Google Play Store', 
-      bullets: ['Live mobile utility on Google Play Store featuring ultra-fast offline document scanning, passport photo resizing, edge detection, and client-side vector PDF generation.'] 
-    },
-    { 
-      key: 'jyotish connect', 
-      title: 'Jyotish Connect', 
-      status: 'Live Cloud Application', 
-      bullets: ['Full-stack predictive AI web platform developed from scratch with automated cloud deployment on Vercel and Supabase.'] 
-    },
-    { 
-      key: 'mausam veda', 
-      title: 'Mausam Veda', 
-      status: 'Live Cloud Application', 
-      bullets: ['Atmospheric intelligence and climate forecasting application architected using modern AI developer stacks.'] 
-    },
-    { 
-      key: 'turtleping', 
-      title: 'Turtleping', 
-      status: 'Live Network Monitor', 
-      bullets: ['Real-time network latency, uptime monitoring, and diagnostic tool developed via rapid AI vibe coding.'] 
-    },
-    { 
-      key: 'kharchabook', 
-      title: 'KharchaBook', 
-      status: 'Upcoming / Staging Release', 
-      bullets: ['Personal finance, budgeting, and automated expense tracking platform currently in pre-release staging.'] 
-    },
-    { 
-      key: 'resume ai', 
-      title: 'ResumeAI Pro', 
-      status: 'Upcoming / Career Platform', 
-      bullets: ['Intelligent generative career platform with strict ATS fact-locking, hubahu layout preservation, and dual-column export.'] 
-    },
-    { 
-      key: 'resumeai', 
-      title: 'ResumeAI Pro', 
-      status: 'Upcoming / Career Platform', 
-      bullets: ['Intelligent generative career platform with strict ATS fact-locking, hubahu layout preservation, and dual-column export.'] 
-    }
-  ];
-
+  // 3. Extract Products & Apps with Status and Details dynamically
   const matchedProjects = [];
-  knownAppsCatalog.forEach(app => {
-    if (lower.includes(app.key) && !matchedProjects.some(p => p.title === app.title)) {
-      matchedProjects.push(app);
-    }
-  });
+  const projectListMatch = text.match(/(?:like|projects?|apps?|platforms?|products?|banaye|live\s*hai|impending)\s*[:\-]?\s*([A-Za-z0-9\s,._\-\/]+?)(?:\.|$|\s+(?:sara|sare|all|in|with|ki\s*help|using)\b)/i);
+  if (projectListMatch && projectListMatch[1]) {
+    const rawTokens = projectListMatch[1].split(/[,;]+/).map(t => t.trim()).filter(t => t.length >= 3 && !['etc', 'like', 'app', 'apps', 'project', 'projects', 'live', 'playstore'].includes(t.toLowerCase()));
+    rawTokens.forEach(t => {
+      const clean = t.replace(/\b(?:app|platform|web|live|in|on|playstore)\b/gi, '').trim();
+      if (clean.length >= 2 && !matchedProjects.some(p => p.title.toLowerCase() === clean.toLowerCase())) {
+        const isPlayStore = lower.includes('playstore') || lower.includes('play store') || lower.includes('android');
+        matchedProjects.push({
+          key: clean.toLowerCase(),
+          title: clean.charAt(0).toUpperCase() + clean.slice(1),
+          status: isPlayStore ? 'Live on Google Play Store' : 'Production Application',
+          bullets: [`Architected and engineered ${clean} from scratch with scalable cloud microservices and automated deployment pipelines.`]
+        });
+      }
+    });
+  }
 
   // Dynamic regex fallback for arbitrary user-specified projects
   const productSegmentRegex = /(?:project(?:s)?|product(?:s)?|apps?)(?:\s+banaya|\s+banaye|\s+built|\s+launched|\s+hai|\s+hain)?\s*(?:like|jaise|such\s+as|including)?\s*[:"']?([^.]+?)(?:\s*\.|\s*etc|\s*sab\s+live|\s*sara\s+scracth|\s*all\s+live|\s*sara\s+ai|\s*tools|\s*ki\s+help)/i;

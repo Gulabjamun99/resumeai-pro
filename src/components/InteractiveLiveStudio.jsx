@@ -205,7 +205,7 @@ export default function InteractiveLiveStudio({
       return;
     }
 
-    // 1.5 CONVERSATIONAL QUESTIONS & CV CHECKS (e.g. "education kha add kiye hai aap dikhaye", "nathcorp se pehle ek tha check krye")
+    // 1.5 CONVERSATIONAL QUESTIONS & CV CHECKS (e.g. "education kha add kiye hai aap dikhaye", "targetCompany se pehle ek tha check krye")
     if (isConversationalQuestion(trimmed)) {
       let geminiReply = null;
       try {

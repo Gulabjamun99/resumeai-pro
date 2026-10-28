@@ -246,7 +246,7 @@ export function isDiffInquiry(text) {
 /**
  * Checks if the user's message is a question, query, or check request
  * that does NOT instruct editing the CV content.
- * e.g. "education kha add kiye hai aap dikhaye", "nathcorp se pehle ek tha check krye",
+ * e.g. "education kha add kiye hai aap dikhaye", "targetCompany se pehle ek tha check krye",
  *      "ye education hai kya", "aapne ek employment hata diye", "check karo"
  */
 export function isConversationalQuestion(text) {
@@ -343,26 +343,26 @@ export function generateDomainImprovementOptions(currentCv) {
         title: 'Full-Stack AI & Rapid Prototyping Track',
         icon: '🚀',
         tag: 'Technical Track',
-        description: 'Highlights live Play Store apps (Gharmantra, Lensdraft), cloud services (Jyotish Connect, Mausam Veda), and modern AI toolchain (Antigravity AI, Claude, Supabase).',
-        actionPrompt: 'Apply Option 1: AI Vibe Coding & Rapid Prototyping Track (Focus on live apps, GitHub, and full-stack cloud projects)'
+        description: 'Highlights hands-on engineering, product prototyping, modern frameworks, and live applications.',
+        actionPrompt: 'Apply Option 1: Technical & Rapid Product Prototyping focus'
       },
       {
         id: 'opt-hybrid-exec',
-        label: 'Option 2: Executive Talent Acquisition & Leadership Track',
-        title: 'Executive Talent Acquisition & Leadership Track',
+        label: 'Option 2: Talent Strategy & People Leadership Track',
+        title: 'Talent Strategy & People Leadership Track',
         icon: '💼',
         tag: 'Leadership Track',
-        description: 'Focuses on 9+ years enterprise recruitment, vendor portfolio management, cost-per-hire reduction, and strategic headcount planning.',
-        actionPrompt: 'Apply Option 2: Executive Talent Acquisition Leadership Track (Focus on vendor governance, cost reduction, and hiring velocity)'
+        description: 'Focuses on enterprise talent acquisition, stakeholder alignment, vendor management, and hiring efficiency.',
+        actionPrompt: 'Apply Option 2: Strategic Talent Leadership & Hiring Velocity focus'
       },
       {
         id: 'opt-hybrid-balanced',
-        label: 'Option 3: Strategic Dual-Power Hybrid Track',
-        title: 'Strategic Dual-Power Hybrid Track',
+        label: 'Option 3: Strategic Operations & Workflow Automation Track',
+        title: 'Strategic Operations & Workflow Automation Track',
         icon: '🎯',
         tag: 'ATS Optimized',
-        description: 'Combines senior HR strategic acumen with modern AI automation tools (Power BI dashboards, ATS automation, workflow optimization).',
-        actionPrompt: 'Apply Option 3: Balanced AI Product & Talent Operations Track (Dual HR leadership and AI workflow automation)'
+        description: 'Combines organizational leadership with workflow automation, analytics dashboards, and operational excellence.',
+        actionPrompt: 'Apply Option 3: Balanced Operations & Workflow Automation focus'
       }
     ];
   } else if (isTechOrAi) {

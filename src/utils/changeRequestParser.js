@@ -752,7 +752,7 @@ export function extractSkillsList(lines, rawPrompt = '') {
  * Specialized parser for Independent Consultant, Freelance, and AI Vibe Coding requests.
  * Extracts:
  * - Independent Consultant role (April 2015 - Present, STAR bullets)
- * - All mentioned live and upcoming projects (Gharmantra, Lensdraft, Jyotish Connect, Mausam Veda, Turtleping, KharchaBook, ResumeAI Pro)
+ * - All mentioned live and upcoming projects (mobileApp, utilityApp, webPlatform, cloudApp, networkApp, financeApp, ResumeAI Pro)
  * - All mentioned modern AI tools & cloud stack (Antigravity AI, Claude AI, OpenAI Codex, ChatGPT, Firebase, Supabase, GitHub, Vercel, etc.)
  * - Polished corporate executive summary
  */
@@ -774,21 +774,18 @@ export function parseConsultantAndVibeCodingRequest(promptText, currentCvState) 
 
   const hasProjectsOrTools = (
     lower.includes('project') ||
-    lower.includes('gharmantra') ||
-    lower.includes('lensdraft') ||
-    lower.includes('jyotish') ||
-    lower.includes('mausam') ||
-    lower.includes('turtleping') ||
-    lower.includes('kharcha') ||
+    lower.includes('app') ||
+    lower.includes('platform') ||
     lower.includes('playstore') ||
+    lower.includes('tool') ||
     lower.includes('claude') ||
     lower.includes('codex') ||
     lower.includes('chatgpt') ||
     lower.includes('antigravity') ||
-    lower.includes('cantigravity') ||
     lower.includes('supabase') ||
     lower.includes('firebase') ||
-    lower.includes('vercel')
+    lower.includes('vercel') ||
+    lower.includes('github')
   );
 
   // If prompt is critiquing the timeline or asking if "since..." is necessary/should be removed, bypass holistic consultant adder
@@ -824,105 +821,31 @@ export function parseConsultantAndVibeCodingRequest(promptText, currentCvState) 
     period = mo ? `${mo} ${yr} - Present` : `${yr} - Present`;
   }
 
-  // 2. Extract Projects Catalog
-  const knownProjectsCatalog = [
-    {
-      key: 'gharmantra',
-      title: 'GharMantra',
-      status: 'Live on Google Play Store',
-      type: 'mobile',
-      description: 'Engineered smart home lifestyle & DIY maintenance utility app on Google Play Store featuring 500+ household hacks, natural cleaning solutions, and 100% offline access.'
-    },
-    {
-      key: 'lensdraft',
-      title: 'LensDraft',
-      status: 'Live on Google Play Store',
-      type: 'mobile',
-      description: 'Published ultra-fast, 100% offline document scanner, passport photo resizer, and PDF utility on Google Play Store with client-side edge detection and zero server upload.'
-    },
-    {
-      key: 'jyotish connect',
-      title: 'Jyotish Connect',
-      status: 'Live Cloud Application',
-      type: 'cloud',
-      description: 'Architected high-availability astrology consulting web platform with real-time consultation scheduling and secure payments.'
-    },
-    {
-      key: 'jyotishconnect',
-      title: 'Jyotish Connect',
-      status: 'Live Cloud Application',
-      type: 'cloud',
-      description: 'Architected high-availability astrology consulting web platform with real-time consultation scheduling and secure payments.'
-    },
-    {
-      key: 'mausam veda',
-      title: 'Mausam Veda',
-      status: 'Live Cloud Application',
-      type: 'cloud',
-      description: 'Engineered weather intelligence and agro-climate forecasting dashboard with automated API telemetry integration.'
-    },
-    {
-      key: 'mausamveda',
-      title: 'Mausam Veda',
-      status: 'Live Cloud Application',
-      type: 'cloud',
-      description: 'Engineered weather intelligence and agro-climate forecasting dashboard with automated API telemetry integration.'
-    },
-    {
-      key: 'turtleping',
-      title: 'Turtleping',
-      status: 'Live Network Monitor',
-      type: 'cloud',
-      description: 'Built network latency monitoring and server uptime alert service with automated ping telemetry.'
-    },
-    {
-      key: 'kharchabook',
-      title: 'KharchaBook',
-      status: 'Impending Release / Shared Finance',
-      type: 'upcoming',
-      description: 'Architected modern group expense sharing and financial ledger application with automated split calculations and cloud backup.'
-    },
-    {
-      key: 'kharcha book',
-      title: 'KharchaBook',
-      status: 'Impending Release / Shared Finance',
-      type: 'upcoming',
-      description: 'Architected modern group expense sharing and financial ledger application with automated split calculations and cloud backup.'
-    },
-    {
-      key: 'resume ai',
-      title: 'ResumeAI Pro',
-      status: 'Impending Release / ATS Suite',
-      type: 'upcoming',
-      description: 'Engineered ATS-optimized intelligent resume builder with real-time grammar refinement, automated PDF generation, and multi-template rendering.'
-    },
-    {
-      key: 'resumeai',
-      title: 'ResumeAI Pro',
-      status: 'Impending Release / ATS Suite',
-      type: 'upcoming',
-      description: 'Engineered ATS-optimized intelligent resume builder with real-time grammar refinement, automated PDF generation, and multi-template rendering.'
-    }
-  ];
-
+  // 2. Extract Projects Dynamically from User Instruction
   const matchedProjects = [];
   const seenProj = new Set();
 
-  knownProjectsCatalog.forEach(p => {
-    if (lower.includes(p.key) && !seenProj.has(p.title.toLowerCase())) {
-      seenProj.add(p.title.toLowerCase());
-      matchedProjects.push({
-        id: `proj-${p.title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
-        title: p.title,
-        status: p.status,
-        techStack: 'Antigravity, Claude, Codex, ChatGPT, Firebase, Supabase, Vercel, GitHub',
-        description: p.description,
-        bullets: [p.description]
-      });
-    }
-  });
+  const projectListMatch = rawText.match(/(?:like|projects?|apps?|platforms?|products?|banaye|live\s*hai|impending)\s*[:\-]?\s*([A-Za-z0-9\s,._\-\/]+?)(?:\.|$|\s+(?:sara|sare|all|in|with|ki\s*help|using)\b)/i);
+  if (projectListMatch && projectListMatch[1]) {
+    const rawTokens = projectListMatch[1].split(/[,;]+/).map(t => t.trim()).filter(t => t.length >= 3 && !['etc', 'like', 'app', 'apps', 'project', 'projects', 'live', 'playstore'].includes(t.toLowerCase()));
+    rawTokens.forEach(t => {
+      const clean = t.replace(/\b(?:app|platform|web|live|in|on|playstore)\b/gi, '').trim();
+      if (clean.length >= 2 && !seenProj.has(clean.toLowerCase())) {
+        seenProj.add(clean.toLowerCase());
+        const isPlayStore = lower.includes('playstore') || lower.includes('play store') || lower.includes('android');
+        matchedProjects.push({
+          id: `proj-${clean.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+          title: clean.charAt(0).toUpperCase() + clean.slice(1),
+          status: isPlayStore ? 'Live on Google Play Store' : 'Production Application',
+          techStack: 'Modern Full-Stack & Cloud Architecture',
+          description: `Architected and engineered ${clean} from scratch with scalable cloud services and automated deployment pipelines.`,
+          bullets: [`Architected and engineered ${clean} from scratch with scalable cloud services and automated deployment pipelines.`]
+        });
+      }
+    });
+  }
 
-  // 3. Extract Tools & Skills Catalog
+  // 3. Extract Tools & Skills Dynamically
   const toolsCatalog = [
     { key: 'cantigravity', name: 'Antigravity AI' },
     { key: 'antigravity', name: 'Antigravity AI' },
@@ -934,7 +857,12 @@ export function parseConsultantAndVibeCodingRequest(promptText, currentCvState) 
     { key: 'guthub', name: 'GitHub' },
     { key: 'github', name: 'GitHub' },
     { key: 'vercel', name: 'Vercel' },
-    { key: 'vibe coding', name: 'AI Vibe Coding & Rapid Prototyping' }
+    { key: 'vibe coding', name: 'AI Vibe Coding & Rapid Prototyping' },
+    { key: 'react', name: 'React.js' },
+    { key: 'node', name: 'Node.js' },
+    { key: 'python', name: 'Python' },
+    { key: 'aws', name: 'AWS' },
+    { key: 'docker', name: 'Docker' }
   ];
 
   const matchedSkills = [];
@@ -946,35 +874,40 @@ export function parseConsultantAndVibeCodingRequest(promptText, currentCvState) 
     }
   });
 
-  if (!seenSkill.has('full-stack development')) {
-    matchedSkills.push('Full-Stack Development');
+  if (matchedSkills.length === 0) {
+    matchedSkills.push('Full-Stack Development', 'Cloud Microservices', 'Rapid Prototyping');
   }
 
-  // 4. Synthesize Consultant Work Experience
+  // 4. Synthesize Consultant Work Experience Dynamically
   const playStoreApps = matchedProjects.filter(p => p.status.includes('Play Store')).map(p => p.title);
-  const cloudApps = matchedProjects.filter(p => p.status.includes('Cloud') || p.status.includes('Network')).map(p => p.title);
-  const upcomingApps = matchedProjects.filter(p => p.status.includes('Impending')).map(p => p.title);
+  const cloudApps = matchedProjects.filter(p => !p.status.includes('Play Store')).map(p => p.title);
 
   const expBullets = [
-    `Spearheaded zero-to-one product development as an Independent Consultant, architecting and engineering web and mobile applications from scratch utilizing modern AI toolchains (Antigravity, Claude, OpenAI Codex, ChatGPT).`,
-    `Engineered, published, and maintained live production applications on Google Play Store (${playStoreApps.join(', ') || 'Gharmantra, Lensdraft'}) with 99.9% crash-free session stability and automated deployment pipelines.`,
-    `Built and scaled resilient cloud platforms (${cloudApps.join(', ') || 'Jyotish Connect, Mausam Veda, Turtleping'}) and active upcoming releases (${upcomingApps.join(', ') || 'KharchaBook, ResumeAI Pro'}) leveraging Supabase, Firebase, GitHub, and Vercel.`
+    `Spearheaded zero-to-one product development as an Independent Consultant, architecting and engineering web and mobile software solutions from scratch utilizing modern developer toolchains.`,
+    playStoreApps.length > 0
+      ? `Engineered, published, and maintained live production applications on Google Play Store (${playStoreApps.join(', ')}) with 99.9% crash-free session stability and automated deployment pipelines.`
+      : `Built and maintained scalable production web and mobile software platforms with automated CI/CD deployment pipelines.`,
+    cloudApps.length > 0
+      ? `Engineered and scaled resilient cloud platforms (${cloudApps.join(', ')}) leveraging modern cloud backends, secure APIs, and responsive frontends.`
+      : `Architected and deployed resilient cloud applications and microservices with high availability and optimized data architectures.`
   ];
 
   const consultantExp = {
     id: `exp-independent-consultant-${Date.now()}`,
     operation: 'ADD',
     section: 'experience',
-    company: 'Independent Consulting & AI Product Ventures',
-    role: 'Independent Consultant & Full-Stack AI Engineer',
+    company: 'Independent Consulting & Product Engineering',
+    role: 'Independent AI Product Consultant & Full-Stack Engineer',
     period: period,
-    location: 'Remote',
+    location: 'Remote / Global',
     bullets: expBullets,
-    description: `Added Independent Consultant & Full-Stack AI Engineer role (${period})`
+    description: `Added Independent Consultant & Full-Stack Engineer role (${period})`
   };
 
-  // 5. Synthesize Professional Corporate Executive Summary
-  const executiveSummary = `Accomplished Independent Consultant and Full-Stack AI Vibe Developer with a proven track record of engineering digital products from scratch and publishing live applications to the Google Play Store (${playStoreApps.join(', ') || 'Gharmantra, Lensdraft'}) and cloud platforms (${cloudApps.concat(upcomingApps).join(', ') || 'Jyotish Connect, Mausam Veda, KharchaBook, ResumeAI Pro'}). Expertise in rapid AI-accelerated development utilizing Claude, Codex, ChatGPT, and Antigravity, coupled with robust cloud infrastructure across Supabase, Firebase, and Vercel. Adept at transforming visionary product concepts into scalable, user-centric production software.`;
+  // 5. Synthesize Professional Corporate Executive Summary Dynamically
+  const allAppNames = matchedProjects.map(p => p.title);
+  const appSnippet = allAppNames.length > 0 ? ` (${allAppNames.join(', ')})` : '';
+  const executiveSummary = `Accomplished Independent Consultant and Full-Stack Developer with a proven track record of engineering digital products from scratch and deploying live production applications${appSnippet}. Expertise in rapid prototyping, component architecture, and modern cloud infrastructure. Adept at transforming complex business and technical requirements into scalable, high-performance production software.`;
 
   // 6. Build Atomic Operations & Authorized Changes
   const operations = [];
@@ -1257,7 +1190,7 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
     expLines = lines;
   }
 
-  // Detect relative placement if user specifies: e.g. "nathcorp ke upar ye employment rkhye"
+  // Detect relative placement if user specifies: e.g. "targetCompany ke upar ye employment rkhye"
   let placeBeforeCompany = null;
   let placeAfterCompany = null;
   const placeBeforeMatch = rawText.match(/([A-Za-z0-9\s.&'-]+?)\s*(?:ke\s*upar|ke\s*pehle|se\s*pehle|above|before)\s*(?:ye\s*)?(?:employment|job|role|experience)?\s*(?:rkhye|rakho|rakhiye|daalo|add|insert|karo)/i);
@@ -1279,7 +1212,7 @@ export function parseComprehensiveChangeRequest(promptText, currentCvState, sour
         const eComp = (e.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
         const newComp = (exp.company || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
 
-        // If this existing company is the reference anchor for relative placement (e.g. "above Nathcorp"),
+        // If this existing company is the reference anchor for relative placement (e.g. "above targetCompany"),
         // it cannot be the company being added or modified!
         if (placeBeforeCompany && eComp.includes(placeBeforeCompany.toLowerCase())) return false;
         if (placeAfterCompany && eComp.includes(placeAfterCompany.toLowerCase())) return false;

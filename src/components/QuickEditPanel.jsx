@@ -427,7 +427,7 @@ export default function QuickEditPanel({
                           }
                         })}
                         className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-xs text-white"
-                        placeholder="e.g. Lovely Professional University, Punjab"
+                        placeholder="e.g. State University / College Name"
                       />
                     </div>
                     <div>
@@ -549,7 +549,7 @@ export default function QuickEditPanel({
                           }
                         })}
                         className="w-full bg-slate-900 border border-slate-800 rounded p-1.5 text-xs text-white"
-                        placeholder="e.g. GharMantra"
+                        placeholder="e.g. Mobile Utility App / E-Commerce Platform"
                       />
                     </div>
                     <div>
