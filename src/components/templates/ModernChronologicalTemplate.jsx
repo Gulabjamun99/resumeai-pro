@@ -1,3 +1,4 @@
+import { formatEducationItem } from '../../utils/educationFormatter';
 import React from 'react';
 import { Mail, Phone, MapPin, Globe } from 'lucide-react';
 
@@ -82,9 +83,16 @@ export default function ModernChronologicalTemplate({ resume, id = "resume-docum
           {education.length > 0 && (
             <div>
               <span className="font-bold text-slate-900 uppercase text-[10.5px] block">Education</span>
-              {education.map((edu, idx) => (
-                <div key={idx} className="text-slate-600">{typeof edu === 'string' ? edu : `${edu.degree || ''} • ${edu.school || ''}`}</div>
-              ))}
+              {education.map((edu, idx) => {
+                const item = formatEducationItem(edu);
+                return (
+                  <div key={idx} className="text-slate-700 font-medium text-[10.5px] mb-1">
+                    <span className="font-bold text-slate-900">{item.degree}</span>
+                    {item.subLine && <span className="text-slate-600 block text-[10px]">{item.subLine}</span>}
+                    {item.details && <span className="text-slate-500 text-[9.5px] block italic">{item.details}</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
           {certifications.length > 0 && (

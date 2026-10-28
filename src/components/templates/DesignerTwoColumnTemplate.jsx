@@ -1,6 +1,7 @@
 import React from 'react';
 import { Mail, Phone, MapPin, Globe, CheckCircle2, Briefcase, GraduationCap, Award, Code2, Sparkles, Terminal } from 'lucide-react';
 import { DEFAULT_DESIGN_THEME } from '../../data/themePresets';
+import { formatEducationItem } from '../../utils/educationFormatter';
 
 /**
  * DESIGNER DUAL-COLUMN ATS TEMPLATE
@@ -203,25 +204,33 @@ export default function DesignerTwoColumnTemplate({
             Education
           </h3>
           <div className="flex flex-col gap-2 text-[10.5px]">
-            {education.map((edu, idx) => (
-              <div 
-                key={idx}
-                className="p-2 rounded border"
-                style={{
-                  backgroundColor: 'rgba(255,255,255,0.05)',
-                  borderColor: 'rgba(255,255,255,0.1)'
-                }}
-              >
-                <span className="font-bold text-[11px] block text-white leading-tight">
-                  {typeof edu === 'string' ? edu : edu.degree || ''}
-                </span>
-                {typeof edu === 'object' && edu.school && (
-                  <span className="opacity-75 text-[10px] block mt-0.5">
-                    {edu.school} {edu.year ? `(${edu.year})` : ''}
+            {education.map((edu, idx) => {
+              const item = formatEducationItem(edu);
+              return (
+                <div 
+                  key={idx}
+                  className="p-2 rounded border"
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.05)',
+                    borderColor: 'rgba(255,255,255,0.1)'
+                  }}
+                >
+                  <span className="font-bold text-[11px] block text-white leading-tight">
+                    {item.degree}
                   </span>
-                )}
-              </div>
-            ))}
+                  {item.subLine && (
+                    <span className="opacity-80 text-[10px] block mt-0.5 text-slate-300">
+                      {item.subLine}
+                    </span>
+                  )}
+                  {item.details && (
+                    <span className="opacity-70 text-[9.5px] block mt-0.5 text-slate-400 italic">
+                      {item.details}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

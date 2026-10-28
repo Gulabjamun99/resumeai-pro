@@ -1,5 +1,6 @@
 import React from 'react';
 import { Mail, Phone, MapPin, Globe } from 'lucide-react';
+import { formatEducationItem } from '../../utils/educationFormatter';
 
 /**
  * ORIGINAL SOURCE TEMPLATE RENDERER (P1.6 DYNAMIC TEMPLATE REPLICA ENGINE)
@@ -128,18 +129,26 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
                 Education
               </h2>
               <div className="flex flex-col gap-2 text-xs text-slate-300">
-                {education.map((edu, idx) => (
-                  <div key={idx} className="leading-tight bg-slate-800/40 p-2 rounded border border-slate-800">
-                    <span className="font-bold text-slate-100 text-[11px] block">
-                      {typeof edu === 'string' ? edu : edu.degree || ''}
-                    </span>
-                    {typeof edu === 'object' && edu.school && (
-                      <span className="text-slate-400 text-[10px] block mt-0.5">
-                        {edu.school} {edu.year ? `(${edu.year})` : ''}
+                {education.map((edu, idx) => {
+                  const item = formatEducationItem(edu);
+                  return (
+                    <div key={idx} className="leading-tight bg-slate-800/40 p-2 rounded border border-slate-800">
+                      <span className="font-bold text-slate-100 text-[11px] block">
+                        {item.degree}
                       </span>
-                    )}
-                  </div>
-                ))}
+                      {item.subLine && (
+                        <span className="text-slate-400 text-[10px] block mt-0.5">
+                          {item.subLine}
+                        </span>
+                      )}
+                      {item.details && (
+                        <span className="text-slate-400 text-[9.5px] block mt-0.5 italic">
+                          {item.details}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </section>
           )}
@@ -461,13 +470,18 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
       {(education.length > 0 || certifications.length > 0) && (
         <section className="mt-auto pt-3 border-t border-slate-200 flex flex-wrap justify-between gap-4 text-xs text-slate-700">
           {education.length > 0 && (
-            <div>
+            <div className="flex flex-col gap-1">
               <span className="font-bold text-slate-900 uppercase text-[11px] block">Education</span>
-              {education.map((edu, idx) => (
-                <div key={idx} className="text-slate-600 font-medium">
-                  {typeof edu === 'string' ? edu : `${edu.degree || ''} • ${edu.school || ''}`}
-                </div>
-              ))}
+              {education.map((edu, idx) => {
+                const item = formatEducationItem(edu);
+                return (
+                  <div key={idx} className="text-slate-700 font-medium text-[10.5px]">
+                    <span className="font-bold text-slate-900">{item.degree}</span>
+                    {item.subLine && <span className="text-slate-600 block text-[10px]">{item.subLine}</span>}
+                    {item.details && <span className="text-slate-500 block text-[9.5px] italic">{item.details}</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
 

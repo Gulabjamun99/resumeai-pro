@@ -1,3 +1,4 @@
+import { formatEducationItem } from '../../utils/educationFormatter';
 import React from 'react';
 import { Mail, Phone, MapPin, Globe, Sparkles, Briefcase, Award } from 'lucide-react';
 
@@ -167,11 +168,16 @@ export default function CreativeStartupTemplate({ resume, id = "resume-document"
           {education.length > 0 && (
             <div className="flex flex-col gap-1">
               <span className="font-bold text-slate-900 uppercase text-[11px]">Education</span>
-              {education.map((edu, idx) => (
-                <div key={idx} className="text-slate-600 font-medium">
-                  {typeof edu === 'string' ? edu : `${edu.degree || ''} ${edu.school ? `• ${edu.school}` : ''}`}
-                </div>
-              ))}
+              {education.map((edu, idx) => {
+                const item = formatEducationItem(edu);
+                return (
+                  <div key={idx} className="text-slate-700 font-medium text-[10.5px]">
+                    <span className="font-bold text-slate-900">{item.degree}</span>
+                    {item.subLine && <span className="text-slate-600 block text-[10px]">{item.subLine}</span>}
+                    {item.details && <span className="text-slate-500 text-[9.5px] block italic">{item.details}</span>}
+                  </div>
+                );
+              })}
             </div>
           )}
 

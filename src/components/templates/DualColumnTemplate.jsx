@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatEducationItem } from '../../utils/educationFormatter';
 
 /**
  * TEMPLATE A: CLASSIC DUAL-COLUMN ATS TEMPLATE (Baseline Production Layout)
@@ -162,11 +163,18 @@ export default function DualColumnTemplate({ resume, id = "resume-document" }) {
               <span className="w-1.5 h-3.5 bg-sky-600 rounded-sm inline-block"></span>
               Education
             </h3>
-            <ul className="list-square pl-4 text-[10px] text-slate-700 flex flex-col gap-0.5">
-              {education.map((edu, idx) => (
-                <li key={idx}>▪ {edu}</li>
-              ))}
-            </ul>
+            <div className="flex flex-col gap-2 text-[10px] text-slate-700">
+              {education.map((edu, idx) => {
+                const item = formatEducationItem(edu);
+                return (
+                  <div key={idx} className="leading-tight">
+                    <span className="font-bold text-slate-900 block text-[10.5px]">{item.degree}</span>
+                    {item.subLine && <span className="text-slate-600 block mt-0.5">{item.subLine}</span>}
+                    {item.details && <span className="text-slate-500 text-[9.5px] block mt-0.5 italic">{item.details}</span>}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

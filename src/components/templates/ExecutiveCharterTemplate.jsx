@@ -1,3 +1,4 @@
+import { formatEducationItem } from '../../utils/educationFormatter';
 import React from 'react';
 import { Mail, Phone, MapPin, Globe } from 'lucide-react';
 

@@ -1,3 +1,4 @@
+import { formatEducationItem } from '../../utils/educationFormatter';
 import React from 'react';
 import { Mail, Phone, MapPin, Globe } from 'lucide-react';
 
@@ -76,7 +77,7 @@ export default function CompactOnePageTemplate({ resume, id = "resume-document" 
       {(education.length > 0 || certifications.length > 0) && (
         <section className="mt-auto pt-1.5 border-t border-slate-200 flex justify-between text-[10.5px] text-slate-700">
           {education.length > 0 && (
-            <div><span className="font-bold">Education: </span>{education.map(e => typeof e === 'string' ? e : e.degree).join(' • ')}</div>
+            <div><span className="font-bold">Education: </span>{education.map(e => formatEducationItem(e).formattedLine).join(' • ')}</div>
           )}
           {certifications.length > 0 && (
             <div><span className="font-bold">Certifications: </span>{certifications.map(c => typeof c === 'string' ? c : c.name).join(' • ')}</div>

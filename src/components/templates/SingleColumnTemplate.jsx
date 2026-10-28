@@ -1,3 +1,4 @@
+import { formatEducationItem } from '../../utils/educationFormatter';
 import React from 'react';
 
 /**
@@ -153,11 +154,18 @@ export default function SingleColumnTemplate({ resume, id = "resume-document" })
               <h3 className="text-[11.5px] font-bold uppercase tracking-wider text-slate-950 border-b border-slate-300 pb-0.5 mb-1.5">
                 Education
               </h3>
-              <ul className="list-disc pl-4 text-[10px] text-slate-800 flex flex-col gap-0.5">
-                {education.map((edu, idx) => (
-                  <li key={idx}>{edu}</li>
-                ))}
-              </ul>
+              <div className="flex flex-col gap-2 text-[10px] text-slate-800">
+                {education.map((edu, idx) => {
+                  const item = formatEducationItem(edu);
+                  return (
+                    <div key={idx} className="leading-tight">
+                      <span className="font-bold text-slate-950 block text-[10.5px]">{item.degree}</span>
+                      {item.subLine && <span className="text-slate-600 block mt-0.5">{item.subLine}</span>}
+                      {item.details && <span className="text-slate-500 text-[9.5px] block mt-0.5 italic">{item.details}</span>}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

@@ -1,3 +1,4 @@
+import { formatEducationItem } from '../../utils/educationFormatter';
 import React from 'react';
 import { Mail, Phone, MapPin, Globe, BookOpen, GraduationCap, Shield } from 'lucide-react';
 
@@ -67,12 +68,19 @@ export default function AcademicMedicalTemplate({ resume, id = "resume-document"
             Education & Academic Appointments
           </h2>
           <div className="flex flex-col gap-1.5 text-xs text-slate-800">
-            {education.map((edu, idx) => (
-              <div key={idx} className="flex justify-between font-serif">
-                <span className="font-semibold">{typeof edu === 'string' ? edu : edu.degree || ''}</span>
-                <span className="text-slate-600 italic font-sans">{typeof edu === 'object' ? edu.school : ''}</span>
-              </div>
-            ))}
+            {education.map((edu, idx) => {
+                const item = formatEducationItem(edu);
+                return (
+                  <div key={idx} className="flex flex-col font-serif mb-1">
+                    <div className="flex justify-between">
+                      <span className="font-semibold">{item.degree}</span>
+                      {item.year && <span className="text-slate-600 italic font-sans">{item.year}</span>}
+                    </div>
+                    {item.institution && <span className="text-slate-700 text-[11px] font-sans">{[item.institution, item.location].filter(Boolean).join(', ')}</span>}
+                    {item.details && <span className="text-slate-500 text-[10.5px] font-sans italic">{item.details}</span>}
+                  </div>
+                );
+              })}
           </div>
         </section>
       )}

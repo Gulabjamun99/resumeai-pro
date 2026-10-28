@@ -7,6 +7,7 @@
  */
 
 import { sanitizeCandidateFilename } from './pdfExporter';
+import { formatEducationItem } from './educationFormatter';
 
 export async function exportResumeToDocx(resume, version = 1, templateId = 'designer-dual') {
   if (!resume) {
@@ -162,42 +163,28 @@ export async function exportResumeToDocx(resume, version = 1, templateId = 'desi
       );
 
       education.forEach(edu => {
-        if (typeof edu === 'string') {
+        const item = formatEducationItem(edu);
+        const line = [item.degree, item.subLine].filter(Boolean).join("  —  ");
+
+        docChildren.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "▪  ", bold: true, color: accentColor }),
+              new TextRun({ text: line || item.formattedLine, bold: true, size: 20, color: "0F172A" })
+            ],
+            spacing: { before: 60, after: 30 }
+          })
+        );
+
+        if (item.details) {
           docChildren.push(
             new Paragraph({
               children: [
-                new TextRun({ text: "▪  ", bold: true, color: accentColor }),
-                new TextRun({ text: edu, size: 20, color: "1E293B" })
+                new TextRun({ text: `   ${item.details}`, italic: true, size: 18, color: "475569" })
               ],
               spacing: { after: 60 }
             })
           );
-        } else if (typeof edu === 'object' && edu !== null) {
-          const degreeStr = edu.degree || "Degree";
-          const instStr = edu.institution || edu.school || "";
-          const yearStr = edu.year || edu.duration || "";
-          const line = [degreeStr, instStr, yearStr ? `(${yearStr})` : ''].filter(Boolean).join("  —  ");
-
-          docChildren.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: "▪  ", bold: true, color: accentColor }),
-                new TextRun({ text: line, bold: true, size: 20, color: "0F172A" })
-              ],
-              spacing: { before: 60, after: 30 }
-            })
-          );
-
-          if (edu.details) {
-            docChildren.push(
-              new Paragraph({
-                children: [
-                  new TextRun({ text: `   ${edu.details}`, italic: true, size: 18, color: "475569" })
-                ],
-                spacing: { after: 60 }
-              })
-            );
-          }
         }
       });
     }
