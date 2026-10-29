@@ -1,18 +1,17 @@
 /**
- * RESUMEAI PRO — ADVANCED GEMINI AI ENGINE
- * Powered by Google Gemini 2.5 Flash
+ * RESUMEAI PRO — ADVANCED GEMINI 2.5 FLASH AI ENGINE
  * 
  * Supports:
- * 1. Direct Client Integration with Gemini 2.5 Flash via VITE_GEMINI_API_KEY
- * 2. Automatic Fallback to Server-Side Route (/api/cv/update)
- * 3. Human-like Conversational AI Career & Resume Guide (ChatGPT / Gemini style)
- * 4. Dynamic ATS Bullet & Summary Enhancement
- * 5. Robust Fallback to deterministic local engine if network fails
+ * 1. Multi-modal Vision Parsing for scanned PDFs, Canva exports, and images (PNG, JPG)
+ * 2. High-precision Text Parsing for digital PDFs, DOCX, and TXT files
+ * 3. Conversational Live Studio Assistant & Real-time Resume Refiner
+ * 4. Strict 1-2 Page Budgeting with 100% Fact Retention
+ * 5. Strict Language Mandate: 100% Prestigious Corporate English inside the CV
  */
 
 const CANDIDATE_MODELS = [
-  'gemini-3.5-flash-lite',
-  'gemini-2.5-flash'
+  'gemini-2.5-flash',
+  'gemini-3.5-flash-lite'
 ];
 
 let currentKeyIndex = 0;
@@ -27,381 +26,117 @@ function getApiKeys() {
 }
 
 /**
- * Core Gemini API Caller
- * Supports single-turn or multi-turn chat contents with multi-model fallback & multi-key rotation
+ * Universal Gemini API Caller (Text + Multi-Modal Images)
  */
 export async function callGeminiApi(promptText, systemInstruction = "", chatHistory = [], customConfig = {}, inlineImages = []) {
   const apiKeys = getApiKeys();
 
-  // Try direct Gemini API across candidate keys and models
-  if (apiKeys.length > 0) {
-    // Try up to all available keys in round-robin fashion
-    const keysToTry = [...apiKeys];
-    for (let kIdx = 0; kIdx < keysToTry.length; kIdx++) {
-      const apiKey = keysToTry[(currentKeyIndex + kIdx) % keysToTry.length];
-
-      for (const model of CANDIDATE_MODELS) {
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-            const contents = [];
-
-            let finalPrompt = promptText;
-            if (chatHistory && chatHistory.length > 0) {
-              const recentTurns = chatHistory.slice(-4).map(m => {
-                const role = m.sender === 'user' ? 'User' : 'AI Assistant';
-                return `${role}: ${m.text?.slice(0, 300) || ''}`;
-              }).join('\n');
-              finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Task/Message:\n${promptText}`;
-            }
-
-            const imageParts = (Array.isArray(inlineImages) ? inlineImages : []).map(img => {
-              const rawData = typeof img === 'string' ? img : (img.data || img.base64 || '');
-              return {
-                inlineData: {
-                  mimeType: (typeof img === 'object' && img.mimeType) ? img.mimeType : 'image/jpeg',
-                  data: rawData.replace(/^data:image\/\w+;base64,/, '')
-                }
-              };
-            });
-
-            if (systemInstruction) {
-              contents.push({
-                role: 'user',
-                parts: [
-                  { text: `System Instruction / Guiding Rules:\n${systemInstruction}\n\nTask:\n${finalPrompt}` },
-                  ...imageParts
-                ]
-              });
-            } else {
-              contents.push({
-                role: 'user',
-                parts: [
-                  { text: finalPrompt },
-                  ...imageParts
-                ]
-              });
-            }
-
-            const response = await fetch(url, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents,
-                generationConfig: {
-                  temperature: 0.1,
-                  maxOutputTokens: 8192,
-                  ...customConfig
-                }
-              }),
-              signal: AbortSignal.timeout(25000)
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (candidateText) {
-                currentKeyIndex = (currentKeyIndex + kIdx) % keysToTry.length;
-                return candidateText;
-              }
-            }
-
-            if (response.status === 429) {
-              console.warn(`Gemini (${model}) 429 rate limit hit. Trying next...`);
-              break;
-            }
-
-            if (response.status >= 500 && attempt === 0) {
-              console.warn(`Gemini (${model}) temporary server error ${response.status}. Retrying once...`);
-              await new Promise(r => setTimeout(r, 600));
-              continue;
-            }
-
-            console.warn(`Gemini model ${model} returned ${response.status}. Trying next candidate model...`);
-            break;
-          } catch (err) {
-            console.warn(`Gemini model ${model} attempt ${attempt + 1} error:`, err.message);
-            if (attempt === 0) {
-              await new Promise(r => setTimeout(r, 500));
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Fallback to backend server route
-  try {
-    const response = await fetch('/api/cv/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ promptText, systemInstruction })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return data.resultText || null;
-    }
-  } catch (err) {
-    console.warn("Server AI API fallback failed:", err.message);
-  }
-
-  return null;
-}
-
-/**
- * Intelligent Conversational Assistant for Live Studio Chat
- * Responds in natural, warm, helpful Hinglish/English just like ChatGPT/Gemini
- */
-export async function getGeminiChatResponse(userMessage, currentCv, diffContext = null, chatHistory = []) {
-  const systemInstruction = `You are the lead AI Career Mentor and Executive Resume Architect at ResumeAI Pro.
-You converse directly with candidates just like ChatGPT, Claude, or Google Gemini.
-Candidates converse with you about their resume, asking what changes were made, requesting edits, or asking for career advice.
-Respond in a friendly, conversational, intelligent, and CRISP tone (using conversational Hinglish or English matching the user's language).
-
-CRITICAL CONVERSATIONAL & RECRUITER RULES:
-1. TALK LIKE A REAL AI CAREER PARTNER: Be warm, intelligent, and highly supportive. Acknowledge what the user said naturally.
-2. SUBSTANTIVE & EMPOWERING: Give thoughtful, high-value career insights. Avoid generic clichés.
-3. NEVER DISMISSIVE OR RIGID: Never say "resume is already perfect" or "no changes needed" when a user asks how to improve or showcase their work. Always offer exciting, actionable ATS enhancements.
-4. EXPLAIN CHANGES WITH RECRUITER INSIGHT: If the user asks what was changed, explain the exact modifications with Before vs After context and recruiter impact.
-5. 100% CANDIDATE DYNAMIC CONTEXT GROUNDING:
-   - Ground all advice, answers, and context strictly on whatever candidate data is provided in "Current CV Context".
-   - If the candidate is building a fresh resume from scratch or has starter placeholders ("Your Full Name"), guide them step-by-step to provide their real details: Full Name, Target Role, Education, Work History or Internships, Projects, and Skills.
-   - NEVER invent companies, degrees, dates, or projects not provided by the candidate.`;
-
-  const cvSummary = {
-    name: currentCv?.header?.name,
-    title: currentCv?.header?.title || currentCv?.header?.headline,
-    summary: currentCv?.header?.summary?.slice(0, 150) + '...',
-    experiencesCount: currentCv?.experiences?.length,
-    companies: currentCv?.experiences?.map(e => `${e.company} (${e.role}, ${e.period || e.duration})`),
-    projectsCount: currentCv?.projects?.length,
-    projects: currentCv?.projects?.map(p => p.title || p.name),
-    skillsCount: Array.isArray(currentCv?.skills) ? currentCv.skills.length : Object.keys(currentCv?.skills || {}).length,
-    education: currentCv?.education || []
-  };
-
-  const prompt = `User Message: "${userMessage}"
-
-Current CV Context:
-${JSON.stringify(cvSummary, null, 2)}
-
-${diffContext ? `Recent Changes Made to CV:\n${diffContext}\n` : ''}
-
-Respond to the user naturally:`;
-
-  return await callGeminiApi(prompt, systemInstruction, chatHistory);
-}
-
-/**
- * Direct End-to-End AI Resume Refiner (ChatGPT / Claude / Gemini style)
- * Directly transforms the CV JSON based on the user's natural language instruction,
- * preserving facts while condensing, enhancing, or restructuring content.
- */
-export async function refineCvWithAi(userInstruction, currentCv, sourceMaster = null, chatHistory = []) {
-  if (!userInstruction || !currentCv) return null;
-
-  // 1. Resolve short affirmative follow-ups ("krye", "ha", "yes", "karo", "apply this", "update karo")
-  const trimmedInstruction = userInstruction.trim();
-  const isAffirmation = /^(?:krye|kariye|karo|ha|haan|yes|do\s*it|apply|theek\s*hai|kardo|update\s*karo|proceed|sure|bilkul|kar\s*do|sahi\s*hai)$/i.test(trimmedInstruction);
-  let resolvedInstruction = trimmedInstruction;
-  if (isAffirmation && chatHistory && chatHistory.length > 0) {
-    const lastAiMsg = [...chatHistory].reverse().find(m => m.sender === 'ai');
-    if (lastAiMsg && lastAiMsg.text) {
-      resolvedInstruction = `The user agreed ("${trimmedInstruction}") to your previous proposal: "${lastAiMsg.text}". Now execute those changes immediately: update the title, headline, summary, and relevant sections accordingly with full executive impact!`;
-    }
-  }
-
-  const systemInstruction = `You are the lead AI Resume Architect and Executive Career Mentor at ResumeAI Pro.
-You operate with the deep engineering excellence of ChatGPT, Claude, and Gemini, creating ATS-optimized, world-class executive resumes for candidates across ANY profession and domain.
-
-INPUT:
-1. Current CV JSON state
-2. Baseline Reference CV JSON (original master facts)
-3. User's instruction in natural language (English, Hindi, or Hinglish)
-
-RULES:
-1. CRITICAL CV LANGUAGE MANDATE (ZERO HINGLISH IN RESUME CANVAS):
-   - ALL text inside "updatedCv" (headline, title, summary, roles, companies, bullet points, skills, project titles, project descriptions) MUST BE WRITTEN IN 100% POLISHED, PRESTIGIOUS CORPORATE ENGLISH.
-   - ZERO HINGLISH OR HINDI WORDS are allowed inside "updatedCv".
-   - The "explanation" field returned to the user should be in friendly, consultative Hinglish/English explaining clearly and enthusiastically what was done and the ATS benefits.
-
-2. FACT INTEGRITY & STRICT ANTI-HALLUCINATION (CORE MANDATE):
-   - BASE RESUME CONTENT STRICTLY ON:
-     a) The candidate's current CV JSON state ("Current CV State")
-     b) The original baseline document ("Baseline Reference CV")
-     c) The user's explicit instruction or chat input
-     d) The target Job Description (if provided)
-   - NEVER invent phantom companies, fabricated universities, fake degrees, or unmentioned projects.
-   - When the user asks to enhance, optimize, or quantify existing bullet points, extrapolate logically and reasonably using professional STAR outcomes (Situation, Task, Action, Result) relevant to the candidate's actual role and industry, without changing real dates or company names.
-
-3. DYNAMIC MULTI-PERSONA SUPPORT (UNIVERSAL FOR ANY CANDIDATE):
-   - PERSONA 1 (Hubahu Upload & In-Place ATS Refinement):
-     * Preserve authentic structure, verified employers, real dates, and credentials from the uploaded document.
-     * Optimize ATS readability, active STAR action verbs, and quantified outcomes.
-   - PERSONA 2 (AI-Guided Fresh Resume Builder from Scratch):
-     * If the current CV contains starter placeholder content (e.g. name is "Your Full Name" or "Your Name", company is "Innovation Tech Labs", or "National Institute of Technology"), treat those entries as placeholder templates: when the candidate provides their real name, contact, experience, education, projects, or skills, REPLACE the corresponding placeholder items completely with the candidate's authentic details instead of appending next to the dummy entries.
-     * Transform conversational inputs into executive-level ATS sections.
-   - PERSONA 3 (Job Description Semantic Tailor):
-     * Semantically align candidate's verified experience with the target Job Description (JD).
-     * Highlight relevant keywords, core competencies, and domain terminology to maximize ATS match (95%+ match) without inventing fake roles.
-
-4. ATS EXPERIENCE & BULLET STANDARDS (HIGH-IMPACT STAR METHOD):
-   - When condensing or rewriting experience bullets:
-     * If user specifies a count (e.g. "5 pointers", "6 pointers"), output EXACTLY that many high-impact compound bullets.
-     * Start each bullet with a powerful active verb (e.g. Orchestrated, Engineered, Spearheaded, Accelerated, Streamlined, Formulated, Directed, Championed).
-     * Incorporate measurable metrics (percentages, volume, timelines, efficiency gains) where evidenced or implied by candidate input.
-   - Preserve all real companies and roles unless the user explicitly requests their deletion.
-
-5. RICH EDUCATION SECTION DETAILING ("PURA DETAIL LIKHEYE"):
-   - When adding, updating, or moving education entries to the 'education' array:
-     * ALWAYS output a fully detailed object containing ALL fields:
-       {
-         "degree": "Full degree title (e.g. Master of Business Administration (MBA), Bachelor of Business Administration (BBA))",
-         "institution": "Full university/college name (e.g. State University / National Institute / College Name)",
-         "school": "Same as institution for 100% template compatibility",
-         "location": "State/City/Country (e.g. California, USA or Bangalore, India)",
-         "year": "Passing year or graduation timeline (e.g. 2012, 2010)",
-         "duration": "Same as year",
-         "details": "Specialization or academic honors (e.g. Core focus on Marketing & Strategic Business Management)"
-       }
-     * NEVER truncate education entries to only degree title. The full institution, location, passing year, and academic focus must be preserved.
-     * Clean up any stray education degrees or academic passing years from employment bullet points.
-
-6. DYNAMIC PROFILE SUMMARY & HEADLINE:
-   - Craft an executive, ATS-optimized summary and headline dynamically tailored to the candidate's actual profession, years of experience, and target role.
-   - Never use static templates or preset candidate profiles. Reflect the candidate's actual domain (whether Tech, Engineering, HR, Sales, Finance, Healthcare, Creative, Operations, or fresher/intern).
-
-7. USER DIRECTIVE SUPREMACY & SPATIAL PLACEMENT ("USER JO BHI CHIJ JHA KARANA CHAHE KRNA HOGA"):
-   - The user has absolute directive authority over where content lives and what changes are made.
-   - If user instructs to put or move content to ANY section:
-     * "ye education section me daalo" -> Put it in 'education' with full detailing.
-     * "ye experience me daalo" -> Put it in 'experiences' with compound STAR bullets.
-     * "ye skills me daalo" -> Put it in 'skills'.
-     * "ye projects me daalo" -> Put it in 'projects'.
-     * "uske upar / before [X]" -> Insert immediately BEFORE item X.
-     * "uske niche / after [X]" -> Insert immediately AFTER item X.
-     * "ye hata do" -> Remove that specific item without breaking other items.
-   - Relative Placement:
-     * "uske upar" / "above [X]" / "before [X]": Place the new/restored item immediately BEFORE item X in the array.
-     * "uske niche" / "below [X]" / "after [X]": Place the new/restored item immediately AFTER item X in the array.
-     * "table me jodo" / "grid me add karo" / "skills me dalo": Append or insert directly into the respective array without breaking existing entries.
-   - STRICT LANGUAGE INTEGRITY ("GALAT LANGUAGE USE NA KRE"):
-     * Inside "updatedCv", ALL text must be 100% polished, prestigious, grammatically flawless Corporate English.
-     * ZERO Hinglish words, zero conversational commands ("ye hatao", "ye likho"), zero colloquialisms, and zero broken syntax in the resume document.
-   - Adding Anything ("kisi chij ko jorna"):
-     * Can add new experiences, projects, skills, education, certifications, or contact info anywhere in the CV JSON.
-   - Removing Anything ("htana"):
-     * Can remove specific bullet points, whole jobs, projects, degrees, or skills accurately without affecting unrelated items.
-   - Updating Anything ("update krna"):
-     * Can update dates, titles, metrics, locations, or phrasing in-place.
-   - Iterative Summary Refinement ("profile summary fir se likho", "aur acha karo", "ATS friendly banao"):
-     * When user asks to rewrite or improve the summary again, rewrite it fresh with maximum punch, quantifiable impact, and elite corporate English, tailored exactly to their feedback. Never say "already done".
-
-8. INTENT UNDERSTANDING & NOISE RESILIENCE:
-   - Filter out accidental punctuation, stray quotes, or typos.
-   - ALL SECTIONS INTEGRITY: Never drop existing companies, dates, or degrees unless explicitly asked to delete them.
-
-9. OUTPUT FORMAT: STRICT JSON ONLY. Do NOT include markdown code fences outside the JSON.
-{
-  "updatedCv": <complete updated CV object with all sections>,
-  "planSummary": "<brief 1-line English summary of what was updated>",
-  "explanation": "<friendly, clear, enthusiastic explanation in Hinglish detailing what was added/refined and recruiter impact>"
-}`;
-
-  const promptText = `User Instruction:
-"""${resolvedInstruction}"""
-
-Current CV State:
-${JSON.stringify(currentCv, null, 2)}
-
-Baseline Reference CV:
-${JSON.stringify(sourceMaster || currentCv, null, 2)}
-
-Apply the user instruction and return the updated CV JSON:`;
-
-  try {
-    const rawResult = await callGeminiApi(promptText, systemInstruction, chatHistory, {
-      responseMimeType: 'application/json'
-    });
-    if (!rawResult) return null;
-
-    // Clean JSON response (handling possible \`\`\`json ... \`\`\` wrapper)
-    let clean = rawResult.trim();
-    if (clean.startsWith('```json')) clean = clean.slice(7);
-    else if (clean.startsWith('```')) clean = clean.slice(3);
-    if (clean.endsWith('```')) clean = clean.slice(0, -3);
-    clean = clean.trim();
-
-    let parsed = null;
-    try {
-      parsed = JSON.parse(clean);
-    } catch (e1) {
-      const jsonMatch = clean.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          parsed = JSON.parse(jsonMatch[0]);
-        } catch (e2) {
-          try {
-            const sanitized = jsonMatch[0].replace(/[\u0000-\u001F]+/g, ' ');
-            parsed = JSON.parse(sanitized);
-          } catch (e3) {
-            console.warn("JSON parse fallback failed:", e3.message);
-          }
-        }
-      }
-    }
-
-    if (parsed && parsed.updatedCv && (parsed.updatedCv.header || parsed.updatedCv.experiences)) {
-      return parsed;
-    }
-  } catch (err) {
-    console.warn("refineCvWithAi LLM error:", err.message);
-  }
-
-  return null;
-}
-
-/**
- * Universal AI CV Parser (ChatGPT / Gemini style)
- * Extracts candidate data from any resume text across all professions with 0% data leakage,
- * strict 1-2 page compounding, and authentic layout detection.
- */
-export async function parseCvWithGemini(extractedText, layoutHint = 'single-column') {
-  if (!extractedText || extractedText.trim().length < 20) {
+  if (apiKeys.length === 0) {
+    console.warn("No Gemini API key detected. Please configure VITE_GEMINI_API_KEY.");
     return null;
   }
 
-  const systemInstruction = `You are the Lead Universal Resume Parser and Executive CV Architect at ResumeAI Pro.
-Your mission is to parse candidate resumes across ANY profession (Software Engineering, Medicine/Healthcare, Law, Finance/CA, Sales, HR, Academia, Freshers, C-Suite Executives) into our standardized Resume JSON schema.
+  const keysToTry = [...apiKeys];
+  for (let kIdx = 0; kIdx < keysToTry.length; kIdx++) {
+    const apiKey = keysToTry[(currentKeyIndex + kIdx) % keysToTry.length];
 
-CRITICAL INVARIANTS:
-1. ZERO DATA LEAKAGE / 100% CANDIDATE FACT ACCURACY:
-   - Extract ONLY the facts, names, dates, credentials, and achievements present in the provided document text.
-   - NEVER inject dummy data, placeholder companies, or details from other candidates.
-   - If a section (e.g. projects, certifications, publications, languages) is not present in the text, return an empty array [].
-2. UNIVERSAL 1 TO 2 PAGE COMPACT ATS BUDGET:
-   - Even if the source text spans 3 to 10 verbose pages, synthesize and compound verbose narrative text into crisp, high-impact STAR bullets (Situation, Action, Measurable Result).
-   - Balance bullet count (3 to 5 strong bullets per recent role, 2 to 3 for older roles) so the entire document comfortably fits within 1 to 2 standard A4 pages without omitting any real employers, job titles, dates, or degrees.
-3. AUTHENTIC LAYOUT DETECTION:
-   - Determine whether the original resume layout was:
-     * "two-column-left-sidebar" (if the document has a prominent sidebar with contact info, skills, education, and languages beside the main experience column).
-     * "single-column" (standard linear top-to-bottom layout).
-   - Spatial layout hint from document parser: "${layoutHint}". If confident, respect this layout style.
-4. 100% PRESTIGIOUS CORPORATE ENGLISH:
-   - Ensure all resume text inside the JSON is written in professional, polished Corporate English with strong action verbs.
+    for (const model of CANDIDATE_MODELS) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const contents = [];
 
-JSON OUTPUT STRUCTURE:
-Return a single strictly valid JSON object conforming to this exact structure:
+          let finalPrompt = promptText;
+          if (chatHistory && chatHistory.length > 0) {
+            const recentTurns = chatHistory.slice(-4).map(m => {
+              const role = m.sender === 'user' ? 'User' : 'AI Assistant';
+              return `${role}: ${m.text?.slice(0, 300) || ''}`;
+            }).join('\n');
+            finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Request:\n${promptText}`;
+          }
+
+          const imageParts = (Array.isArray(inlineImages) ? inlineImages : []).map(img => {
+            const rawData = typeof img === 'string' ? img : (img.data || img.base64 || '');
+            return {
+              inlineData: {
+                mimeType: (typeof img === 'object' && img.mimeType) ? img.mimeType : 'image/jpeg',
+                data: rawData.replace(/^data:image\/\w+;base64,/, '')
+              }
+            };
+          });
+
+          if (systemInstruction) {
+            contents.push({
+              role: 'user',
+              parts: [
+                { text: `System Instructions:\n${systemInstruction}\n\nTask:\n${finalPrompt}` },
+                ...imageParts
+              ]
+            });
+          } else {
+            contents.push({
+              role: 'user',
+              parts: [
+                { text: finalPrompt },
+                ...imageParts
+              ]
+            });
+          }
+
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents,
+              generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 8192,
+                ...customConfig
+              }
+            }),
+            signal: AbortSignal.timeout(28000)
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (candidateText) {
+              currentKeyIndex = (currentKeyIndex + kIdx) % keysToTry.length;
+              return candidateText;
+            }
+          }
+
+          if (response.status === 429) {
+            console.warn(`Gemini (${model}) rate limited (429). Rotating key/model...`);
+            break;
+          }
+
+          if (response.status >= 500 && attempt === 0) {
+            await new Promise(r => setTimeout(r, 600));
+            continue;
+          }
+        } catch (err) {
+          console.warn(`Gemini (${model}) attempt ${attempt + 1} error:`, err.message);
+          if (attempt === 0) await new Promise(r => setTimeout(r, 500));
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+const COMMON_PARSING_SCHEMA_PROMPT = `
+JSON SCHEMA SPECIFICATION (Return strictly valid JSON):
 {
-  "layoutType": "single-column" | "two-column-left-sidebar",
+  "layoutType": "single-column" | "two-column-sidebar",
   "header": {
     "name": "Candidate Full Name",
-    "title": "Current / Target Professional Title",
-    "summary": "Impactful professional executive summary"
+    "title": "Professional Title / Target Headline",
+    "summary": "Compelling 2-3 sentence executive professional summary"
   },
   "contact": {
-    "email": "candidate@example.com",
+    "email": "user@example.com",
     "phone": "+91 ...",
     "location": "City, Country",
     "linkedin": "https://linkedin.com/in/...",
@@ -412,266 +147,220 @@ Return a single strictly valid JSON object conforming to this exact structure:
   "experiences": [
     {
       "id": "exp-1",
-      "role": "Role / Designation",
-      "company": "Company / Organization Name",
-      "period": "Start – End (or Year – Year)",
-      "location": "City or Remote",
+      "role": "Job Title",
+      "company": "Company Name",
+      "period": "Start Year – End Year (or Duration)",
+      "location": "City, Country",
       "bullets": [
-        "Quantified high-impact STAR bullet starting with active verb",
-        "Second STAR bullet"
+        "High-impact STAR bullet starting with active action verb and quantified outcome"
       ]
     }
   ],
   "education": [
     {
-      "degree": "Degree / Qualification (e.g. B.Tech in Computer Science, MBBS, MBA)",
-      "institution": "University / Institution Name",
-      "year": "Graduation Year / Duration",
-      "details": "Major / Focus / Honors (if mentioned)",
+      "degree": "Degree / Course Name",
+      "institution": "University / Institute Name",
+      "year": "Passing Year or Duration",
+      "details": "Major / Field / Honors",
       "grade": ""
     }
   ],
   "projects": [
     {
-      "title": "Project Title",
-      "description": "Concise overview",
-      "bullets": ["Technical execution or impact bullet"]
+      "title": "Project Name",
+      "description": "Short overview",
+      "tech": "Key technologies used",
+      "bullets": ["Measurable achievement or technical contribution"]
     }
   ],
-  "certifications": [
-    {
-      "name": "Certification Name",
-      "issuer": "Issuing Organization",
-      "year": "Year"
-    }
-  ],
-  "languages": [
-    { "name": "Language Name", "level": "Native / Fluent / Professional" }
-  ],
+  "certifications": ["Certification Name"],
+  "languages": [{ "name": "Language", "level": "Proficiency" }],
   "customSections": [
-    {
-      "id": "custom-1",
-      "title": "Section Title (e.g. Publications, Patents, Key Achievements)",
-      "items": ["Item 1", "Item 2"]
-    }
+    { "id": "custom-1", "title": "Section Title", "items": ["Item 1"] }
   ]
-}`;
+}
+`;
 
-  const prompt = `Raw Resume Document Text to Parse:
-"""
-${extractedText.slice(0, 15000)}
-"""
+/**
+ * High-Precision Text CV Parser
+ */
+export async function parseCvWithGemini(extractedText, layoutHint = 'single-column') {
+  if (!extractedText || extractedText.trim().length < 15) return null;
 
-Extract and return ONLY the valid JSON object conforming to the schema above:`;
+  const systemInstruction = `You are the Lead Universal Resume Parser and Executive CV Architect at ResumeAI Pro.
+Your task is to parse raw resume document text into our standardized Resume JSON schema.
+
+STRICT INVARIANTS:
+1. 100% FACTUAL FIDELITY & ZERO DATA LEAKAGE:
+   - Extract ONLY verified details from the candidate's text.
+   - NEVER inject dummy companies, mock roles, or sample text from other candidates.
+   - If a section is not present in the input text, leave it as an empty array [].
+2. STRICT 1 TO 2 PAGE COMPACT ATS BUDGET:
+   - Even if the source text spans 3 to 10 verbose pages, synthesize and compound verbose narrative text into crisp, high-impact STAR bullets (Situation, Action, Measurable Result).
+   - Balance bullet count (3 to 5 strong bullets per recent role, 2 to 3 for older roles) so the entire document comfortably fits within 1 to 2 standard A4 pages without omitting any real employers, job titles, dates, or degrees.
+3. AUTHENTIC LAYOUT DETECTION:
+   - Set "layoutType": "two-column-sidebar" ONLY if the document explicitly describes a side column for contact/skills.
+   - Otherwise, default to "single-column" linear layout.
+4. 100% CORPORATE ENGLISH:
+   - All resume text inside JSON must be formatted in polished, prestigious Corporate English.
+
+${COMMON_PARSING_SCHEMA_PROMPT}`;
+
+  const prompt = `Raw Resume Document Text to Parse:\n"""\n${extractedText.slice(0, 15000)}\n"""\n\nReturn strictly valid JSON:`;
 
   try {
     const rawResult = await callGeminiApi(prompt, systemInstruction, [], { responseMimeType: "application/json" });
-    if (!rawResult) return null;
+    return parseJsonSafely(rawResult);
+  } catch (err) {
+    console.warn("parseCvWithGemini error:", err);
+    return null;
+  }
+}
 
-    let clean = rawResult.trim();
-    if (clean.startsWith('```json')) {
-      clean = clean.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
-    } else if (clean.startsWith('```')) {
-      clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-    }
+/**
+ * Multi-Modal Vision Resume Parser (for scanned PDFs, Canva PDFs, and images)
+ */
+export async function parseCvWithGeminiVision(images = []) {
+  if (!images || images.length === 0) return null;
 
-    let parsed = null;
-    try {
-      parsed = JSON.parse(clean);
-    } catch (e1) {
-      const jsonMatch = clean.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          parsed = JSON.parse(jsonMatch[0]);
-        } catch (e2) {
-          const sanitized = jsonMatch[0].replace(/[\u0000-\u001F]+/g, ' ');
-          parsed = JSON.parse(sanitized);
-        }
-      }
-    }
+  const systemInstruction = `You are the Lead Multi-Modal Resume Parser and Executive CV Architect at ResumeAI Pro.
+Look directly at the visual document page images and extract the candidate's authentic resume data into our standardized Resume JSON schema.
 
-    if (parsed && (parsed.header?.name || parsed.experiences?.length > 0)) {
-      // Normalize layoutType
-      if (parsed.layoutType !== 'two-column-left-sidebar' && parsed.layoutType !== 'single-column') {
-        parsed.layoutType = layoutHint || 'single-column';
-      }
+STRICT INVARIANTS:
+1. 100% VISUAL OCR & FACTUAL INTEGRITY:
+   - Read every section visually: Full Name, Professional Title, Contact details, Summary, Work History, Education, Skills, Projects, Certifications, Languages.
+   - Extract exact companies, designations, dates, locations, and achievements.
+   - Do NOT omit any verified job, degree, or credential.
+2. STRICT 1 TO 2 PAGE COMPACT ATS BUDGET:
+   - Compound and synthesize verbose text into dense STAR bullets fitting strictly within 1 to 2 A4 pages.
+3. AUTHENTIC LAYOUT DETECTION:
+   - Look at the visual structure:
+     * If the document has a distinct left or right column/sidebar containing contact info and skills, set "layoutType": "two-column-sidebar".
+     * If the document has a single column linear top-to-bottom layout on a white page, set "layoutType": "single-column".
+4. 100% CORPORATE ENGLISH:
+   - All resume text inside JSON must be formatted in professional Corporate English.
 
-      // Ensure styleProfile matches
-      parsed.styleProfile = {
-        layoutType: parsed.layoutType,
-        accentColor: "#0284c7",
-        sidebarBg: "#0f172a",
-        sidebarTextColor: "#f8fafc",
-        fontFamily: "font-sans",
-        headerAlignment: "left",
-        sectionDivider: "solid-line",
-        bulletStyle: "disc"
-      };
+${COMMON_PARSING_SCHEMA_PROMPT}`;
 
-      // Ensure experiences have valid ids
-      if (Array.isArray(parsed.experiences)) {
-        parsed.experiences = parsed.experiences.map((exp, idx) => ({
-          ...exp,
-          id: exp.id || `exp-${idx + 1}`,
-          bullets: Array.isArray(exp.bullets) ? exp.bullets : []
-        }));
-      }
+  const prompt = "Please analyze the attached resume image(s). Extract the complete candidate data, authentic visual layout, and structured sections into strictly valid JSON:";
 
-      parsed.skills = Array.isArray(parsed.skills) ? parsed.skills : [];
-      parsed.education = Array.isArray(parsed.education) ? parsed.education : [];
-      parsed.projects = Array.isArray(parsed.projects) ? parsed.projects : [];
-      parsed.certifications = Array.isArray(parsed.certifications) ? parsed.certifications : [];
-      parsed.languages = Array.isArray(parsed.languages) ? parsed.languages : [];
-      parsed.customSections = Array.isArray(parsed.customSections) ? parsed.customSections : [];
+  try {
+    const rawResult = await callGeminiApi(prompt, systemInstruction, [], { responseMimeType: "application/json" }, images);
+    return parseJsonSafely(rawResult);
+  } catch (err) {
+    console.warn("parseCvWithGeminiVision error:", err);
+    return null;
+  }
+}
 
+/**
+ * Conversational Live Studio Resume Refiner (ChatGPT / Gemini style)
+ */
+export async function refineCvWithAi(userInstruction, currentCv, chatHistory = []) {
+  if (!userInstruction || !currentCv) return null;
+
+  const systemInstruction = `You are the Lead AI Resume Architect and Executive Career Mentor at ResumeAI Pro.
+Candidates converse with you directly (like ChatGPT / Claude / Gemini) in English, Hindi, or Hinglish to modify, enhance, or ATS-optimize their resume.
+
+CRITICAL RULES:
+1. CORPORATE ENGLISH MANDATE FOR CANVAS:
+   - All text inside "updatedCv" (headline, title, summary, roles, companies, bullets, skills, project titles, project descriptions) MUST BE WRITTEN IN 100% POLISHED, PRESTIGIOUS CORPORATE ENGLISH.
+   - ZERO HINGLISH OR HINDI WORDS are allowed inside "updatedCv".
+   - The "explanation" field returned to the user should be in friendly, warm Hinglish or English matching the user's language, explaining clearly what was enhanced.
+
+2. STRICT FACT PRESERVATION:
+   - Base all resume content strictly on the candidate's actual CV data and explicit user input.
+   - Never invent phantom employers, fake degrees, or unmentioned dates.
+   - When asked to improve, quantify, or add impact, formulate high-impact STAR bullets relevant to the candidate's actual role and domain.
+
+3. STRICT 1 TO 2 PAGE ATS BUDGET:
+   - Ensure the total content length stays strictly within 1 to 2 standard A4 pages.
+
+JSON RESPONSE FORMAT:
+{
+  "updatedCv": { ... complete updated CV JSON following our canonical schema ... },
+  "explanation": "Friendly, warm Hinglish/English explanation of changes made and ATS benefits",
+  "planSummary": "Short 1-line title of change applied (e.g. 'Enhanced professional summary & added key metrics')"
+}`;
+
+  const prompt = `User Request: "${userInstruction}"
+
+Current CV State:
+${JSON.stringify(currentCv, null, 2)}
+
+Apply the requested changes and return strictly valid JSON:`;
+
+  try {
+    const rawResult = await callGeminiApi(prompt, systemInstruction, chatHistory, { responseMimeType: "application/json" });
+    const parsed = parseJsonSafely(rawResult);
+    if (parsed && parsed.updatedCv) {
       return parsed;
     }
   } catch (err) {
-    console.warn("parseCvWithGemini error:", err.message);
+    console.warn("refineCvWithAi error:", err);
   }
 
   return null;
 }
 
 /**
- * Multi-Modal AI Resume Parser (Vision + OCR + Layout Analysis)
- * Parses image-based PDFs, scans, PNGs, and JPGs directly via Gemini 2.5 Flash Vision.
+ * Tailor CV to Target Job Description (JD)
  */
-export async function parseCvWithGeminiVision(images = []) {
-  if (!images || images.length === 0) return null;
+export async function tailorCvToJd(currentCv, jdText) {
+  if (!currentCv || !jdText) return null;
 
-  const systemInstruction = `You are the Lead Multi-Modal Resume Parser and Executive CV Architect at ResumeAI Pro.
-Your mission is to look directly at the visual document page images and extract the candidate's authentic resume data into our standardized Resume JSON schema.
+  const systemInstruction = `You are the Lead ATS Optimization Specialist at ResumeAI Pro.
+Your mission is to semantically align the candidate's existing verified resume with the target Job Description (JD) to unlock a 95%+ ATS semantic match.
 
-CRITICAL INVARIANTS:
-1. 100% FACTUAL ACCURACY & ZERO LOSS OF DETAILS:
-   - Read every section visually: Candidate Name, Professional Title / Headline, Contact Information (email, phone, location, linkedin, portfolio/github), Executive Summary, Work Experience, Education, Skills, Projects, Certifications, Languages, and any other sections.
-   - Extract EXACT company names, job titles, start and end dates, locations, degrees, institutions, and achievements.
-   - Do NOT omit any job, degree, or verified detail.
-2. STRICT 1 TO 2 PAGE COMPACT ATS BUDGET:
-   - If the uploaded CV spans multiple pages or has verbose descriptions, compound and synthesize verbose text into dense, high-impact STAR bullets (Situation, Action, Measurable Result).
-   - Ensure the total bullet density fits neatly into 1 or 2 standard A4 pages without dropping any real employer, role, date, or degree.
-3. AUTHENTIC VISUAL LAYOUT & DESIGN DETECTION:
-   - Look at the actual visual composition:
-     * If the document has a distinct left or right column/sidebar containing contact info and skills, set "layoutType": "two-column-left-sidebar".
-     * If the document has a single column linear top-to-bottom layout on a white page, set "layoutType": "single-column".
-   - Detect the dominant accent color (e.g. #0284c7 for blue, #0d9488 for teal, #1e293b for dark slate, etc.).
-4. CORPORATE ENGLISH MANDATE:
-   - Ensure all resume text inside the JSON is formatted in polished, prestigious Corporate English.
+RULES:
+1. Semantically align existing responsibilities with high-priority JD keywords without inventing fake roles or fake companies.
+2. Emphasize transferable skills and relevant tools mentioned in the JD.
+3. Keep all resume text in 100% polished Corporate English.
+4. Keep the CV strictly within 1 to 2 standard A4 pages.
 
-JSON OUTPUT STRUCTURE:
-Return a single strictly valid JSON object conforming to:
+JSON RESPONSE FORMAT:
 {
-  "layoutType": "single-column" | "two-column-left-sidebar",
-  "styleProfile": {
-    "layoutType": "single-column" | "two-column-left-sidebar",
-    "accentColor": "#0284c7",
-    "sidebarBg": "#0f172a",
-    "fontFamily": "font-sans"
-  },
-  "header": {
-    "name": "Candidate Full Name",
-    "title": "Target Role / Headline",
-    "summary": "Professional executive summary"
-  },
-  "contact": {
-    "email": "",
-    "phone": "",
-    "location": "",
-    "linkedin": "",
-    "github": "",
-    "website": ""
-  },
-  "skills": ["Skill 1", "Skill 2"],
-  "experiences": [
-    {
-      "id": "exp-1",
-      "role": "Role Title",
-      "company": "Company Name",
-      "period": "Duration / Dates",
-      "location": "Location",
-      "bullets": ["High impact STAR bullet"]
-    }
-  ],
-  "education": [
-    {
-      "degree": "Degree Name",
-      "institution": "University / College",
-      "year": "Year / Duration",
-      "details": "Major / Focus",
-      "grade": ""
-    }
-  ],
-  "projects": [
-    {
-      "title": "Project Title",
-      "description": "Short description",
-      "bullets": ["Impact bullet"]
-    }
-  ],
-  "certifications": [
-    { "name": "Certification Name", "issuer": "Issuer", "year": "" }
-  ],
-  "languages": [
-    { "name": "Language", "level": "Level" }
-  ],
-  "customSections": [
-    { "id": "custom-1", "title": "Section Title", "items": ["Item 1"] }
-  ]
+  "updatedCv": { ... complete updated CV JSON ... },
+  "matchScore": 95,
+  "explanation": "Hinglish/English overview of keywords aligned and semantic improvements made",
+  "matchedKeywords": ["Keyword 1", "Keyword 2"],
+  "planSummary": "Tailored resume to target Job Description"
 }`;
 
-  const prompt = "Please analyze the attached resume image(s). Extract the complete candidate data, authentic visual layout, and structured sections into our standardized JSON schema:";
-  
-  const inlineImages = images.map(img => {
-    if (typeof img === 'string') {
-      const cleanData = img.replace(/^data:image\/\w+;base64,/, '');
-      return { mimeType: 'image/jpeg', data: cleanData };
-    }
-    return {
-      mimeType: img.mimeType || 'image/jpeg',
-      data: (img.data || img.base64 || '').replace(/^data:image\/\w+;base64,/, '')
-    };
-  });
+  const prompt = `Target Job Description:\n"""\n${jdText.slice(0, 5000)}\n"""\n\nCurrent Candidate CV:\n${JSON.stringify(currentCv, null, 2)}\n\nAlign the CV and return strictly valid JSON:`;
 
   try {
-    const rawResult = await callGeminiApi(prompt, systemInstruction, [], { responseMimeType: "application/json" }, inlineImages);
-    if (!rawResult) return null;
+    const rawResult = await callGeminiApi(prompt, systemInstruction, [], { responseMimeType: "application/json" });
+    return parseJsonSafely(rawResult);
+  } catch (err) {
+    console.warn("tailorCvToJd error:", err);
+    return null;
+  }
+}
 
-    let clean = rawResult.trim();
-    if (clean.startsWith('```json')) {
-      clean = clean.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
-    } else if (clean.startsWith('```')) {
-      clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-    }
+function parseJsonSafely(text) {
+  if (!text) return null;
+  let clean = text.trim();
+  if (clean.startsWith('```json')) {
+    clean = clean.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
+  } else if (clean.startsWith('```')) {
+    clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+  }
 
-    let parsed = null;
-    try {
-      parsed = JSON.parse(clean);
-    } catch (e1) {
-      const jsonMatch = clean.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
+  try {
+    return JSON.parse(clean);
+  } catch (e1) {
+    const match = clean.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch (e2) {
         try {
-          parsed = JSON.parse(jsonMatch[0]);
+          const sanitized = match[0].replace(/[\u0000-\u001F]+/g, ' ');
+          return JSON.parse(sanitized);
         } catch (_) {}
       }
     }
-
-    if (parsed && (parsed.header?.name || parsed.experiences?.length > 0)) {
-      if (parsed.layoutType !== 'two-column-left-sidebar' && parsed.layoutType !== 'single-column') {
-        parsed.layoutType = 'single-column';
-      }
-      if (!parsed.styleProfile) {
-        parsed.styleProfile = {
-          layoutType: parsed.layoutType,
-          accentColor: '#0284c7',
-          sidebarBg: '#0f172a',
-          fontFamily: 'font-sans'
-        };
-      }
-      return parsed;
-    }
-  } catch (err) {
-    console.warn("parseCvWithGeminiVision error:", err);
   }
   return null;
 }

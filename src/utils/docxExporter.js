@@ -1,40 +1,26 @@
 /**
- * RESUMEAI PRO — PRODUCTION ATS OPENXML DOCX EXPORTER
- * 
- * Generates an executive, ATS-optimized Microsoft Word (.docx) file
- * that exactly preserves all candidate data with zero [object Object] artifacts,
- * proper dates, education degrees, key projects, and categorized skills.
+ * RESUMEAI PRO — PRODUCTION WORD (.DOCX) EXPORTER
  */
 
-import { sanitizeCandidateFilename } from './pdfExporter';
-import { formatEducationItem } from './educationFormatter';
+import { sanitizeCandidateFilename } from './pdfExporter.js';
 
-export async function exportResumeToDocx(resume, version = 1, templateId = 'designer-dual') {
-  if (!resume) {
-    throw new Error("No active CV data provided for DOCX export.");
-  }
+export async function exportResumeToDocx(resume) {
+  if (!resume) throw new Error("No resume data provided for DOCX export.");
 
-  const filename = sanitizeCandidateFilename(resume.header?.name, version, 'docx');
+  const filename = sanitizeCandidateFilename(resume.header?.name, 'docx');
 
   try {
     const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
 
     const header = resume.header || {};
     const contact = resume.contact || {};
-    const skills = resume.skills || [];
-    const experiences = Array.isArray(resume.experiences) 
-      ? resume.experiences 
-      : (Array.isArray(resume.experience) ? resume.experience : []);
+    const skills = Array.isArray(resume.skills) ? resume.skills : [];
+    const experiences = Array.isArray(resume.experiences) ? resume.experiences : [];
     const education = Array.isArray(resume.education) ? resume.education : [];
-    const certifications = Array.isArray(resume.certifications) ? resume.certifications : [];
     const projects = Array.isArray(resume.projects) ? resume.projects : [];
-    const itSkills = Array.isArray(resume.itSkills) ? resume.itSkills : [];
-    const languages = Array.isArray(resume.languages) ? resume.languages : [];
-
-    const accentColor = '0284C7'; // Professional Executive Blue
 
     const docChildren = [
-      // 1. Candidate Name
+      // Name
       new Paragraph({
         children: [
           new TextRun({
@@ -44,63 +30,71 @@ export async function exportResumeToDocx(resume, version = 1, templateId = 'desi
             color: "0F172A"
           })
         ],
-        spacing: { after: 80 }
+        spacing: { after: 60 }
       }),
 
-      // 2. Headline / Target Title
+      // Headline
       new Paragraph({
         children: [
           new TextRun({
-            text: header.title || header.headline || "Professional Profile",
+            text: header.title || "Professional Specialist",
             bold: true,
-            color: accentColor,
-            size: 22
+            size: 22,
+            color: "2563EB"
           })
         ],
-        spacing: { after: 140 }
+        spacing: { after: 120 }
       }),
 
-      // 3. Contact Details Line
+      // Contact
       new Paragraph({
         children: [
-          new TextRun({ 
+          new TextRun({
             text: [
               contact.email ? `Email: ${contact.email}` : '',
               contact.phone ? `Phone: ${contact.phone}` : '',
-              (contact.location || contact.address) ? `Location: ${contact.location || contact.address}` : '',
+              contact.location ? `Location: ${contact.location}` : '',
               contact.linkedin ? `LinkedIn: ${contact.linkedin}` : ''
             ].filter(Boolean).join("  |  "),
             size: 18,
             color: "475569"
           })
         ],
-        spacing: { after: 240 }
+        spacing: { after: 180 }
       })
     ];
 
-    // 4. Professional Summary
-    const summaryText = header.summary || resume.summary;
-    if (summaryText) {
+    // Summary
+    if (header.summary) {
       docChildren.push(
         new Paragraph({
-          text: "EXECUTIVE SUMMARY",
+          text: "PROFESSIONAL SUMMARY",
           heading: HeadingLevel.HEADING_2,
-          spacing: { before: 200, after: 80 }
+          spacing: { before: 180, after: 80 }
         }),
         new Paragraph({
-          children: [
-            new TextRun({
-              text: summaryText,
-              size: 20,
-              color: "1E293B"
-            })
-          ],
-          spacing: { after: 220 }
+          children: [new TextRun({ text: header.summary, size: 20, color: "1E293B" })],
+          spacing: { after: 180 }
         })
       );
     }
 
-    // 5. Work Experience
+    // Skills
+    if (skills.length > 0) {
+      docChildren.push(
+        new Paragraph({
+          text: "CORE SKILLS & EXPERTISE",
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 180, after: 80 }
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: skills.join("  •  "), size: 20, color: "1E293B" })],
+          spacing: { after: 180 }
+        })
+      );
+    }
+
+    // Experiences
     if (experiences.length > 0) {
       docChildren.push(
         new Paragraph({
@@ -111,238 +105,116 @@ export async function exportResumeToDocx(resume, version = 1, templateId = 'desi
       );
 
       experiences.forEach(exp => {
-        const durationText = exp.duration || exp.period || '';
-        const companyText = exp.company || '';
-        const locationText = exp.location || '';
-        const subtitleParts = [companyText, locationText, durationText].filter(Boolean);
-
         docChildren.push(
           new Paragraph({
             children: [
-              new TextRun({ 
-                text: exp.role || "Job Title", 
-                bold: true, 
-                size: 21,
-                color: "0F172A"
-              }),
-              subtitleParts.length > 0 
-                ? new TextRun({ 
-                    text: `  —  ${subtitleParts.join(" | ")}`, 
-                    color: "475569", 
-                    size: 19 
-                  }) 
-                : new TextRun("")
+              new TextRun({ text: exp.role || "Role", bold: true, size: 21, color: "0F172A" }),
+              new TextRun({ text: ` — ${[exp.company, exp.location, exp.period].filter(Boolean).join(" | ")}`, color: "475569", size: 19 })
             ],
-            spacing: { before: 140, after: 50 }
+            spacing: { before: 120, after: 60 }
           })
         );
 
-        const bullets = Array.isArray(exp.bullets) ? exp.bullets : [];
-        bullets.forEach(bullet => {
-          docChildren.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: "•  ", bold: true, color: accentColor }),
-                new TextRun({ text: bullet, size: 19, color: "1E293B" })
-              ],
-              spacing: { after: 40 }
-            })
-          );
-        });
+        if (Array.isArray(exp.bullets)) {
+          exp.bullets.forEach(b => {
+            docChildren.push(
+              new Paragraph({
+                children: [new TextRun({ text: b, size: 19, color: "334155" })],
+                bullet: { level: 0 },
+                spacing: { before: 30, after: 30 }
+              })
+            );
+          });
+        }
       });
     }
 
-    // 6. Education
+    // Education
     if (education.length > 0) {
       docChildren.push(
         new Paragraph({
           text: "EDUCATION",
           heading: HeadingLevel.HEADING_2,
-          spacing: { before: 220, after: 100 }
+          spacing: { before: 200, after: 100 }
         })
       );
 
       education.forEach(edu => {
-        const item = formatEducationItem(edu);
-        const line = [item.degree, item.subLine].filter(Boolean).join("  —  ");
+        const titleLine = [edu.degree, edu.institution].filter(Boolean).join(" — ");
+        const subLine = [edu.year, edu.details, edu.grade].filter(Boolean).join(" | ");
 
         docChildren.push(
           new Paragraph({
             children: [
-              new TextRun({ text: "▪  ", bold: true, color: accentColor }),
-              new TextRun({ text: line || item.formattedLine, bold: true, size: 20, color: "0F172A" })
+              new TextRun({ text: titleLine, bold: true, size: 20, color: "0F172A" }),
+              subLine ? new TextRun({ text: `\n${subLine}`, size: 18, color: "64748B" }) : new TextRun("")
             ],
-            spacing: { before: 60, after: 30 }
+            spacing: { before: 80, after: 80 }
           })
         );
-
-        if (item.details) {
-          docChildren.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: `   ${item.details}`, italic: true, size: 18, color: "475569" })
-              ],
-              spacing: { after: 60 }
-            })
-          );
-        }
       });
     }
 
-    // 7. Key Projects & Production Apps
+    // Projects
     if (projects.length > 0) {
       docChildren.push(
         new Paragraph({
-          text: "KEY PROJECTS & PRODUCTION APPLICATIONS",
+          text: "KEY PROJECTS",
           heading: HeadingLevel.HEADING_2,
-          spacing: { before: 220, after: 100 }
+          spacing: { before: 200, after: 100 }
         })
       );
 
-      projects.forEach(proj => {
-        const titleStr = proj.name || proj.title || "Project";
-        const techStr = proj.tech || proj.technologies || "";
-
+      projects.forEach(p => {
         docChildren.push(
           new Paragraph({
             children: [
-              new TextRun({ text: titleStr, bold: true, size: 20, color: "0F172A" }),
-              techStr ? new TextRun({ text: `  [Stack: ${techStr}]`, italic: true, color: accentColor, size: 18 }) : new TextRun("")
+              new TextRun({ text: p.title || "Project", bold: true, size: 20, color: "0F172A" }),
+              p.tech ? new TextRun({ text: ` (${p.tech})`, color: "2563EB", size: 18 }) : new TextRun("")
             ],
             spacing: { before: 100, after: 40 }
           })
         );
 
-        const pBullets = Array.isArray(proj.bullets) ? proj.bullets : (proj.description ? [proj.description] : []);
-        pBullets.forEach(b => {
+        if (p.description) {
           docChildren.push(
             new Paragraph({
-              children: [
-                new TextRun({ text: "•  ", bold: true, color: accentColor }),
-                new TextRun({ text: b, size: 19, color: "1E293B" })
-              ],
-              spacing: { after: 35 }
+              children: [new TextRun({ text: p.description, size: 19, color: "334155" })],
+              spacing: { after: 60 }
             })
           );
-        });
+        }
+
+        if (Array.isArray(p.bullets)) {
+          p.bullets.forEach(b => {
+            docChildren.push(
+              new Paragraph({
+                children: [new TextRun({ text: b, size: 19, color: "334155" })],
+                bullet: { level: 0 },
+                spacing: { before: 20, after: 20 }
+              })
+            );
+          });
+        }
       });
-    }
-
-    // 8. Skills & Competencies
-    docChildren.push(
-      new Paragraph({
-        text: "CORE SKILLS & TECHNOLOGIES",
-        heading: HeadingLevel.HEADING_2,
-        spacing: { before: 220, after: 80 }
-      })
-    );
-
-    if (Array.isArray(skills)) {
-      docChildren.push(
-        new Paragraph({
-          children: [
-            new TextRun({ text: skills.join("  •  "), size: 19, color: "1E293B" })
-          ],
-          spacing: { after: 120 }
-        })
-      );
-    } else if (typeof skills === 'object' && skills !== null) {
-      Object.entries(skills).forEach(([cat, list]) => {
-        const items = Array.isArray(list) ? list.join("  •  ") : String(list);
-        docChildren.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: `${cat}: `, bold: true, size: 19, color: "0F172A" }),
-              new TextRun({ text: items, size: 19, color: "334155" })
-            ],
-            spacing: { after: 60 }
-          })
-        );
-      });
-    }
-
-    if (itSkills.length > 0) {
-      docChildren.push(
-        new Paragraph({
-          children: [
-            new TextRun({ text: "Tools & Platforms: ", bold: true, size: 19, color: "0F172A" }),
-            new TextRun({ text: itSkills.join("  •  "), size: 19, color: "334155" })
-          ],
-          spacing: { after: 120 }
-        })
-      );
-    }
-
-    // 9. Certifications
-    if (certifications.length > 0) {
-      docChildren.push(
-        new Paragraph({
-          text: "CERTIFICATIONS",
-          heading: HeadingLevel.HEADING_2,
-          spacing: { before: 200, after: 80 }
-        })
-      );
-
-      certifications.forEach(cert => {
-        const certName = typeof cert === 'string' ? cert : (cert.name || cert.title || '');
-        docChildren.push(
-          new Paragraph({
-            children: [
-              new TextRun({ text: "▪  ", bold: true, color: accentColor }),
-              new TextRun({ text: certName, size: 19, color: "1E293B" })
-            ],
-            spacing: { after: 40 }
-          })
-        );
-      });
-    }
-
-    // 10. Languages
-    if (languages.length > 0) {
-      docChildren.push(
-        new Paragraph({
-          text: "LANGUAGES",
-          heading: HeadingLevel.HEADING_2,
-          spacing: { before: 180, after: 60 }
-        }),
-        new Paragraph({
-          children: [
-            new TextRun({ 
-              text: languages.map(l => typeof l === 'string' ? l : `${l.name || ''} (${l.level || 'Proficient'})`).join("  |  "),
-              size: 19, 
-              color: "1E293B" 
-            })
-          ],
-          spacing: { after: 100 }
-        })
-      );
     }
 
     const doc = new Document({
-      sections: [
-        {
-          properties: {
-            page: {
-              margin: { top: 720, bottom: 720, left: 720, right: 720 }
-            }
-          },
-          children: docChildren
-        }
-      ]
+      sections: [{ children: docChildren }]
     });
 
     const blob = await Packer.toBlob(doc);
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.href = URL.createObjectURL(blob);
-    downloadAnchor.download = filename;
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    setTimeout(() => URL.revokeObjectURL(downloadAnchor.href), 1000);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 
     return { success: true, filename };
   } catch (err) {
-    console.error("DOCX Export failed:", err);
-    throw new Error(err.message || "Failed to generate DOCX. Your active CV state has been preserved.");
+    console.error("DOCX Export error:", err);
+    throw new Error(err.message || "Failed to generate DOCX document.");
   }
 }

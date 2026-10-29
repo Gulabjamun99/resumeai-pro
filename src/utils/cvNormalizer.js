@@ -1,41 +1,33 @@
 /**
- * RESUMEAI PRO — CANONICAL CV STATE NORMALIZER
+ * RESUMEAI PRO — CANONICAL CV NORMALIZER
  * 
- * Ensures every single resume object, regardless of origin (Gemini AI, Vision API,
- * deterministic parser, fresh starter, or manual edits), conforms to the exact
- * unified schema expected by all 36+ template renderers, PDF/DOCX exporters, and ATS engines.
- * 
- * GUARNATEES: ZERO MISSING FIELDS, ZERO NULL ACCESS CRASHES.
+ * Guarantees a single, robust, unified data structure across all components,
+ * templates, AI transforms, and PDF/DOCX exporters.
  */
 
 export function normalizeCvSchema(rawCv) {
-  if (!rawCv || typeof rawCv !== 'object') return rawCv;
+  if (!rawCv || typeof rawCv !== 'object') {
+    return createEmptyCv();
+  }
+
   const cv = { ...rawCv };
 
   // 1. Header & Summary Normalization
   cv.header = { ...(cv.header || {}) };
-  if (!cv.header.name && cv.name) cv.header.name = cv.name;
-  if (!cv.header.title) {
-    cv.header.title = cv.header.headline || cv.title || cv.headline || "Professional Specialist";
-  }
-  if (!cv.header.summary) {
-    cv.header.summary = cv.summary || cv.executiveSummary || cv.profile || "";
-  }
+  cv.header.name = cv.header.name || cv.name || "Candidate Name";
+  cv.header.title = cv.header.title || cv.header.headline || cv.title || cv.headline || "Professional Specialist";
+  cv.header.summary = cv.header.summary || cv.summary || cv.executiveSummary || cv.profile || "";
 
   // 2. Contact Normalization
   cv.contact = { ...(cv.contact || {}) };
-  if (!cv.contact.email && cv.email) cv.contact.email = cv.email;
-  if (!cv.contact.phone && cv.phone) cv.contact.phone = cv.phone;
-  if (!cv.contact.location) {
-    cv.contact.location = cv.contact.address || cv.location || cv.address || "";
-  }
-  if (!cv.contact.linkedin && cv.linkedin) cv.contact.linkedin = cv.linkedin;
-  if (!cv.contact.github && cv.github) cv.contact.github = cv.github;
-  if (!cv.contact.website && (cv.website || cv.portfolio)) {
-    cv.contact.website = cv.contact.website || cv.portfolio;
-  }
+  cv.contact.email = cv.contact.email || cv.email || "";
+  cv.contact.phone = cv.contact.phone || cv.phone || "";
+  cv.contact.location = cv.contact.location || cv.contact.address || cv.location || cv.address || "";
+  cv.contact.linkedin = cv.contact.linkedin || cv.linkedin || "";
+  cv.contact.github = cv.contact.github || cv.github || "";
+  cv.contact.website = cv.contact.website || cv.website || cv.portfolio || "";
 
-  // 3. Skills Normalization (Handle flat array, categorized object, or string)
+  // 3. Skills Normalization (handles flat array, categorized object, or comma-separated string)
   if (Array.isArray(cv.skills)) {
     cv.skills = cv.skills.filter(s => typeof s === 'string' && s.trim().length > 0);
   } else if (cv.skills && typeof cv.skills === 'object') {
@@ -47,30 +39,41 @@ export function normalizeCvSchema(rawCv) {
   }
 
   // 4. Experiences Normalization
-  const rawExp = cv.experiences || cv.experience || cv.workExperience || cv.employment || [];
-  cv.experiences = (Array.isArray(rawExp) ? rawExp : [rawExp]).filter(Boolean).map((exp, idx) => ({
-    id: exp.id || `exp-${idx + 1}`,
-    role: exp.role || exp.title || exp.designation || exp.position || "Role",
-    company: exp.company || exp.organization || exp.employer || "Company",
-    period: exp.period || exp.duration || exp.dates || exp.year || "",
-    location: exp.location || exp.city || "",
-    bullets: Array.isArray(exp.bullets) 
-      ? exp.bullets.filter(b => typeof b === 'string' && b.trim().length > 0)
-      : (typeof exp.description === 'string' && exp.description.trim())
-        ? exp.description.split(/\n+/).map(b => b.replace(/^[•▪*\-]\s*/, '').trim()).filter(Boolean)
-        : []
-  }));
+  const rawExp = cv.experiences || cv.experience || cv.workExperience || cv.employment || cv.workHistory || [];
+  cv.experiences = (Array.isArray(rawExp) ? rawExp : [rawExp]).filter(Boolean).map((exp, idx) => {
+    let rawBullets = exp.bullets || exp.highlights || exp.points || exp.achievements || exp.responsibilities || exp.tasks || [];
+    let bulletsList = [];
+    if (Array.isArray(rawBullets)) {
+      bulletsList = rawBullets.filter(b => typeof b === 'string' && b.trim().length > 0);
+    } else if (typeof rawBullets === 'string' && rawBullets.trim()) {
+      bulletsList = rawBullets.split(/\n+/).map(b => b.replace(/^[•▪*\-]\s*/, '').trim()).filter(Boolean);
+    } else if (typeof exp.description === 'string' && exp.description.trim()) {
+      bulletsList = exp.description.split(/\n+/).map(b => b.replace(/^[•▪*\-]\s*/, '').trim()).filter(Boolean);
+    }
+
+    return {
+      id: exp.id || `exp-${idx + 1}`,
+      role: exp.role || exp.title || exp.designation || exp.position || "Professional",
+      company: exp.company || exp.organization || exp.employer || exp.hospital || exp.firm || exp.institution || exp.client || exp.org || "Organization",
+      period: exp.period || exp.duration || exp.dates || exp.year || exp.timeframe || "",
+      location: exp.location || exp.city || exp.country || "",
+      bullets: bulletsList
+    };
+  });
 
   // 5. Education Normalization
-  const rawEdu = cv.education || cv.academics || [];
+  const rawEdu = cv.education || cv.academics || cv.qualifications || [];
   cv.education = (Array.isArray(rawEdu) ? rawEdu : [rawEdu]).filter(Boolean).map(edu => {
-    if (typeof edu === 'string') return edu;
+    if (typeof edu === 'string') {
+      return { degree: edu, institution: "", year: "", details: "", grade: "" };
+    }
+    const detailsVal = edu.details || edu.major || edu.field || edu.stream || edu.specialization || edu.honors || edu.description || "";
     return {
-      degree: edu.degree || edu.qualification || edu.course || edu.title || "Degree",
-      institution: edu.institution || edu.university || edu.college || edu.school || "",
-      year: edu.year || edu.period || edu.duration || edu.dates || "",
-      details: edu.details || edu.major || edu.field || edu.honors || "",
-      grade: edu.grade || edu.gpa || edu.score || edu.percentage || ""
+      degree: edu.degree || edu.qualification || edu.course || edu.title || edu.exam || "Degree",
+      institution: edu.institution || edu.university || edu.college || edu.school || edu.board || "",
+      year: edu.year || edu.period || edu.duration || edu.dates || edu.passingYear || "",
+      details: detailsVal,
+      grade: edu.grade || edu.gpa || edu.score || edu.percentage || edu.marks || ""
     };
   });
 
@@ -99,26 +102,90 @@ export function normalizeCvSchema(rawCv) {
     return { name: l.name || l.language || "", level: l.level || l.proficiency || "Proficient" };
   });
 
-  // 9. Custom Sections & Positions Hired For
-  cv.customSections = Array.isArray(cv.customSections) ? cv.customSections : [];
-  cv.positionsHiredFor = Array.isArray(cv.positionsHiredFor) ? cv.positionsHiredFor : [];
-  cv.itSkills = Array.isArray(cv.itSkills) ? cv.itSkills : [];
+  // 9. Custom Sections
+  cv.customSections = (Array.isArray(cv.customSections) ? cv.customSections : []).filter(Boolean);
 
-  // 10. LayoutType & Authentic Style Profile
-  if (cv.layoutType !== 'two-column-left-sidebar' && cv.layoutType !== 'single-column') {
-    cv.layoutType = 'single-column';
-  }
+  // 10. Layout & Style Profile
+  const layout = (cv.layoutType === 'two-column-sidebar' || cv.styleProfile?.layoutType === 'two-column-sidebar')
+    ? 'two-column-sidebar'
+    : 'single-column';
 
+  cv.layoutType = layout;
   cv.styleProfile = {
-    layoutType: cv.layoutType,
-    accentColor: cv.styleProfile?.accentColor || "#0284c7",
-    sidebarBg: cv.styleProfile?.sidebarBg || (cv.layoutType === 'two-column-left-sidebar' ? "#0f172a" : "#ffffff"),
-    sidebarTextColor: cv.styleProfile?.sidebarTextColor || (cv.layoutType === 'two-column-left-sidebar' ? "#f8fafc" : "#1e293b"),
+    layoutType: layout,
+    accentColor: cv.styleProfile?.accentColor || "#2563eb",
+    sidebarBg: cv.styleProfile?.sidebarBg || (layout === 'two-column-sidebar' ? "#f8fafc" : "#ffffff"),
+    sidebarTextColor: cv.styleProfile?.sidebarTextColor || "#0f172a",
     fontFamily: cv.styleProfile?.fontFamily || "font-sans",
-    headerAlignment: cv.styleProfile?.headerAlignment || "left",
-    sectionDivider: cv.styleProfile?.sectionDivider || "solid-line",
-    bulletStyle: cv.styleProfile?.bulletStyle || "disc"
+    headerAlignment: cv.styleProfile?.headerAlignment || "left"
   };
 
   return cv;
+}
+
+export function createEmptyCv() {
+  return {
+    layoutType: "single-column",
+    header: {
+      name: "Your Full Name",
+      title: "Target Role / Professional Title",
+      summary: "Results-oriented professional with demonstrated expertise, strong analytical problem-solving skills, and a commitment to delivering high-impact outcomes in fast-paced environments."
+    },
+    contact: {
+      email: "name@example.com",
+      phone: "+91 98765 43210",
+      location: "City, Country",
+      linkedin: "https://linkedin.com/in/yourprofile",
+      github: "https://github.com/yourhandle",
+      website: ""
+    },
+    skills: [
+      "Problem Solving", "Cross-Functional Leadership", "Requirement Analysis", 
+      "Strategic Planning", "Process Optimization"
+    ],
+    experiences: [
+      {
+        id: "exp-1",
+        role: "Associate / Specialist",
+        company: "Innovation Systems",
+        period: "2023 – Present",
+        location: "City, Country",
+        bullets: [
+          "Spearheaded key project workflows, reducing cycle turnaround times by 28% through process improvements.",
+          "Collaborated with cross-functional stakeholders to deliver high-quality strategic initiatives on schedule.",
+          "Standardized operating guidelines to enhance quality assurance and overall operational efficiency."
+        ]
+      }
+    ],
+    education: [
+      {
+        degree: "Bachelor of Technology / Relevant Degree",
+        institution: "Premier University / College",
+        year: "2019 – 2023",
+        details: "Graduated with Honors; focused on core domain proficiencies.",
+        grade: "First Class"
+      }
+    ],
+    projects: [
+      {
+        title: "Key Domain Project",
+        description: "High-impact initiative addressing operational workflow bottlenecks.",
+        tech: "Modern Tools, Cloud, Analytics",
+        bullets: [
+          "Designed and implemented automated tracking workflows improving team throughput by 35%."
+        ]
+      }
+    ],
+    certifications: ["Industry Certification in Core Domain"],
+    languages: [{ name: "English", level: "Fluent" }, { name: "Hindi", level: "Native" }],
+    customSections: [],
+    styleProfile: {
+      layoutType: "single-column",
+      accentColor: "#2563eb",
+      sidebarBg: "#ffffff",
+      sidebarTextColor: "#0f172a",
+      fontFamily: "font-sans",
+      headerAlignment: "left"
+    }
+  };
 }
