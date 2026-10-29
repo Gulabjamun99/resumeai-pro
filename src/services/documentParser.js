@@ -169,6 +169,14 @@ export function parseDeterministicCvText(rawText, fileName = "Resume.pdf") {
     }
 
     // Process line based on active section
+    if (currentSection === "header") {
+      // Capture intro bio / summary before any section heading if present
+      if (line.length > 25 && !/@|https?:\/\/|\+?\d{8,}/.test(line)) {
+        summary = (summary ? summary + " " : "") + line;
+      }
+      continue;
+    }
+
     if (currentSection === "summary") {
       summary = (summary ? summary + " " : "") + line;
       continue;
