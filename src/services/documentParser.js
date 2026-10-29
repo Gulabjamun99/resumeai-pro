@@ -83,16 +83,21 @@ export function extractLinesFromPdfItems(items) {
 /**
  * Deterministic Offline Parser Fallback (0% Dummy Data, 0% Leaked Mock Roles)
  */
-function parseDeterministicCvText(rawText, fileName = "Resume.pdf") {
+/**
+ * Deterministic Offline Parser Fallback (0% Dummy Data, 0% Leaked Mock Roles)
+ */
+export function parseDeterministicCvText(rawText, fileName = "Resume.pdf") {
   const text = (rawText || "").trim();
-  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const rawLines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
-  let name = lines[0] || "Candidate Name";
+  let name = rawLines[0] || "Candidate Name";
   if (name.includes(',')) {
     name = name.split(',')[0].trim();
   }
 
-  let title = lines[1] && lines[1].length < 80 ? lines[1] : "Professional Specialist";
+  let title = rawLines[1] && rawLines[1].length < 80 && !/@|https?:\/\/|\+?\d{8,}/.test(rawLines[1])
+    ? rawLines[1] 
+    : "Professional Specialist";
 
   const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   const phoneMatch = text.match(/(?:\+?\d{1,4}[-.\s]?)?(?:\(?\d{3,5}\)?[-.\s]?)?\d{3,5}[-.\s]?\d{3,5}/);
@@ -112,86 +117,197 @@ function parseDeterministicCvText(rawText, fileName = "Resume.pdf") {
   const experiences = [];
   const education = [];
   const projects = [];
+  const certifications = [];
+  let summary = "";
 
+  // Section Headers Detection Regex
+  const SECTION_EXP = /^(?:professional\s+|work\s+|career\s+|relevant\s+|employment\s+)?(?:experience|history|employment|work|background)\b/i;
+  const SECTION_SKILLS = /^(?:technical\s+|core\s+|key\s+|professional\s+)?(?:skills|competencies|proficiencies|technologies|tools\s*&?\s*technologies|expertise)\b/i;
+  const SECTION_EDU = /^(?:education|academics|qualifications|academic\s+background|educational\s+details)\b/i;
+  const SECTION_PROJ = /^(?:key\s+|technical\s+|academic\s+|personal\s+)?(?:projects|work\s+samples)\b/i;
+  const SECTION_CERT = /^(?:certifications|certificates|licenses|courses\s*&?\s*certifications)\b/i;
+  const SECTION_SUMM = /^(?:executive\s+|professional\s+)?(?:summary|profile|about\s*me|objective)\b/i;
+
+  let currentSection = "header";
   let currentExp = null;
-  let inSkills = false;
+  let currentProj = null;
 
-  for (let i = 2; i < lines.length; i++) {
-    const line = lines[i];
+  for (let i = 2; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    const cleanHeaderLine = line.replace(/[:\-–—#_]+$/, '').trim();
 
-    if (/^(?:key\s*)?skills|technical\s*skills|competencies/i.test(line)) {
-      inSkills = true;
-      const tokens = line.replace(/^(?:(?:key\s*)?skills|technical\s*skills|competencies)\s*:?/i, '').split(/[,|•;·\t]+/).map(s => s.trim()).filter(Boolean);
-      tokens.forEach(t => { if (t.length > 1 && !skills.includes(t)) skills.push(t); });
+    // Check if this line is a section header
+    if (SECTION_EXP.test(cleanHeaderLine)) {
+      currentSection = "experience";
+      continue;
+    }
+    if (SECTION_SKILLS.test(cleanHeaderLine)) {
+      currentSection = "skills";
+      const inlineSkills = cleanHeaderLine.replace(SECTION_SKILLS, '').replace(/^[:\s]+/, '').trim();
+      if (inlineSkills) {
+        inlineSkills.split(/[,|•;·\t]+/).map(s => s.trim()).filter(Boolean).forEach(s => {
+          if (s.length > 1 && s.length < 40 && !skills.includes(s)) skills.push(s);
+        });
+      }
+      continue;
+    }
+    if (SECTION_EDU.test(cleanHeaderLine)) {
+      currentSection = "education";
+      continue;
+    }
+    if (SECTION_PROJ.test(cleanHeaderLine)) {
+      currentSection = "projects";
+      continue;
+    }
+    if (SECTION_CERT.test(cleanHeaderLine)) {
+      currentSection = "certifications";
+      continue;
+    }
+    if (SECTION_SUMM.test(cleanHeaderLine)) {
+      currentSection = "summary";
       continue;
     }
 
-    if (/^experience|^employment|^work\s*history/i.test(line)) {
-      inSkills = false;
+    // Process line based on active section
+    if (currentSection === "summary") {
+      summary = (summary ? summary + " " : "") + line;
       continue;
     }
 
-    if (/^education|^academic/i.test(line)) {
-      inSkills = false;
-      continue;
-    }
-
-    if (inSkills) {
+    if (currentSection === "skills") {
       const tokens = line.split(/[,|•;·\t]+/).map(s => s.trim()).filter(Boolean);
-      tokens.forEach(t => { if (t.length > 1 && t.length < 40 && !skills.includes(t)) skills.push(t); });
+      tokens.forEach(t => {
+        const clean = t.replace(/^[•▪*\-–—]\s*/, '').trim();
+        if (clean.length > 1 && clean.length < 40 && !skills.includes(clean)) {
+          skills.push(clean);
+        }
+      });
       continue;
     }
 
-    const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('▪') || line.startsWith('*');
-    if (isBullet) {
-      if (!currentExp) {
+    if (currentSection === "experience") {
+      const isBullet = /^[•▪*\-–—]\s*|\b\d+\.\s+/.test(line);
+      const hasDates = /\b(19\d\d|20\d\d|present|current)\b/i.test(line);
+
+      if (isBullet) {
+        if (!currentExp) {
+          currentExp = {
+            id: `exp-${experiences.length + 1}`,
+            role: "Professional Role",
+            company: "Organization",
+            period: "Career Period",
+            location: "",
+            bullets: []
+          };
+          experiences.push(currentExp);
+        }
+        currentExp.bullets.push(line.replace(/^[•▪*\-–—]\s*|\b\d+\.\s+/, '').trim());
+        continue;
+      }
+
+      if (hasDates) {
+        const parts = line.split(/[|•·\t]+/).map(p => p.trim()).filter(Boolean);
+        const datePart = parts.find(p => /\b(19\d\d|20\d\d|present|current)\b/i.test(p)) || line;
+        
+        let role = "Specialist";
+        let company = "Organization";
+
+        if (parts.length >= 3) {
+          role = parts[0];
+          company = parts[1];
+        } else if (parts.length === 2) {
+          const nonDate = parts.find(p => p !== datePart) || "";
+          if (nonDate.includes(" at ") || nonDate.includes(" @ ")) {
+            const splitAt = nonDate.split(/\s+at\s+|\s+@\s+/i);
+            role = splitAt[0].trim();
+            company = splitAt[1].trim();
+          } else {
+            company = nonDate;
+            const prevLine = rawLines[i - 1];
+            if (prevLine && !SECTION_EXP.test(prevLine) && prevLine.length < 60) {
+              role = prevLine;
+            }
+          }
+        } else {
+          const prev1 = rawLines[i - 1] || "";
+          const prev2 = rawLines[i - 2] || "";
+          if (prev1 && !SECTION_EXP.test(prev1)) role = prev1;
+          if (prev2 && !SECTION_EXP.test(prev2)) company = prev2;
+        }
+
+        if (currentExp && currentExp.bullets.length === 0 && (!currentExp.period || currentExp.period === "")) {
+          currentExp.role = role !== "Specialist" ? role : currentExp.role;
+          currentExp.company = company !== "Organization" ? company : currentExp.company;
+          currentExp.period = datePart;
+        } else {
+          currentExp = {
+            id: `exp-${experiences.length + 1}`,
+            role,
+            company,
+            period: datePart,
+            location: "",
+            bullets: []
+          };
+          experiences.push(currentExp);
+        }
+        continue;
+      }
+
+      if (currentExp && line.length > 20) {
+        currentExp.bullets.push(line);
+      } else if (!currentExp && line.length < 60) {
         currentExp = {
           id: `exp-${experiences.length + 1}`,
-          role: "Professional Role",
+          role: line,
           company: "Organization",
-          period: "Career History",
+          period: "",
           location: "",
           bullets: []
         };
-      }
-      currentExp.bullets.push(line.replace(/^[•▪*\-]\s*/, '').trim());
-      continue;
-    }
-
-    const hasDates = /\b(20\d\d|19\d\d|present|current)\b/i.test(line);
-    if (hasDates) {
-      if (currentExp) {
         experiences.push(currentExp);
       }
-      const parts = line.split(/[|•,·]+/).map(p => p.trim());
-      const periodPart = parts.find(p => /\b(20\d\d|19\d\d|present|current)\b/i.test(p)) || line;
-      const rolePart = lines[i - 1] && lines[i - 1].length < 60 ? lines[i - 1] : "Role";
-      const companyPart = parts.find(p => p !== periodPart) || "Company";
-
-      currentExp = {
-        id: `exp-${experiences.length + 1}`,
-        role: rolePart,
-        company: companyPart,
-        period: periodPart,
-        location: "",
-        bullets: []
-      };
       continue;
     }
 
-    if (/b\.tech|bachelor|master|m\.tech|mba|phd|degree|university|college|school/i.test(line)) {
-      education.push({
-        degree: line,
-        institution: "",
-        year: "",
-        details: "",
-        grade: ""
-      });
-    }
-  }
+    if (currentSection === "education") {
+      const hasDegree = /b\.tech|bachelor|master|m\.tech|mba|phd|degree|b\.sc|m\.sc|bba|b\.com|m\.com|high\s*school|diploma/i.test(line);
+      const hasDates = /\b(19\d\d|20\d\d)\b/.test(line);
 
-  if (currentExp) {
-    experiences.push(currentExp);
+      if (hasDegree || hasDates || education.length === 0) {
+        const parts = line.split(/[|•·\t]+/).map(p => p.trim()).filter(Boolean);
+        const yearMatch = line.match(/\b(19\d\d|20\d\d)\b(?:\s*[-–—]\s*(?:19\d\d|20\d\d|present))?/i);
+        education.push({
+          degree: parts[0] || line,
+          institution: parts[1] || (rawLines[i + 1] && rawLines[i + 1].length < 60 ? rawLines[i + 1] : ""),
+          year: yearMatch ? yearMatch[0] : "",
+          details: "",
+          grade: ""
+        });
+      }
+      continue;
+    }
+
+    if (currentSection === "projects") {
+      const isBullet = /^[•▪*\-–—]\s*|\b\d+\.\s+/.test(line);
+      if (isBullet && currentProj) {
+        currentProj.bullets.push(line.replace(/^[•▪*\-–—]\s*|\b\d+\.\s+/, '').trim());
+      } else {
+        currentProj = {
+          title: line,
+          description: "",
+          tech: "",
+          bullets: []
+        };
+        projects.push(currentProj);
+      }
+      continue;
+    }
+
+    if (currentSection === "certifications") {
+      const certName = line.replace(/^[•▪*\-–—]\s*/, '').trim();
+      if (certName) certifications.push(certName);
+      continue;
+    }
   }
 
   return {
@@ -199,14 +315,14 @@ function parseDeterministicCvText(rawText, fileName = "Resume.pdf") {
     header: {
       name,
       title,
-      summary: lines.slice(2, 5).join(' ').slice(0, 300) || "Experienced professional with proven domain execution."
+      summary: summary || "Experienced professional with proven domain execution."
     },
     contact,
     skills,
     experiences,
     education,
     projects,
-    certifications: [],
+    certifications,
     languages: []
   };
 }
