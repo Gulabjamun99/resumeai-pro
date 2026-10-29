@@ -1,6 +1,7 @@
 import React from 'react';
-import { Mail, Phone, MapPin, Globe } from 'lucide-react';
+import { Mail, Phone, MapPin, Globe, Code, ExternalLink } from 'lucide-react';
 import { formatEducationItem } from '../../utils/educationFormatter';
+import { normalizeCvSchema } from '../../utils/cvNormalizer';
 
 /**
  * ORIGINAL SOURCE TEMPLATE RENDERER (P1.6 DYNAMIC TEMPLATE REPLICA ENGINE)
@@ -14,24 +15,21 @@ import { formatEducationItem } from '../../utils/educationFormatter';
 export default function SourceTemplate({ resume, id = "resume-document" }) {
   if (!resume) return null;
 
-  const header = resume.header || {};
-  const contact = resume.contact || {};
-  const skills = Array.isArray(resume.skills) ? resume.skills : [];
-  const experiences = Array.isArray(resume.experiences) 
-    ? resume.experiences 
-    : Array.isArray(resume.experience) 
-      ? resume.experience 
-      : [];
-  const education = Array.isArray(resume.education) ? resume.education : [];
-  const certifications = Array.isArray(resume.certifications) ? resume.certifications : [];
-  const projects = Array.isArray(resume.projects) ? resume.projects : [];
-  const languages = Array.isArray(resume.languages) ? resume.languages : [];
-  const publications = Array.isArray(resume.publications) ? resume.publications : [];
-  const positionsHiredFor = Array.isArray(resume.positionsHiredFor) ? resume.positionsHiredFor : [];
-  const itSkills = Array.isArray(resume.itSkills) ? resume.itSkills : [];
+  const cv = normalizeCvSchema(resume);
+  const header = cv.header || {};
+  const contact = cv.contact || {};
+  const skills = Array.isArray(cv.skills) ? cv.skills : [];
+  const experiences = Array.isArray(cv.experiences) ? cv.experiences : [];
+  const education = Array.isArray(cv.education) ? cv.education : [];
+  const certifications = Array.isArray(cv.certifications) ? cv.certifications : [];
+  const projects = Array.isArray(cv.projects) ? cv.projects : [];
+  const languages = Array.isArray(cv.languages) ? cv.languages : [];
+  const publications = Array.isArray(cv.publications) ? cv.publications : [];
+  const positionsHiredFor = Array.isArray(cv.positionsHiredFor) ? cv.positionsHiredFor : [];
+  const itSkills = Array.isArray(cv.itSkills) ? cv.itSkills : [];
+  const customSections = Array.isArray(cv.customSections) ? cv.customSections : [];
 
-  const isDualColumn = resume.layoutType === 'two-column-left-sidebar' || 
-                       resume.styleProfile?.layoutType === 'two-column-left-sidebar';
+  const isDualColumn = cv.layoutType === 'two-column-left-sidebar';
 
   if (isDualColumn) {
     return (
@@ -363,16 +361,28 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
               <span>{contact.phone}</span>
             </span>
           )}
-          {contact.address && (
+          {(contact.location || contact.address) && (
             <span className="flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 text-slate-500" />
-              <span>{contact.address}</span>
+              <span>{contact.location || contact.address}</span>
             </span>
           )}
           {contact.linkedin && (
             <span className="flex items-center gap-1">
               <Globe className="w-3.5 h-3.5 text-slate-500" />
               <span>{contact.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, 'in/')}</span>
+            </span>
+          )}
+          {contact.github && (
+            <span className="flex items-center gap-1">
+              <Code className="w-3.5 h-3.5 text-slate-500" />
+              <span>{contact.github.replace(/^https?:\/\/(www\.)?github\.com\//i, 'github.com/')}</span>
+            </span>
+          )}
+          {contact.website && (
+            <span className="flex items-center gap-1">
+              <ExternalLink className="w-3.5 h-3.5 text-slate-500" />
+              <span>{contact.website.replace(/^https?:\/\//i, '')}</span>
             </span>
           )}
         </div>
@@ -418,7 +428,7 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {projects.map((proj, idx) => (
               <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-xs font-bold text-slate-900 block">{proj.title}</span>
+                <span className="text-xs font-bold text-slate-900 block">{proj.title || proj.name || "Project"}</span>
                 {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
                   <p className="text-[11px] text-slate-600 mt-0.5">{proj.bullets[0]}</p>
                 ) : proj.description ? (
@@ -449,7 +459,7 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
                     </span>
                   </div>
                   <span className="text-[11px] font-mono text-slate-500 font-medium whitespace-nowrap">
-                    {exp.period || exp.dates || ""}
+                    {exp.period || exp.duration || exp.dates || ""}
                   </span>
                 </div>
 

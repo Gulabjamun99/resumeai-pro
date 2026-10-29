@@ -30,7 +30,7 @@ function getApiKeys() {
  * Core Gemini API Caller
  * Supports single-turn or multi-turn chat contents with multi-model fallback & multi-key rotation
  */
-export async function callGeminiApi(promptText, systemInstruction = "", chatHistory = [], customConfig = {}) {
+export async function callGeminiApi(promptText, systemInstruction = "", chatHistory = [], customConfig = {}, inlineImages = []) {
   const apiKeys = getApiKeys();
 
   // Try direct Gemini API across candidate keys and models
@@ -55,15 +55,31 @@ export async function callGeminiApi(promptText, systemInstruction = "", chatHist
               finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Task/Message:\n${promptText}`;
             }
 
+            const imageParts = (Array.isArray(inlineImages) ? inlineImages : []).map(img => {
+              const rawData = typeof img === 'string' ? img : (img.data || img.base64 || '');
+              return {
+                inlineData: {
+                  mimeType: (typeof img === 'object' && img.mimeType) ? img.mimeType : 'image/jpeg',
+                  data: rawData.replace(/^data:image\/\w+;base64,/, '')
+                }
+              };
+            });
+
             if (systemInstruction) {
               contents.push({
                 role: 'user',
-                parts: [{ text: `System Instruction / Guiding Rules:\n${systemInstruction}\n\nTask:\n${finalPrompt}` }]
+                parts: [
+                  { text: `System Instruction / Guiding Rules:\n${systemInstruction}\n\nTask:\n${finalPrompt}` },
+                  ...imageParts
+                ]
               });
             } else {
               contents.push({
                 role: 'user',
-                parts: [{ text: finalPrompt }]
+                parts: [
+                  { text: finalPrompt },
+                  ...imageParts
+                ]
               });
             }
 
@@ -514,5 +530,148 @@ Extract and return ONLY the valid JSON object conforming to the schema above:`;
     console.warn("parseCvWithGemini error:", err.message);
   }
 
+  return null;
+}
+
+/**
+ * Multi-Modal AI Resume Parser (Vision + OCR + Layout Analysis)
+ * Parses image-based PDFs, scans, PNGs, and JPGs directly via Gemini 2.5 Flash Vision.
+ */
+export async function parseCvWithGeminiVision(images = []) {
+  if (!images || images.length === 0) return null;
+
+  const systemInstruction = `You are the Lead Multi-Modal Resume Parser and Executive CV Architect at ResumeAI Pro.
+Your mission is to look directly at the visual document page images and extract the candidate's authentic resume data into our standardized Resume JSON schema.
+
+CRITICAL INVARIANTS:
+1. 100% FACTUAL ACCURACY & ZERO LOSS OF DETAILS:
+   - Read every section visually: Candidate Name, Professional Title / Headline, Contact Information (email, phone, location, linkedin, portfolio/github), Executive Summary, Work Experience, Education, Skills, Projects, Certifications, Languages, and any other sections.
+   - Extract EXACT company names, job titles, start and end dates, locations, degrees, institutions, and achievements.
+   - Do NOT omit any job, degree, or verified detail.
+2. STRICT 1 TO 2 PAGE COMPACT ATS BUDGET:
+   - If the uploaded CV spans multiple pages or has verbose descriptions, compound and synthesize verbose text into dense, high-impact STAR bullets (Situation, Action, Measurable Result).
+   - Ensure the total bullet density fits neatly into 1 or 2 standard A4 pages without dropping any real employer, role, date, or degree.
+3. AUTHENTIC VISUAL LAYOUT & DESIGN DETECTION:
+   - Look at the actual visual composition:
+     * If the document has a distinct left or right column/sidebar containing contact info and skills, set "layoutType": "two-column-left-sidebar".
+     * If the document has a single column linear top-to-bottom layout on a white page, set "layoutType": "single-column".
+   - Detect the dominant accent color (e.g. #0284c7 for blue, #0d9488 for teal, #1e293b for dark slate, etc.).
+4. CORPORATE ENGLISH MANDATE:
+   - Ensure all resume text inside the JSON is formatted in polished, prestigious Corporate English.
+
+JSON OUTPUT STRUCTURE:
+Return a single strictly valid JSON object conforming to:
+{
+  "layoutType": "single-column" | "two-column-left-sidebar",
+  "styleProfile": {
+    "layoutType": "single-column" | "two-column-left-sidebar",
+    "accentColor": "#0284c7",
+    "sidebarBg": "#0f172a",
+    "fontFamily": "font-sans"
+  },
+  "header": {
+    "name": "Candidate Full Name",
+    "title": "Target Role / Headline",
+    "summary": "Professional executive summary"
+  },
+  "contact": {
+    "email": "",
+    "phone": "",
+    "location": "",
+    "linkedin": "",
+    "github": "",
+    "website": ""
+  },
+  "skills": ["Skill 1", "Skill 2"],
+  "experiences": [
+    {
+      "id": "exp-1",
+      "role": "Role Title",
+      "company": "Company Name",
+      "period": "Duration / Dates",
+      "location": "Location",
+      "bullets": ["High impact STAR bullet"]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Degree Name",
+      "institution": "University / College",
+      "year": "Year / Duration",
+      "details": "Major / Focus",
+      "grade": ""
+    }
+  ],
+  "projects": [
+    {
+      "title": "Project Title",
+      "description": "Short description",
+      "bullets": ["Impact bullet"]
+    }
+  ],
+  "certifications": [
+    { "name": "Certification Name", "issuer": "Issuer", "year": "" }
+  ],
+  "languages": [
+    { "name": "Language", "level": "Level" }
+  ],
+  "customSections": [
+    { "id": "custom-1", "title": "Section Title", "items": ["Item 1"] }
+  ]
+}`;
+
+  const prompt = "Please analyze the attached resume image(s). Extract the complete candidate data, authentic visual layout, and structured sections into our standardized JSON schema:";
+  
+  const inlineImages = images.map(img => {
+    if (typeof img === 'string') {
+      const cleanData = img.replace(/^data:image\/\w+;base64,/, '');
+      return { mimeType: 'image/jpeg', data: cleanData };
+    }
+    return {
+      mimeType: img.mimeType || 'image/jpeg',
+      data: (img.data || img.base64 || '').replace(/^data:image\/\w+;base64,/, '')
+    };
+  });
+
+  try {
+    const rawResult = await callGeminiApi(prompt, systemInstruction, [], { responseMimeType: "application/json" }, inlineImages);
+    if (!rawResult) return null;
+
+    let clean = rawResult.trim();
+    if (clean.startsWith('```json')) {
+      clean = clean.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
+    } else if (clean.startsWith('```')) {
+      clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+    }
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(clean);
+    } catch (e1) {
+      const jsonMatch = clean.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+        } catch (_) {}
+      }
+    }
+
+    if (parsed && (parsed.header?.name || parsed.experiences?.length > 0)) {
+      if (parsed.layoutType !== 'two-column-left-sidebar' && parsed.layoutType !== 'single-column') {
+        parsed.layoutType = 'single-column';
+      }
+      if (!parsed.styleProfile) {
+        parsed.styleProfile = {
+          layoutType: parsed.layoutType,
+          accentColor: '#0284c7',
+          sidebarBg: '#0f172a',
+          fontFamily: 'font-sans'
+        };
+      }
+      return parsed;
+    }
+  } catch (err) {
+    console.warn("parseCvWithGeminiVision error:", err);
+  }
   return null;
 }
