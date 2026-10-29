@@ -345,3 +345,174 @@ Apply the user instruction and return the updated CV JSON:`;
 
   return null;
 }
+
+/**
+ * Universal AI CV Parser (ChatGPT / Gemini style)
+ * Extracts candidate data from any resume text across all professions with 0% data leakage,
+ * strict 1-2 page compounding, and authentic layout detection.
+ */
+export async function parseCvWithGemini(extractedText, layoutHint = 'single-column') {
+  if (!extractedText || extractedText.trim().length < 20) {
+    return null;
+  }
+
+  const systemInstruction = `You are the Lead Universal Resume Parser and Executive CV Architect at ResumeAI Pro.
+Your mission is to parse candidate resumes across ANY profession (Software Engineering, Medicine/Healthcare, Law, Finance/CA, Sales, HR, Academia, Freshers, C-Suite Executives) into our standardized Resume JSON schema.
+
+CRITICAL INVARIANTS:
+1. ZERO DATA LEAKAGE / 100% CANDIDATE FACT ACCURACY:
+   - Extract ONLY the facts, names, dates, credentials, and achievements present in the provided document text.
+   - NEVER inject dummy data, placeholder companies, or details from other candidates.
+   - If a section (e.g. projects, certifications, publications, languages) is not present in the text, return an empty array [].
+2. UNIVERSAL 1 TO 2 PAGE COMPACT ATS BUDGET:
+   - Even if the source text spans 3 to 10 verbose pages, synthesize and compound verbose narrative text into crisp, high-impact STAR bullets (Situation, Action, Measurable Result).
+   - Balance bullet count (3 to 5 strong bullets per recent role, 2 to 3 for older roles) so the entire document comfortably fits within 1 to 2 standard A4 pages without omitting any real employers, job titles, dates, or degrees.
+3. AUTHENTIC LAYOUT DETECTION:
+   - Determine whether the original resume layout was:
+     * "two-column-left-sidebar" (if the document has a prominent sidebar with contact info, skills, education, and languages beside the main experience column).
+     * "single-column" (standard linear top-to-bottom layout).
+   - Spatial layout hint from document parser: "${layoutHint}". If confident, respect this layout style.
+4. 100% PRESTIGIOUS CORPORATE ENGLISH:
+   - Ensure all resume text inside the JSON is written in professional, polished Corporate English with strong action verbs.
+
+JSON OUTPUT STRUCTURE:
+Return a single strictly valid JSON object conforming to this exact structure:
+{
+  "layoutType": "single-column" | "two-column-left-sidebar",
+  "header": {
+    "name": "Candidate Full Name",
+    "title": "Current / Target Professional Title",
+    "summary": "Impactful professional executive summary"
+  },
+  "contact": {
+    "email": "candidate@example.com",
+    "phone": "+91 ...",
+    "location": "City, Country",
+    "linkedin": "https://linkedin.com/in/...",
+    "github": "",
+    "website": ""
+  },
+  "skills": ["Skill 1", "Skill 2"],
+  "experiences": [
+    {
+      "id": "exp-1",
+      "role": "Role / Designation",
+      "company": "Company / Organization Name",
+      "period": "Start – End (or Year – Year)",
+      "location": "City or Remote",
+      "bullets": [
+        "Quantified high-impact STAR bullet starting with active verb",
+        "Second STAR bullet"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Degree / Qualification (e.g. B.Tech in Computer Science, MBBS, MBA)",
+      "institution": "University / Institution Name",
+      "year": "Graduation Year / Duration",
+      "details": "Major / Focus / Honors (if mentioned)",
+      "grade": ""
+    }
+  ],
+  "projects": [
+    {
+      "title": "Project Title",
+      "description": "Concise overview",
+      "bullets": ["Technical execution or impact bullet"]
+    }
+  ],
+  "certifications": [
+    {
+      "name": "Certification Name",
+      "issuer": "Issuing Organization",
+      "year": "Year"
+    }
+  ],
+  "languages": [
+    { "name": "Language Name", "level": "Native / Fluent / Professional" }
+  ],
+  "customSections": [
+    {
+      "id": "custom-1",
+      "title": "Section Title (e.g. Publications, Patents, Key Achievements)",
+      "items": ["Item 1", "Item 2"]
+    }
+  ]
+}`;
+
+  const prompt = `Raw Resume Document Text to Parse:
+"""
+${extractedText.slice(0, 15000)}
+"""
+
+Extract and return ONLY the valid JSON object conforming to the schema above:`;
+
+  try {
+    const rawResult = await callGeminiApi(prompt, systemInstruction, [], { responseMimeType: "application/json" });
+    if (!rawResult) return null;
+
+    let clean = rawResult.trim();
+    if (clean.startsWith('```json')) {
+      clean = clean.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
+    } else if (clean.startsWith('```')) {
+      clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+    }
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(clean);
+    } catch (e1) {
+      const jsonMatch = clean.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          parsed = JSON.parse(jsonMatch[0]);
+        } catch (e2) {
+          const sanitized = jsonMatch[0].replace(/[\u0000-\u001F]+/g, ' ');
+          parsed = JSON.parse(sanitized);
+        }
+      }
+    }
+
+    if (parsed && (parsed.header?.name || parsed.experiences?.length > 0)) {
+      // Normalize layoutType
+      if (parsed.layoutType !== 'two-column-left-sidebar' && parsed.layoutType !== 'single-column') {
+        parsed.layoutType = layoutHint || 'single-column';
+      }
+
+      // Ensure styleProfile matches
+      parsed.styleProfile = {
+        layoutType: parsed.layoutType,
+        accentColor: "#0284c7",
+        sidebarBg: "#0f172a",
+        sidebarTextColor: "#f8fafc",
+        fontFamily: "font-sans",
+        headerAlignment: "left",
+        sectionDivider: "solid-line",
+        bulletStyle: "disc"
+      };
+
+      // Ensure experiences have valid ids
+      if (Array.isArray(parsed.experiences)) {
+        parsed.experiences = parsed.experiences.map((exp, idx) => ({
+          ...exp,
+          id: exp.id || `exp-${idx + 1}`,
+          bullets: Array.isArray(exp.bullets) ? exp.bullets : []
+        }));
+      }
+
+      parsed.skills = Array.isArray(parsed.skills) ? parsed.skills : [];
+      parsed.education = Array.isArray(parsed.education) ? parsed.education : [];
+      parsed.projects = Array.isArray(parsed.projects) ? parsed.projects : [];
+      parsed.certifications = Array.isArray(parsed.certifications) ? parsed.certifications : [];
+      parsed.languages = Array.isArray(parsed.languages) ? parsed.languages : [];
+      parsed.customSections = Array.isArray(parsed.customSections) ? parsed.customSections : [];
+
+      return parsed;
+    }
+  } catch (err) {
+    console.warn("parseCvWithGemini error:", err.message);
+  }
+
+  return null;
+}

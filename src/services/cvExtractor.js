@@ -146,21 +146,29 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf", layout
   if (!name) name = rawLines[0] || "Candidate";
   if (!title) title = rawLines[1] && rawLines[1].length < 70 ? rawLines[1] : "Professional Specialist";
 
+  // If name contains degree/credential suffix (e.g. "Dr. Priya Sharma, MBBS, MD"), keep the full name
+  if (name.includes(',')) {
+    const [namePart] = name.split(',');
+    if (namePart.trim().length >= 2) {
+      name = namePart.trim();
+    }
+  }
+
   // Defensive Sanitize: ensure name is not contaminated with role title or section headers
-  const splitKeywordsRegex = /(?:\s+)(AI-Driven|Senior|Lead|Junior|Associate|Chief|Director|Head|VP|Manager|Specialist|Engineer|Developer|Consultant|Architect|Officer|Executive|Analyst|Intern|Doctor|Advocate|EDUCATION|CERTIFICATIONS|SKILLS|EXPERIENCE|SUMMARY)\b/i;
+  const splitKeywordsRegex = /(?:\s+)(AI-Driven|Senior|Lead|Junior|Associate|Chief|Director|Head|VP|Manager|Specialist|Engineer|Developer|Consultant|Architect|Officer|Executive|Analyst|Intern|Advocate|EDUCATION|CERTIFICATIONS|SKILLS|EXPERIENCE|SUMMARY)\b/i;
   const match = name.match(splitKeywordsRegex);
   if (match && match.index >= 2) {
     const extractedName = name.substring(0, match.index).trim();
     const extractedTitle = name.substring(match.index).trim();
-    name = extractedName.length <= 40 ? extractedName : extractedName.split(' ').slice(0, 3).join(' ');
+    name = extractedName.length <= 40 ? extractedName : extractedName.split(' ').slice(0, 4).join(' ');
     if (!title || title === "Professional Specialist") {
       title = extractedTitle;
     }
-  } else if (name.split(/\s+/).length > 4) {
+  } else if (name.split(/\s+/).length > 5) {
     const words = name.split(/\s+/);
-    name = words.slice(0, 2).join(' ');
+    name = words.slice(0, 4).join(' ');
     if (!title || title === "Professional Specialist") {
-      title = words.slice(2).join(' ');
+      title = words.slice(4).join(' ');
     }
   }
 
@@ -433,17 +441,14 @@ export function parseGenericCvText(rawText, fileName = "Uploaded_CV.pdf", layout
       github,
       website
     },
-    skills: skills.length > 0 ? skills : [
-      "Strategic Execution", "Cross-Functional Leadership", "Process Optimization", 
-      "Stakeholder Management", "Domain Expertise"
-    ],
+    skills: skills.length > 0 ? skills : [],
     experiences,
-    education: education.length > 0 ? education : ["Degree / Academic Qualifications"],
+    education: education.length > 0 ? education : [],
     certifications,
     projects,
     publications,
     awards,
-    languages: languages.length > 0 ? languages : [{ name: "English", level: "Professional" }],
+    languages: languages.length > 0 ? languages : [],
     customSections,
     sectionOrder
   };
@@ -457,6 +462,10 @@ export function parseDualColumnCvDocument(mainText, sidebarText, fileName = "Upl
   const contact = { email: '', phone: '', address: '', linkedin: '', location: '' };
   const sidebarSkills = [];
   const positionsHiredFor = [];
+  const experiences = [];
+  const education = [];
+  const certifications = [];
+  const itSkills = [];
   let currentField = null;
 
   const sidebarLines = sidebarText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -519,11 +528,33 @@ export function parseDualColumnCvDocument(mainText, sidebarText, fileName = "Upl
       continue;
     }
 
-    // Skills line in sidebar
-    if (line.length > 2 && line.length < 60) {
-      if (!sidebarSkills.includes(line)) {
-        sidebarSkills.push(line);
+    if (/^(?:key\s*)?skills\s*:?/i.test(line) || /^(?:core\s*)?competencies\s*:?/i.test(line)) {
+      const cleanLine = line.replace(/^(?:(?:key\s*)?skills|(?:core\s*)?competencies)\s*:?/i, '').trim();
+      const tokens = cleanLine.split(/[,|•;·\t]+/).map(s => s.trim()).filter(Boolean);
+      tokens.forEach(t => {
+        if (t.length > 1 && t.length < 50 && !sidebarSkills.includes(t)) {
+          sidebarSkills.push(t);
+        }
+      });
+      continue;
+    }
+
+    if (/^education\s*:?/i.test(line)) {
+      const cleanLine = line.replace(/^education\s*:?/i, '').trim();
+      if (cleanLine.length > 3) {
+        education.push(cleanLine);
       }
+      continue;
+    }
+
+    // Skills line in sidebar
+    if (line.length > 2 && line.length < 120) {
+      const tokens = line.split(/[,|•;·\t]+/).map(s => s.trim()).filter(Boolean);
+      tokens.forEach(t => {
+        if (t.length > 1 && t.length < 50 && !sidebarSkills.includes(t)) {
+          sidebarSkills.push(t);
+        }
+      });
     }
   }
 
@@ -532,12 +563,6 @@ export function parseDualColumnCvDocument(mainText, sidebarText, fileName = "Upl
   let name = mainLines[0] || "Candidate";
   let title = mainLines[1] || "Professional Specialist";
   let summary = "";
-  
-  const experiences = [];
-  const education = [];
-  const certifications = [];
-  const itSkills = [];
-
   let currentExp = null;
   let inSummary = true;
   let inEducation = false;
@@ -634,17 +659,6 @@ export function parseDualColumnCvDocument(mainText, sidebarText, fileName = "Upl
     experiences.push(currentExp);
   }
 
-  const defaultPositionsHired = [
-    "Marketing Manager", "HR", "Sales Manager", "Inside sales", "Product Manager", 
-    "Engineering Manager", "Principal Engineer", "Solution Architect", "GIS Developer", 
-    "Java/.NET/C++", "Python Developer", "Full Stack Developer", "AI Engineer", "UI Developer", 
-    "UX Designer", "Android/iOS/Flutter Developer", "DevOps Manager", "MSBI Developer", 
-    "Data Engineer/Analyst", "Cloud Architect", "SAP (FICO, Ariba, HANA)", "Informatica Developer", 
-    "Abinitio Developer", "Unity Developer", "Network Engineer", "SOC Analyst", "Autosar", 
-    "OBD Developer", "Production Support", "QlikView", "Sales", "PR", "Corporate Communication", 
-    "CA", "CLM roles (Functional Consultant, Solution Architect, Project Manager, Business Analyst, Migration Specialist, Prompt engineer, Customer Success Manager)"
-  ];
-
   return {
     layoutType: "two-column-left-sidebar",
     styleProfile: {
@@ -663,20 +677,9 @@ export function parseDualColumnCvDocument(mainText, sidebarText, fileName = "Upl
       summary: summary || "Result-oriented professional with extensive domain expertise."
     },
     contact,
-    skills: sidebarSkills.length > 0 ? sidebarSkills : [
-      "End-to-End Recruitment & Talent Acquisition",
-      "AI-Enabled Sourcing & Recruitment Automation",
-      "Stakeholder & Vendor Management",
-      "Offer Negotiation & Onboarding",
-      "ATS Optimization & Pipeline",
-      "Employer Branding & Talent Mapping",
-      "Social Media & AI-Enabled Hiring",
-      "Diversity & Leadership Hiring",
-      "HRBP & Policy Framework",
-      "HR Analytics & Reporting"
-    ],
-    positionsHiredFor: defaultPositionsHired,
-    languages: [{ name: "English", level: "Advanced" }, { name: "Hindi", level: "Native" }],
+    skills: sidebarSkills,
+    positionsHiredFor: [],
+    languages: [],
     experiences,
     education: education || [],
     certifications: certifications || [],

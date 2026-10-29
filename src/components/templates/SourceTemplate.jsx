@@ -31,7 +31,7 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
   const itSkills = Array.isArray(resume.itSkills) ? resume.itSkills : [];
 
   const isDualColumn = resume.layoutType === 'two-column-left-sidebar' || 
-                       (contact.email && skills.length > 5 && experiences.length > 0 && !resume.layoutType);
+                       resume.styleProfile?.layoutType === 'two-column-left-sidebar';
 
   if (isDualColumn) {
     return (
@@ -468,37 +468,74 @@ export default function SourceTemplate({ resume, id = "resume-document" }) {
 
       {/* 6. EDUCATION & CERTS */}
       {(education.length > 0 || certifications.length > 0) && (
-        <section className="mt-auto pt-3 border-t border-slate-200 flex flex-wrap justify-between gap-4 text-xs text-slate-700">
-          {education.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <span className="font-bold text-slate-900 uppercase text-[11px] block">Education</span>
-              {education.map((edu, idx) => {
-                const item = formatEducationItem(edu);
-                return (
-                  <div key={idx} className="text-slate-700 font-medium text-[10.5px]">
-                    <span className="font-bold text-slate-900">{item.degree}</span>
-                    {item.subLine && <span className="text-slate-600 block text-[10px]">{item.subLine}</span>}
-                    {item.details && <span className="text-slate-500 block text-[9.5px] italic">{item.details}</span>}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {certifications.length > 0 && (
-            <div>
-              <span className="font-bold text-slate-900 uppercase text-[11px] block">Certifications</span>
-              <div className="flex flex-wrap gap-1">
-                {certifications.map((cert, idx) => (
-                  <span key={idx} className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-[10.5px]">
-                    {typeof cert === 'string' ? cert : cert.name || ''}
-                  </span>
-                ))}
+        <section className="mb-4">
+          <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-300 pb-1 mb-2 flex items-center gap-1.5">
+            <span>Education & Credentials</span>
+          </h2>
+          <div className="flex flex-wrap justify-between gap-4 text-xs text-slate-700">
+            {education.length > 0 && (
+              <div className="flex flex-col gap-1.5 flex-1 min-w-[240px]">
+                {education.map((edu, idx) => {
+                  const item = formatEducationItem(edu);
+                  return (
+                    <div key={idx} className="text-slate-700 font-medium text-[11px]">
+                      <span className="font-bold text-slate-900">{item.degree}</span>
+                      {item.subLine && <span className="text-slate-600 block text-[10px]">{item.subLine}</span>}
+                      {item.details && <span className="text-slate-500 block text-[9.5px] italic">{item.details}</span>}
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          )}
+            )}
+
+            {certifications.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <span className="font-bold text-slate-900 uppercase text-[10.5px] block">Certifications</span>
+                <div className="flex flex-wrap gap-1">
+                  {certifications.map((cert, idx) => (
+                    <span key={idx} className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded text-[10.5px]">
+                      {typeof cert === 'string' ? cert : cert.name || ''}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </section>
       )}
+
+      {/* 7. LANGUAGES & CUSTOM SECTIONS */}
+      {languages.length > 0 && (
+        <section className="mb-3">
+          <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-300 pb-1 mb-1.5">
+            Languages
+          </h2>
+          <div className="flex flex-wrap gap-2 text-xs text-slate-700">
+            {languages.map((lang, idx) => (
+              <span key={idx} className="bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-[10.5px]">
+                {lang.name || lang} {lang.level ? `(${lang.level})` : ''}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {Array.isArray(resume.customSections) && resume.customSections.map((sec, idx) => (
+        <section key={sec.id || idx} className="mb-3">
+          <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-300 pb-1 mb-1.5">
+            {sec.title}
+          </h2>
+          <div className="text-xs text-slate-700 leading-relaxed">
+            {Array.isArray(sec.items) ? (
+              <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                {sec.items.map((it, iIdx) => <li key={iIdx}>{it}</li>)}
+              </ul>
+            ) : (
+              <p className="text-[11px]">{sec.rawContent || sec.content}</p>
+            )}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

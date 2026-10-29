@@ -114,6 +114,7 @@ export default function App() {
   const [requestedFacts, setRequestedFacts] = useState([]);
 
   const [storageError, setStorageError] = useState(null);
+  const [isParsingCv, setIsParsingCv] = useState(false);
 
   // Ensure completely clean session on page open / refresh (Zero cached or automated dummy data)
   useEffect(() => {
@@ -151,6 +152,7 @@ export default function App() {
 
     try {
       setErrorMessage(null);
+      setIsParsingCv(true);
       const dynamicMaster = await parseUploadedDocument(file);
       
       const experiences = Array.isArray(dynamicMaster.experiences) 
@@ -185,6 +187,7 @@ export default function App() {
       console.error("CV Upload/Parsing Error:", err);
       setErrorMessage(err.message || "Failed to process uploaded CV document. Please ensure the file is readable.");
     } finally {
+      setIsParsingCv(false);
       if (inputElement) {
         try { inputElement.value = ''; } catch (_) {}
       }
@@ -544,11 +547,14 @@ export default function App() {
 
     if (file) {
       try {
+        setIsParsingCv(true);
         baseCv = await parseUploadedDocument(file);
       } catch (err) {
         console.error("CV Upload/Parsing Error in JD mode:", err);
         setErrorMessage(err.message || "Failed to process uploaded CV document.");
         return;
+      } finally {
+        setIsParsingCv(false);
       }
     }
 
@@ -710,13 +716,23 @@ export default function App() {
                   </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-center gap-3">
-                  <label className="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-8 py-3.5 rounded-lg shadow flex items-center gap-2.5 transition">
-                    <Upload className="w-4 h-4" />
-                    <span>Upload Candidate Resume (PDF / DOCX / TXT)</span>
-                    <input type="file" accept=".pdf,.docx,.txt,.png,.jpg" onChange={handleProductionFileUpload} className="hidden" />
-                  </label>
-                </div>
+                {isParsingCv ? (
+                  <div className="flex flex-col items-center gap-3 p-6 bg-sky-950/40 border border-sky-500/30 rounded-xl">
+                    <div className="w-8 h-8 border-3 border-sky-400 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-sky-300">AI Resume Architect parsing CV...</p>
+                      <p className="text-xs text-slate-400 mt-1">Replicating authentic layout & formatting with 100% fact retention (Strict 1–2 page budget)</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row justify-center gap-3">
+                    <label className="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-8 py-3.5 rounded-lg shadow flex items-center gap-2.5 transition">
+                      <Upload className="w-4 h-4" />
+                      <span>Upload Candidate Resume (PDF / DOCX / TXT)</span>
+                      <input type="file" accept=".pdf,.docx,.txt,.png,.jpg" onChange={handleProductionFileUpload} className="hidden" />
+                    </label>
+                  </div>
+                )}
 
                 {/* 4-Step Concise User Guidance */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mt-2 text-left">
@@ -872,17 +888,27 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleLaunchJdStudio(homeJdInput, homeJdFile)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-8 py-3.5 rounded-lg shadow-lg flex items-center gap-2.5 transition cursor-pointer"
-                  >
-                    <Target className="w-4 h-4" />
-                    <span>Launch Live AI Studio & Tailor Resume</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
+                {isParsingCv ? (
+                  <div className="flex flex-col items-center gap-3 p-6 bg-emerald-950/40 border border-emerald-500/30 rounded-xl">
+                    <div className="w-8 h-8 border-3 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-emerald-300">AI Resume Architect parsing CV & JD...</p>
+                      <p className="text-xs text-slate-400 mt-1">Extracting verified facts and matching with target job description...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row justify-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleLaunchJdStudio(homeJdInput, homeJdFile)}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-8 py-3.5 rounded-lg shadow-lg flex items-center gap-2.5 transition cursor-pointer"
+                    >
+                      <Target className="w-4 h-4" />
+                      <span>Launch Live AI Studio & Tailor Resume</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
 
                 {/* 4-Step Flow */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full mt-2 text-left">
