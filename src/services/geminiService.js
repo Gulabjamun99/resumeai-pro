@@ -16,8 +16,31 @@ const CANDIDATE_MODELS = [
 
 let currentKeyIndex = 0;
 
+export function getUserGeminiKey() {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    return window.localStorage.getItem('RESUMEAI_GEMINI_KEY') || '';
+  }
+  return '';
+}
+
+export function saveUserGeminiKey(key) {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    if (key && key.trim()) {
+      window.localStorage.setItem('RESUMEAI_GEMINI_KEY', key.trim());
+    } else {
+      window.localStorage.removeItem('RESUMEAI_GEMINI_KEY');
+    }
+  }
+}
+
+export function hasActiveGeminiKey() {
+  return getApiKeys().length > 0;
+}
+
 function getApiKeys() {
-  const raw = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEYS) ||
+  const userStored = getUserGeminiKey();
+  const raw = userStored ||
+              (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEYS) ||
               (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) || 
               (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEYS) || 
               (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) || 
@@ -26,101 +49,120 @@ function getApiKeys() {
 }
 
 /**
- * Universal Gemini API Caller (Text + Multi-Modal Images)
+ * Universal Gemini API Caller (Text + Multi-Modal Images + Serverless Fallback)
  */
 export async function callGeminiApi(promptText, systemInstruction = "", chatHistory = [], customConfig = {}, inlineImages = []) {
   const apiKeys = getApiKeys();
 
-  if (apiKeys.length === 0) {
-    console.warn("No Gemini API key detected. Please configure VITE_GEMINI_API_KEY.");
-    return null;
-  }
+  // 1. If Client API Key is available, call Gemini directly
+  if (apiKeys.length > 0) {
+    const keysToTry = [...apiKeys];
+    for (let kIdx = 0; kIdx < keysToTry.length; kIdx++) {
+      const apiKey = keysToTry[(currentKeyIndex + kIdx) % keysToTry.length];
 
-  const keysToTry = [...apiKeys];
-  for (let kIdx = 0; kIdx < keysToTry.length; kIdx++) {
-    const apiKey = keysToTry[(currentKeyIndex + kIdx) % keysToTry.length];
+      for (const model of CANDIDATE_MODELS) {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const contents = [];
 
-    for (const model of CANDIDATE_MODELS) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          const contents = [];
-
-          let finalPrompt = promptText;
-          if (chatHistory && chatHistory.length > 0) {
-            const recentTurns = chatHistory.slice(-4).map(m => {
-              const role = m.sender === 'user' ? 'User' : 'AI Assistant';
-              return `${role}: ${m.text?.slice(0, 300) || ''}`;
-            }).join('\n');
-            finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Request:\n${promptText}`;
-          }
-
-          const imageParts = (Array.isArray(inlineImages) ? inlineImages : []).map(img => {
-            const rawData = typeof img === 'string' ? img : (img.data || img.base64 || '');
-            return {
-              inlineData: {
-                mimeType: (typeof img === 'object' && img.mimeType) ? img.mimeType : 'image/jpeg',
-                data: rawData.replace(/^data:image\/\w+;base64,/, '')
-              }
-            };
-          });
-
-          if (systemInstruction) {
-            contents.push({
-              role: 'user',
-              parts: [
-                { text: `System Instructions:\n${systemInstruction}\n\nTask:\n${finalPrompt}` },
-                ...imageParts
-              ]
-            });
-          } else {
-            contents.push({
-              role: 'user',
-              parts: [
-                { text: finalPrompt },
-                ...imageParts
-              ]
-            });
-          }
-
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents,
-              generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 8192,
-                ...customConfig
-              }
-            }),
-            signal: AbortSignal.timeout(28000)
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (candidateText) {
-              currentKeyIndex = (currentKeyIndex + kIdx) % keysToTry.length;
-              return candidateText;
+            let finalPrompt = promptText;
+            if (chatHistory && chatHistory.length > 0) {
+              const recentTurns = chatHistory.slice(-4).map(m => {
+                const role = m.sender === 'user' ? 'User' : 'AI Assistant';
+                return `${role}: ${m.text?.slice(0, 300) || ''}`;
+              }).join('\n');
+              finalPrompt = `Recent Conversation Context:\n${recentTurns}\n\nCurrent Request:\n${promptText}`;
             }
-          }
 
-          if (response.status === 429) {
-            console.warn(`Gemini (${model}) rate limited (429). Rotating key/model...`);
-            break;
-          }
+            const imageParts = (Array.isArray(inlineImages) ? inlineImages : []).map(img => {
+              const rawData = typeof img === 'string' ? img : (img.data || img.base64 || '');
+              return {
+                inlineData: {
+                  mimeType: (typeof img === 'object' && img.mimeType) ? img.mimeType : 'image/jpeg',
+                  data: rawData.replace(/^data:image\/\w+;base64,/, '')
+                }
+              };
+            });
 
-          if (response.status >= 500 && attempt === 0) {
-            await new Promise(r => setTimeout(r, 600));
-            continue;
+            if (systemInstruction) {
+              contents.push({
+                role: 'user',
+                parts: [
+                  { text: `System Instructions:\n${systemInstruction}\n\nTask:\n${finalPrompt}` },
+                  ...imageParts
+                ]
+              });
+            } else {
+              contents.push({
+                role: 'user',
+                parts: [
+                  { text: finalPrompt },
+                  ...imageParts
+                ]
+              });
+            }
+
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents,
+                generationConfig: {
+                  temperature: 0.1,
+                  maxOutputTokens: 8192,
+                  ...customConfig
+                }
+              }),
+              signal: AbortSignal.timeout(28000)
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (candidateText) {
+                currentKeyIndex = (currentKeyIndex + kIdx) % keysToTry.length;
+                return candidateText;
+              }
+            }
+
+            if (response.status === 429) {
+              console.warn(`Gemini (${model}) rate limited (429). Rotating key/model...`);
+              break;
+            }
+
+            if (response.status >= 500 && attempt === 0) {
+              await new Promise(r => setTimeout(r, 600));
+              continue;
+            }
+          } catch (err) {
+            console.warn(`Gemini (${model}) attempt ${attempt + 1} error:`, err.message);
+            if (attempt === 0) await new Promise(r => setTimeout(r, 500));
           }
-        } catch (err) {
-          console.warn(`Gemini (${model}) attempt ${attempt + 1} error:`, err.message);
-          if (attempt === 0) await new Promise(r => setTimeout(r, 500));
         }
       }
     }
+  }
+
+  // 2. Fallback: Call Vercel serverless proxy /api/cv/update
+  try {
+    const serverRes = await fetch('/api/cv/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        promptText,
+        systemInstruction
+      }),
+      signal: AbortSignal.timeout(30000)
+    });
+    if (serverRes.ok) {
+      const serverData = await serverRes.json();
+      if (serverData.resultText) {
+        return serverData.resultText;
+      }
+    }
+  } catch (serverErr) {
+    console.warn("Serverless AI proxy fallback attempt failed:", serverErr.message);
   }
 
   return null;
