@@ -106,12 +106,15 @@ export function normalizeCvSchema(rawCv) {
   cv.customSections = (Array.isArray(cv.customSections) ? cv.customSections : []).filter(Boolean);
 
   // 10. Layout & Style Profile
-  const layout = (cv.layoutType === 'two-column-sidebar' || cv.styleProfile?.layoutType === 'two-column-sidebar')
+  const templateId = cv.styleProfile?.templateId || cv.templateId || (cv.layoutType === 'two-column-sidebar' ? 'two-column-pro' : 'modern-executive');
+  const layout = (templateId === 'two-column-pro' || cv.layoutType === 'two-column-sidebar' || cv.styleProfile?.layoutType === 'two-column-sidebar')
     ? 'two-column-sidebar'
     : 'single-column';
 
   cv.layoutType = layout;
+  cv.templateId = templateId;
   cv.styleProfile = {
+    templateId,
     layoutType: layout,
     accentColor: cv.styleProfile?.accentColor || "#2563eb",
     sidebarBg: cv.styleProfile?.sidebarBg || (layout === 'two-column-sidebar' ? "#f8fafc" : "#ffffff"),
@@ -127,62 +130,30 @@ export function createEmptyCv() {
   return {
     layoutType: "single-column",
     header: {
-      name: "Your Full Name",
-      title: "Target Role / Professional Title",
-      summary: "Results-oriented professional with demonstrated expertise, strong analytical problem-solving skills, and a commitment to delivering high-impact outcomes in fast-paced environments."
+      name: "",
+      title: "",
+      summary: ""
     },
     contact: {
-      email: "name@example.com",
-      phone: "+91 98765 43210",
-      location: "City, Country",
-      linkedin: "https://linkedin.com/in/yourprofile",
-      github: "https://github.com/yourhandle",
+      email: "",
+      phone: "",
+      location: "",
+      linkedin: "",
+      github: "",
       website: ""
     },
-    skills: [
-      "Problem Solving", "Cross-Functional Leadership", "Requirement Analysis", 
-      "Strategic Planning", "Process Optimization"
-    ],
-    experiences: [
-      {
-        id: "exp-1",
-        role: "Associate / Specialist",
-        company: "Innovation Systems",
-        period: "2023 – Present",
-        location: "City, Country",
-        bullets: [
-          "Spearheaded key project workflows, reducing cycle turnaround times by 28% through process improvements.",
-          "Collaborated with cross-functional stakeholders to deliver high-quality strategic initiatives on schedule.",
-          "Standardized operating guidelines to enhance quality assurance and overall operational efficiency."
-        ]
-      }
-    ],
-    education: [
-      {
-        degree: "Bachelor of Technology / Relevant Degree",
-        institution: "Premier University / College",
-        year: "2019 – 2023",
-        details: "Graduated with Honors; focused on core domain proficiencies.",
-        grade: "First Class"
-      }
-    ],
-    projects: [
-      {
-        title: "Key Domain Project",
-        description: "High-impact initiative addressing operational workflow bottlenecks.",
-        tech: "Modern Tools, Cloud, Analytics",
-        bullets: [
-          "Designed and implemented automated tracking workflows improving team throughput by 35%."
-        ]
-      }
-    ],
-    certifications: ["Industry Certification in Core Domain"],
-    languages: [{ name: "English", level: "Fluent" }, { name: "Hindi", level: "Native" }],
+    skills: [],
+    experiences: [],
+    education: [],
+    projects: [],
+    certifications: [],
+    languages: [],
     customSections: [],
     styleProfile: {
+      templateId: "modern-executive",
       layoutType: "single-column",
       accentColor: "#2563eb",
-      sidebarBg: "#ffffff",
+      sidebarBg: "#f8fafc",
       sidebarTextColor: "#0f172a",
       fontFamily: "font-sans",
       headerAlignment: "left"

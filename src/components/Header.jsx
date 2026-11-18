@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, FileText, PlusCircle, RotateCcw, RotateCw, CheckCircle2, Key, Check, X, ShieldAlert } from 'lucide-react';
+import { Sparkles, PlusCircle, RotateCcw, RotateCw, Key, Check, X } from 'lucide-react';
 import { getUserGeminiKey, saveUserGeminiKey, hasActiveGeminiKey } from '../services/geminiService.js';
 
 export default function Header({ onNewResume, canUndo = false, canRedo = false, onUndo, onRedo, currentVersion = 1 }) {

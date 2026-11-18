@@ -13,11 +13,9 @@
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.112.3",
     "canvas-confetti": "^1.9.4",
     "docx": "^9.7.1",
     "html2canvas": "^1.4.1",
-    "html2pdf.js": "^0.14.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.31.0",
     "mammoth": "^1.12.1",

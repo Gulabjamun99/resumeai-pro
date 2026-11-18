@@ -1,17 +1,19 @@
 import React, { useState, useRef, useCallback } from 'react';
 import Header from './components/Header.jsx';
 import InteractiveLiveStudio from './components/InteractiveLiveStudio.jsx';
+import FresherWizardModal from './components/FresherWizardModal.jsx';
 import { parseDocumentFile } from './services/documentParser.js';
 import { createEmptyCv, normalizeCvSchema } from './utils/cvNormalizer.js';
 import { 
-  Upload, Sparkles, Briefcase, FileText, CheckCircle2, 
-  ArrowRight, ShieldCheck, Zap, AlertCircle, RefreshCw, FileCheck
+  Upload, Sparkles, Briefcase, FileText, 
+  ArrowRight, ShieldCheck, Zap, AlertCircle, RefreshCw, FileCheck, Wand2
 } from 'lucide-react';
 
 export default function App() {
   // App views: 'landing' | 'studio'
   const [view, setView] = useState('landing');
   const [activePersona, setActivePersona] = useState('upload'); // 'upload' | 'fresh' | 'tailor'
+  const [isFresherWizardOpen, setIsFresherWizardOpen] = useState(false);
   
   // CV State & Version History for Undo/Redo
   const [cvData, setCvData] = useState(null);
@@ -24,9 +26,6 @@ export default function App() {
   const [parseError, setParseError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
-
-  // Persona 3 JD state
-  const [tailorJdText, setTailorJdText] = useState('');
 
   // Push new CV version into history
   const handleUpdateCv = useCallback((newCv, note = 'AI Update') => {
@@ -111,7 +110,7 @@ export default function App() {
   };
 
   // Launch Persona 2: Fresh CV Builder with AI
-  const handleLaunchFresh = () => {
+  const handleLaunchFresh = (mode = 'fresh') => {
     const emptyCv = createEmptyCv();
     setCvData(emptyCv);
     setVersionHistory([
@@ -120,6 +119,22 @@ export default function App() {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         note: 'Fresh Resume Initialization',
         data: JSON.parse(JSON.stringify(emptyCv))
+      }
+    ]);
+    setHistoryIndex(0);
+    setActivePersona(mode);
+    setView('studio');
+  };
+
+  const handleFresherWizardComplete = (synthesizedCv) => {
+    const normalized = normalizeCvSchema(synthesizedCv);
+    setCvData(normalized);
+    setVersionHistory([
+      {
+        version: 1,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        note: '1-Page Fresher Resume Generated',
+        data: JSON.parse(JSON.stringify(normalized))
       }
     ]);
     setHistoryIndex(0);
@@ -306,35 +321,45 @@ export default function App() {
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center mx-auto mb-4 shadow-sm shadow-indigo-500/20">
               <Sparkles className="w-7 h-7" />
             </div>
-            <h3 className="font-bold text-slate-900 text-xl">Start with AI Co-Pilot</h3>
+            <h3 className="font-bold text-slate-900 text-xl">1-Page ATS Fresher Resume Builder</h3>
             <p className="text-slate-600 text-xs sm:text-sm mt-2 max-w-md mx-auto leading-relaxed">
-              Don't have an existing CV or want to build a modern resume from scratch?
-              Our conversational AI will guide you step-by-step in Hindi, Hinglish, or English.
+              Fresher hain aur CV nahi hai? Koi fake data nahi bharenge — hamara guided wizard aapki actual education, skills aur projects ko 1-page ATS resume me synthesize kar dega.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 my-6 text-left">
               <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
-                <div className="font-bold text-xs text-slate-800">1. Tell AI Who You Are</div>
-                <p className="text-[11px] text-slate-500 mt-1">Share your target role, education, or projects in chat.</p>
+                <div className="font-bold text-xs text-slate-800">1. Guided Form Wizard</div>
+                <p className="text-[11px] text-slate-500 mt-1">Apna target role, degree, skills aur projects share karein.</p>
               </div>
               <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
-                <div className="font-bold text-xs text-slate-800">2. Instant ATS Generation</div>
-                <p className="text-[11px] text-slate-500 mt-1">AI generates quantified STAR bullet achievements.</p>
+                <div className="font-bold text-xs text-slate-800">2. Strict 1-Page Synthesis</div>
+                <p className="text-[11px] text-slate-500 mt-1">Quantified STAR bullets action verbs ke sath generate honge.</p>
               </div>
               <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
-                <div className="font-bold text-xs text-slate-800">3. Live Studio Polish</div>
-                <p className="text-[11px] text-slate-500 mt-1">Refine layout, colors, and export to PDF/DOCX.</p>
+                <div className="font-bold text-xs text-slate-800">3. Live Studio Refinement</div>
+                <p className="text-[11px] text-slate-500 mt-1">Chat karke koi bhi change karein ya template switch karein.</p>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleLaunchFresh}
-              className="w-full sm:w-auto px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl shadow-md transition cursor-pointer inline-flex items-center justify-center gap-2"
-            >
-              <span>Open AI Live Studio</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsFresherWizardOpen(true)}
+                className="w-full sm:w-auto px-7 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md transition cursor-pointer inline-flex items-center justify-center gap-2"
+              >
+                <Wand2 className="w-4 h-4" />
+                <span>Launch 1-Page Fresher Wizard</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleLaunchFresh('fresh')}
+                className="w-full sm:w-auto px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm rounded-xl transition cursor-pointer inline-flex items-center justify-center gap-1.5"
+              >
+                <span>Blank Canvas & Chat</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         )}
 
@@ -385,7 +410,7 @@ export default function App() {
               <span className="text-xs text-slate-400">or</span>
               <button
                 type="button"
-                onClick={handleLaunchFresh}
+                onClick={() => handleLaunchFresh('jd')}
                 className="block mx-auto mt-2 text-xs font-semibold text-emerald-700 hover:underline cursor-pointer"
               >
                 Start with a blank canvas and paste JD directly &rarr;
@@ -427,6 +452,13 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* Fresher 1-Page Guided Wizard Modal */}
+      <FresherWizardModal
+        isOpen={isFresherWizardOpen}
+        onClose={() => setIsFresherWizardOpen(false)}
+        onComplete={handleFresherWizardComplete}
+      />
     </div>
   );
 }
