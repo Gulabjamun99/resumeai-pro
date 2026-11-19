@@ -3,13 +3,16 @@ import {
   Sparkles, Send, Download, ZoomIn, ZoomOut, 
   Layout, MessageSquare, Palette, Target, 
   Check, Wand2, ShieldCheck, FileDown, CheckCircle2,
-  TrendingUp, Award, Layers
+  TrendingUp, Award, Layers, Grid, List, Search, X
 } from 'lucide-react';
-import ResumeCanvas, { TEMPLATES } from './ResumeCanvas.jsx';
+import ResumeCanvas from './ResumeCanvas.jsx';
+import { CATEGORIES, TEMPLATES } from '../data/templateCatalog.js';
 import { exportResumeToPdf } from '../utils/pdfExporter.js';
 import { exportResumeToDocx } from '../utils/docxExporter.js';
 import { refineCvWithAi, tailorCvToJd } from '../services/geminiService.js';
 import confetti from 'canvas-confetti';
+
+export { TEMPLATES };
 
 const ACCENT_COLORS = [
   { name: 'Royal Blue', value: '#2563eb' },
@@ -28,6 +31,94 @@ const QUICK_PROMPTS = [
   "Is resume ko strictly 1 page me compact fit karo",
   "Skills ko high-priority ATS keywords se enrich karo"
 ];
+
+/**
+ * Visual Template Thumbnail Component
+ * Renders an exact miniature SVG/CSS blueprint pattern of the template layout.
+ */
+function TemplateThumbnail({ tpl, isSelected, accentColor }) {
+  const accent = accentColor || tpl.accentColor || '#2563eb';
+  const isTwoCol = tpl.layout === 'two-column-left' || tpl.layout === 'two-column-sidebar';
+  const isCentered = tpl.layout === 'centered-formal' || tpl.headerStyle === 'centered-formal';
+  const isTopStrip = tpl.layout === 'header-banner' || tpl.headerStyle === 'top-strip';
+
+  return (
+    <div 
+      className={`w-full h-24 rounded-lg border overflow-hidden p-2 flex flex-col justify-between transition-all select-none ${
+        isSelected ? 'bg-blue-50/50 border-blue-500 shadow-2xs' : 'bg-slate-50/70 border-slate-200 group-hover:border-slate-300'
+      }`}
+    >
+      {/* Top Banner / Strip if applicable */}
+      {isTopStrip ? (
+        <div className="w-full h-2 rounded-xs mb-1 flex items-center px-1" style={{ backgroundColor: accent }}>
+          <div className="w-8 h-0.5 bg-white/80 rounded-full" />
+        </div>
+      ) : null}
+
+      {/* Miniature Header Simulation */}
+      <div className={`flex flex-col ${isCentered ? 'items-center text-center' : 'items-start'} mb-1`}>
+        <div className={`flex items-center gap-1 w-full ${isCentered ? 'justify-center' : ''}`}>
+          {!isCentered && (
+            <div className="w-1 h-2.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+          )}
+          <div className="w-16 h-1.5 bg-slate-800 rounded-xs" />
+          {!isCentered && (
+            <div className="w-8 h-1 rounded-xs ml-auto" style={{ backgroundColor: `${accent}99` }} />
+          )}
+        </div>
+        <div className={`flex items-center gap-1 mt-1 opacity-60 ${isCentered ? 'justify-center' : ''}`}>
+          <div className="w-5 h-0.5 bg-slate-400 rounded-full" />
+          <div className="w-1 h-0.5 bg-slate-300 rounded-full" />
+          <div className="w-6 h-0.5 bg-slate-400 rounded-full" />
+        </div>
+      </div>
+
+      {/* Miniature Body Columns Simulation */}
+      {isTwoCol ? (
+        <div className="flex-1 flex gap-1.5 items-stretch overflow-hidden">
+          {/* Left Rail */}
+          <div className="w-[34%] rounded-xs p-1 flex flex-col gap-1 border-r border-slate-200/60" style={{ backgroundColor: `${accent}0d` }}>
+            <div className="w-full h-0.5 rounded-full" style={{ backgroundColor: accent }} />
+            <div className="w-4/5 h-0.5 bg-slate-300 rounded-full" />
+            <div className="w-3/5 h-0.5 bg-slate-300 rounded-full mt-0.5" />
+            <div className="flex gap-0.5 mt-auto">
+              <div className="w-2 h-0.5 bg-slate-400 rounded-xs" />
+              <div className="w-2 h-0.5 bg-slate-400 rounded-xs" />
+            </div>
+          </div>
+          {/* Right Content */}
+          <div className="flex-1 flex flex-col gap-1 py-0.5">
+            <div className="w-full h-0.5 bg-slate-700 rounded-full" />
+            <div className="w-5/6 h-0.5 bg-slate-300 rounded-full" />
+            <div className="w-full h-0.5 bg-slate-300 rounded-full" />
+            <div className="w-3/4 h-0.5 bg-slate-300 rounded-full" />
+          </div>
+        </div>
+      ) : (
+        /* Single Column / Compact Simulation */
+        <div className="flex-1 flex flex-col justify-around py-0.5 overflow-hidden">
+          <div className="w-full h-0.5 rounded-full" style={{ backgroundColor: accent }} />
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1">
+              <div className="w-1 h-0.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+              <div className="w-4/5 h-0.5 bg-slate-400 rounded-full" />
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-1 h-0.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+              <div className="w-3/5 h-0.5 bg-slate-400 rounded-full" />
+            </div>
+          </div>
+          <div className="w-2/3 h-0.5 rounded-full" style={{ backgroundColor: `${accent}66` }} />
+          <div className="flex gap-1">
+            <div className="w-5 h-1 bg-slate-200 rounded-xs" />
+            <div className="w-5 h-1 bg-slate-200 rounded-xs" />
+            <div className="w-5 h-1 bg-slate-200 rounded-xs" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function InteractiveLiveStudio({
   resume,
@@ -50,6 +141,11 @@ export default function InteractiveLiveStudio({
   const [jdMatchResult, setJdMatchResult] = useState(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
+
+  // Template Picker State
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [templateSearchQuery, setTemplateSearchQuery] = useState('');
+  const [templateViewMode, setTemplateViewMode] = useState('tile'); // 'tile' | 'list'
 
   const [chatMessages, setChatMessages] = useState([
     {
@@ -80,75 +176,77 @@ export default function InteractiveLiveStudio({
     setSelectedAccent(accentToUse);
     setSelectedFont(fontToUse);
 
+    const isTwoCol = templateToUse === 'two-column-pro' || templateToUse.includes('sidebar') || templateToUse.includes('split') || templateToUse.includes('duo');
+
     const updatedCv = {
       ...resume,
-      layoutType: templateToUse === 'two-column-pro' ? 'two-column-sidebar' : 'single-column',
+      layoutType: isTwoCol ? 'two-column-sidebar' : 'single-column',
       templateId: templateToUse,
       styleProfile: {
         ...(resume.styleProfile || {}),
         templateId: templateToUse,
         accentColor: accentToUse,
         fontFamily: fontToUse,
-        layoutType: templateToUse === 'two-column-pro' ? 'two-column-sidebar' : 'single-column'
+        layoutType: isTwoCol ? 'two-column-sidebar' : 'single-column'
       }
     };
     onUpdateResume(updatedCv, `Applied ${templateToUse} template`);
   };
+
+  // Filter templates: global search across all 75 templates when query present, otherwise by category
+  const filteredTemplates = TEMPLATES.filter(tpl => {
+    if (templateSearchQuery.trim()) {
+      const q = templateSearchQuery.toLowerCase().trim();
+      return (
+        tpl.name.toLowerCase().includes(q) ||
+        tpl.badge.toLowerCase().includes(q) ||
+        tpl.categoryLabel.toLowerCase().includes(q) ||
+        tpl.description.toLowerCase().includes(q) ||
+        tpl.id.toLowerCase().includes(q)
+      );
+    }
+    return selectedCategory === 'all' || tpl.category === selectedCategory;
+  });
 
   // Handle AI Chat Refinement
   const handleSendMessage = async (textToSend = null) => {
     const text = (textToSend || promptInput).trim();
     if (!text || isAiProcessing) return;
 
-    setPromptInput('');
     const userMsg = {
-      id: `usr-${Date.now()}`,
+      id: `msg-${Date.now()}`,
       sender: 'user',
       text,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
+
     setChatMessages(prev => [...prev, userMsg]);
+    setPromptInput('');
     setIsAiProcessing(true);
 
     try {
-      const result = await refineCvWithAi(text, resume, chatMessages);
-
-      if (result && result.updatedCv) {
-        onUpdateResume(result.updatedCv, result.planSummary || text);
-
-        setChatMessages(prev => [
-          ...prev,
-          {
-            id: `ai-${Date.now()}`,
-            sender: 'ai',
-            text: result.explanation || "✅ Changes live canvas par apply ho gaye hain! All text formatted in 100% Corporate English with strict 1-2 page A4 budget.",
-            planSummary: result.planSummary,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
-
-        try {
-          confetti({ particleCount: 40, spread: 60, origin: { y: 0.7 } });
-        } catch (_) {}
-      } else {
-        setChatMessages(prev => [
-          ...prev,
-          {
-            id: `ai-err-${Date.now()}`,
-            sender: 'ai',
-            text: "AI service se response generate nahi ho paya. Kripya punah prayas karein.",
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
+      const result = await refineCvWithAi(resume, text);
+      if (result && result.cv) {
+        onUpdateResume(result.cv, result.planSummary || `Applied edit: "${text.slice(0, 30)}..."`);
+        
+        const aiMsg = {
+          id: `msg-ai-${Date.now()}`,
+          sender: 'ai',
+          text: result.message || "Aapke bataye gaye badlav resume me 100% Corporate English me successfully apply kar diye gaye hain!",
+          planSummary: result.planSummary,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setChatMessages(prev => [...prev, aiMsg]);
+        confetti({ particleCount: 35, spread: 60, origin: { y: 0.85 } });
       }
     } catch (err) {
       console.error("AI Refine Error:", err);
       setChatMessages(prev => [
         ...prev,
         {
-          id: `ai-err-${Date.now()}`,
+          id: `msg-err-${Date.now()}`,
           sender: 'ai',
-          text: "AI service abhi busy hai. Kripya dobara try karein.",
+          text: `⚠️ Maafi chahta hoon, update karte waqt error aaya: ${err.message || 'Unknown error'}. Please try again.`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -157,76 +255,102 @@ export default function InteractiveLiveStudio({
     }
   };
 
-  // Handle 1-Click JD Tailoring
+  // Handle JD Tailoring
   const handleTailorToJd = async () => {
     if (!jdInputText.trim() || isAiProcessing) return;
     setIsAiProcessing(true);
 
     try {
       const result = await tailorCvToJd(resume, jdInputText);
-      if (result && result.updatedCv) {
-        onUpdateResume(result.updatedCv, result.planSummary || "Tailored to Job Description");
-        
-        const score = result.matchScore || 96;
-        const keywords = result.matchedKeywords || ["Role Keywords", "ATS Semantic Alignment", "Core Competencies"];
-        
+      if (result && result.cv) {
+        onUpdateResume(result.cv, `Target JD Tailoring: ${result.matchScore}% ATS Match`);
         setJdMatchResult({
-          matchScore: score,
-          matchedKeywords: keywords,
-          explanation: result.explanation || "Resume successfully aligned with Job Description requirements."
+          matchScore: result.matchScore,
+          matchedKeywords: result.matchedKeywords || [],
+          explanation: result.explanation || "Resume has been semantically optimized for target role requirements with 0% fake data."
         });
 
-        setChatMessages(prev => [
-          ...prev,
-          {
-            id: `jd-${Date.now()}`,
-            sender: 'ai',
-            text: `🎯 ${result.explanation || "Resume successfully tailored to Job Description!"} ATS Match Score: ${score}%!`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
-        
-        try {
-          confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-        } catch (_) {}
+        const aiMsg = {
+          id: `msg-jd-${Date.now()}`,
+          sender: 'ai',
+          text: `🎯 Aapka resume target Job Description ke liye optimize ho gaya hai! ATS Semantic Match Score: ${result.matchScore}%. Check live preview!`,
+          planSummary: `JD ATS Score: ${result.matchScore}%`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setChatMessages(prev => [...prev, aiMsg]);
+        confetti({ particleCount: 60, spread: 70, origin: { y: 0.7 } });
       }
     } catch (err) {
-      console.error("JD Tailor Error:", err);
+      console.error("JD Tailoring Error:", err);
+      alert(`JD Tailoring Error: ${err.message}`);
     } finally {
       setIsAiProcessing(false);
     }
   };
 
-  // PDF Export
+  // Export Handlers
   const handleExportPdf = async () => {
     setIsExportingPdf(true);
     try {
-      await exportResumeToPdf('resume-document', resume?.header?.name || 'Candidate');
+      const candidateName = resume?.header?.name || 'Candidate';
+      await exportResumeToPdf('resume-document', candidateName);
     } catch (err) {
-      alert("Failed to export PDF: " + err.message);
+      console.error("PDF Export failed:", err);
+      alert(`PDF Export Failed: ${err.message}`);
     } finally {
       setIsExportingPdf(false);
     }
   };
 
-  // DOCX Export
   const handleExportDocx = async () => {
     setIsExportingDocx(true);
     try {
       await exportResumeToDocx(resume);
     } catch (err) {
-      alert("Failed to export DOCX: " + err.message);
+      console.error("DOCX Export failed:", err);
+      alert(`DOCX Export Failed: ${err.message}`);
     } finally {
       setIsExportingDocx(false);
     }
   };
 
   return (
-    <div className="h-[calc(100vh-65px)] flex flex-col md:flex-row bg-slate-100/90 text-slate-800 overflow-hidden">
+    <div className="w-full h-screen flex flex-col md:flex-row overflow-hidden bg-slate-100">
       
       {/* LEFT CONTROL PANEL (40% width) */}
-      <aside className="w-full md:w-[42%] lg:w-[38%] xl:w-[35%] bg-white border-r border-slate-200/90 flex flex-col h-full shadow-xs shrink-0 z-10">
-        {/* Navigation Tabs */}
+      <aside className="w-full md:w-[42%] lg:w-[40%] flex flex-col h-full bg-white border-r border-slate-200 z-10 shadow-sm">
+        
+        {/* Studio Navigation Header */}
+        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 leading-tight">Interactive Live Studio</h2>
+              <span className="text-[11px] text-slate-500 font-medium">ChatGPT / Gemini Style Real-Time Refiner</span>
+            </div>
+          </div>
+
+          {/* Version Rollback Pill */}
+          {versionHistory.length > 1 && (
+            <div className="flex items-center gap-1.5 bg-slate-200/70 px-2 py-1 rounded-full text-xs">
+              <span className="text-[10.5px] font-mono text-slate-600 font-semibold">
+                v{currentVersion}
+              </span>
+              <button
+                type="button"
+                onClick={onRollback}
+                className="text-[10px] font-bold text-blue-700 hover:text-blue-900 px-1.5 py-0.5 rounded bg-white shadow-2xs hover:bg-blue-50 transition cursor-pointer"
+                title="Undo last change"
+              >
+                Undo
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Tab Buttons (Chat vs Templates vs JD) */}
         <div className="flex items-center border-b border-slate-200/90 px-4 pt-3 gap-2 bg-slate-50/60">
           <button
             type="button"
@@ -251,7 +375,7 @@ export default function InteractiveLiveStudio({
             }`}
           >
             <Palette className="w-3.5 h-3.5" />
-            <span>Templates & Styles</span>
+            <span>Templates & Styles ({TEMPLATES.length})</span>
           </button>
 
           <button
@@ -360,58 +484,192 @@ export default function InteractiveLiveStudio({
           </div>
         )}
 
-        {/* TAB 2: TEMPLATES & STYLING */}
+        {/* TAB 2: TEMPLATES & STYLING (75 ATS TEMPLATES WITH TILE VIEW) */}
         {activeTab === 'templates' && (
-          <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
             
-            {/* Multiple Professional Templates */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Choose ATS Template ({TEMPLATES.length})</span>
-                </h4>
-                <span className="text-[11px] text-slate-500 font-medium">100% Data Preserved</span>
+            {/* Header: Title + View Mode Toggle */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Choose ATS Template ({TEMPLATES.length})</span>
+                  </h4>
+                  <p className="text-[11px] text-slate-500">Pick from 75 latest designs • 100% Data Preserved</p>
+                </div>
+
+                {/* Grid / List Mode Toggle */}
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setTemplateViewMode('tile')}
+                    title="Tile Grid View"
+                    className={`p-1.5 rounded-md transition cursor-pointer ${
+                      templateViewMode === 'tile'
+                        ? 'bg-white text-blue-600 shadow-2xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <Grid className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTemplateViewMode('list')}
+                    title="Compact List View"
+                    className={`p-1.5 rounded-md transition cursor-pointer ${
+                      templateViewMode === 'list'
+                        ? 'bg-white text-blue-600 shadow-2xs font-bold'
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <List className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
-              <div className="space-y-2.5">
-                {TEMPLATES.map((tpl) => {
-                  const isSelected = selectedTemplate === tpl.id;
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={templateSearchQuery}
+                  onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                  placeholder="Search 75 templates (e.g. ivy, tech, executive, compact, finance...)"
+                  className="w-full pl-8 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:border-blue-500 outline-none transition"
+                />
+                {templateSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setTemplateSearchQuery('')}
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Category Pills Bar */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin">
+                {CATEGORIES.map(cat => {
+                  const isCatActive = selectedCategory === cat.id;
                   return (
                     <button
-                      key={tpl.id}
+                      key={cat.id}
                       type="button"
-                      onClick={() => handleUpdateStyle(tpl.id, selectedAccent, selectedFont)}
-                      className={`w-full p-3.5 rounded-2xl border text-left transition cursor-pointer flex items-start justify-between gap-3 ${
-                        isSelected
-                          ? 'border-blue-600 bg-blue-50/50 shadow-sm ring-1 ring-blue-600'
-                          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                        isCatActive
+                          ? 'bg-blue-600 text-white shadow-2xs'
+                          : 'bg-slate-100 hover:bg-slate-200/80 text-slate-600'
                       }`}
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-900">{tpl.name}</span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
-                          }`}>
-                            {tpl.badge}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                          {tpl.description}
-                        </p>
-                      </div>
-                      <div className="shrink-0 mt-0.5">
-                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition ${
-                          isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300'
-                        }`}>
-                          {isSelected && <Check className="w-3 h-3" />}
-                        </div>
-                      </div>
+                      <span>{cat.label}</span>
+                      <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-mono ${
+                        isCatActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-500'
+                      }`}>
+                        {cat.count}
+                      </span>
                     </button>
                   );
                 })}
               </div>
+            </div>
+
+            {/* Template Gallery: Tile View vs List View */}
+            <div>
+              {filteredTemplates.length === 0 ? (
+                <div className="text-center py-8 text-xs text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  Koi template match nahi hua. Search query clear karein.
+                </div>
+              ) : templateViewMode === 'tile' ? (
+                /* 1. TILE GRID VIEW (Miniature Wireframes) */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {filteredTemplates.map((tpl) => {
+                    const isSelected = selectedTemplate === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => handleUpdateStyle(tpl.id, tpl.accentColor || selectedAccent, tpl.fontFamily || selectedFont)}
+                        className={`group p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between gap-2.5 relative ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/50 shadow-sm ring-2 ring-blue-600'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                        }`}
+                      >
+                        {/* Mini Blueprint Pattern */}
+                        <div className="relative w-full">
+                          <TemplateThumbnail tpl={tpl} isSelected={isSelected} accentColor={tpl.accentColor || selectedAccent} />
+                          {isSelected && (
+                            <span className="absolute top-2 right-2 bg-blue-600 text-white p-1 rounded-full shadow-sm">
+                              <Check className="w-3 h-3" />
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Template Details */}
+                        <div className="w-full">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <span className="text-xs font-bold text-slate-900 line-clamp-1">{tpl.name}</span>
+                            <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                              isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {tpl.badge}
+                            </span>
+                          </div>
+                          <p className="text-[10.5px] text-slate-500 mt-1 line-clamp-2 leading-snug">
+                            {tpl.description}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* 2. COMPACT LIST VIEW */
+                <div className="space-y-2">
+                  {filteredTemplates.map((tpl) => {
+                    const isSelected = selectedTemplate === tpl.id;
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => handleUpdateStyle(tpl.id, tpl.accentColor || selectedAccent, tpl.fontFamily || selectedFont)}
+                        className={`w-full p-3 rounded-2xl border text-left transition cursor-pointer flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/50 shadow-sm ring-1 ring-blue-600'
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                        }`}
+                      >
+                        <div className="w-14 h-12 shrink-0">
+                          <TemplateThumbnail tpl={tpl} isSelected={isSelected} accentColor={tpl.accentColor || selectedAccent} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-900 truncate">{tpl.name}</span>
+                            <span className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded-full ${
+                              isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              {tpl.badge}
+                            </span>
+                          </div>
+                          <p className="text-[10.5px] text-slate-500 truncate mt-0.5">
+                            {tpl.description}
+                          </p>
+                        </div>
+                        <div className="shrink-0">
+                          <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition ${
+                            isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300'
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3" />}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Accent Color Palette */}
@@ -465,13 +723,13 @@ export default function InteractiveLiveStudio({
               </div>
             </div>
 
-            {/* Page Budget Reminder */}
+            {/* Page Budget Guarantee */}
             <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-start gap-2.5">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <span className="font-bold block">Strict Max 1–2 Page Guarantee</span>
+                <span className="font-bold block">Strict Max 1–2 Page Guarantee Across All 75 Templates</span>
                 <span className="text-[11px] text-emerald-700 leading-tight">
-                  Har ek layout standard A4 proportions (210mm x 297mm) me calibrated hai. Chahe kitna bhi content ho, ye 1-2 page ke andar hi fit rahega.
+                  Har ek layout standard A4 proportions (210mm x 297mm) me calibrated hai. Chahe template switch karein ya content badhein, zero data loss ke sath 1-2 page ke andar hi fit rahega.
                 </span>
               </div>
             </div>

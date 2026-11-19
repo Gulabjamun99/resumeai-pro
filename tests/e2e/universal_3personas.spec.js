@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('ResumeAI Pro — Universal 3-Persona & Multi-Template E2E Suite', () => {
+test.describe('ResumeAI Pro — Universal 3-Persona & 75-Template E2E Suite', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
@@ -90,32 +90,58 @@ test.describe('ResumeAI Pro — Universal 3-Persona & Multi-Template E2E Suite',
     expect(canvasText).toContain('Python');
   });
 
-  test('Templates Switching & Data Preservation', async ({ page }) => {
+  test('75 ATS Templates Catalog, Categorization & Tile View Switching', async ({ page }) => {
     // Launch fresh studio
     await page.click('button:has-text("2. Build Fresh with AI")');
     await page.click('button:has-text("Blank Canvas & Chat")');
 
     // Switch to Design & Templates Tab
     await page.click('button:has-text("Templates & Styles")');
-    await expect(page.locator('text=Choose ATS Template (5)')).toBeVisible();
+    
+    // Verify 75 Templates are reported
+    await expect(page.locator('text=Choose ATS Template (75)')).toBeVisible();
 
-    // Verify 5 Templates are listed
-    await expect(page.locator('text=Modern Executive')).toBeVisible();
-    await expect(page.locator('text=Classic Ivy League')).toBeVisible();
-    await expect(page.locator('text=Tech Minimalist')).toBeVisible();
-    await expect(page.locator('text=Compact Density ATS')).toBeVisible();
-    await expect(page.locator('text=Modern Two-Column Pro')).toBeVisible();
+    // Check Categories are present
+    await expect(page.locator('button:has-text("Executive & Corporate")')).toBeVisible();
+    await expect(page.locator('button:has-text("Tech & Engineering")')).toBeVisible();
+    await expect(page.locator('button:has-text("Ivy League & Academic")')).toBeVisible();
+    await expect(page.locator('button:has-text("Compact 1-Page")')).toBeVisible();
+    await expect(page.locator('button:has-text("Two-Column Modern")')).toBeVisible();
+    await expect(page.locator('button:has-text("Finance & Consulting")')).toBeVisible();
+    await expect(page.locator('button:has-text("Creative & Minimal")')).toBeVisible();
 
-    // Select Classic Ivy League
+    // 1. Select Classic Ivy League
     await page.click('button:has-text("Classic Ivy League")');
     await expect(page.locator('#resume-document')).toHaveClass(/font-serif/);
 
-    // Select Tech Minimalist
-    await page.click('button:has-text("Tech Minimalist")');
+    // 2. Filter by Tech & Engineering Category
+    await page.click('button:has-text("Tech & Engineering")');
+    await expect(page.locator('text=Silicon Valley Standard')).toBeVisible();
+    await expect(page.locator('text=Full Stack Architect')).toBeVisible();
+    await expect(page.locator('text=DevSecOps & Cloud Pro')).toBeVisible();
+
+    // Select Silicon Valley Standard
+    await page.click('button:has-text("Silicon Valley Standard")');
     await expect(page.locator('#resume-document')).toBeVisible();
 
-    // Select Modern Two-Column Pro
+    // 3. Test Search Bar for "McKinsey"
+    await page.fill('input[placeholder*="Search 75 templates"]', 'McKinsey');
+    await expect(page.locator('text=McKinsey Strategy Consultant')).toBeVisible();
+    await page.click('button:has-text("McKinsey Strategy Consultant")');
+    await expect(page.locator('#resume-document')).toBeVisible();
+
+    // Clear Search
+    await page.fill('input[placeholder*="Search 75 templates"]', '');
+    await page.click('button:has-text("All Templates")');
+
+    // 4. Select Modern Two-Column Pro
     await page.click('button:has-text("Modern Two-Column Pro")');
+    await expect(page.locator('#resume-document')).toBeVisible();
+
+    // 5. Select One Page Powerhouse (Compact Category)
+    await page.click('button:has-text("Compact 1-Page")');
+    await expect(page.locator('text=One Page Powerhouse')).toBeVisible();
+    await page.click('button:has-text("One Page Powerhouse")');
     await expect(page.locator('#resume-document')).toBeVisible();
   });
 

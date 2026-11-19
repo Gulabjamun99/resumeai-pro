@@ -5,6 +5,7 @@
  * 1. Strict 1 to 2 A4 Page Limit
  * 2. High Resolution Vector Print
  * 3. Exact 1:1 match with on-screen Live Canvas
+ * 4. Tailwind CSS v4 OKLCH Color Conversion Resilience
  */
 
 export function sanitizeCandidateFilename(candidateName, extension = 'pdf') {
@@ -15,6 +16,42 @@ export function sanitizeCandidateFilename(candidateName, extension = 'pdf') {
     .replace(/\s+/g, '_');
   if (!cleanName) cleanName = 'Candidate';
   return `${cleanName}_ATS_Resume.${ext}`;
+}
+
+/**
+ * Converts any modern CSS color functions (like oklch) to standard rgb()/hex
+ * using the browser's native canvas 2D parser.
+ */
+function createColorConverter(doc) {
+  try {
+    const canvas = doc.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return (str) => str;
+
+    const cache = new Map();
+
+    return function convertColor(str) {
+      if (typeof str !== 'string' || !str.includes('oklch')) return str;
+      if (cache.has(str)) return cache.get(str);
+
+      const converted = str.replace(/oklch\([^)]+\)/g, (match) => {
+        try {
+          ctx.fillStyle = '#000000';
+          ctx.fillStyle = match;
+          return ctx.fillStyle; // Browser returns rgb(...) or hex!
+        } catch {
+          return match;
+        }
+      });
+
+      cache.set(str, converted);
+      return converted;
+    };
+  } catch {
+    return (str) => str;
+  }
 }
 
 export async function exportResumeToPdf(elementId = 'resume-document', candidateName = 'Candidate') {
@@ -28,6 +65,30 @@ export async function exportResumeToPdf(elementId = 'resume-document', candidate
   if (!element) {
     throw new Error("Resume canvas element not found for PDF export.");
   }
+
+  const origWinGetComputedStyle = window.getComputedStyle;
+  const convertColor = createColorConverter(document);
+
+  const wrapStyleDeclaration = (style) => {
+    return new Proxy(style, {
+      get(target, prop) {
+        const val = target[prop];
+        if (typeof val === 'function') {
+          if (prop === 'getPropertyValue') {
+            return (param) => convertColor(target.getPropertyValue(param));
+          }
+          return val.bind(target);
+        }
+        return convertColor(val);
+      }
+    });
+  };
+
+  // Temporarily patch window.getComputedStyle to intercept html2canvas color extraction
+  window.getComputedStyle = function(el, pseudo) {
+    const style = origWinGetComputedStyle.call(window, el, pseudo);
+    return wrapStyleDeclaration(style);
+  };
 
   try {
     const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
@@ -44,10 +105,18 @@ export async function exportResumeToPdf(elementId = 'resume-document', candidate
       logging: false,
       backgroundColor: '#ffffff',
       onclone: (clonedDoc, clonedElement) => {
+        // 1. Remove transforms on body and parent wrappers
         clonedDoc.body.style.zoom = '1';
         clonedDoc.body.style.transform = 'none';
-        clonedElement.style.zoom = '1';
-        clonedElement.style.transform = 'none';
+        
+        let curr = clonedElement;
+        while (curr && curr !== clonedDoc.body) {
+          curr.style.transform = 'none';
+          curr.style.zoom = '1';
+          curr = curr.parentElement;
+        }
+
+        // 2. Exact A4 Dimensions
         clonedElement.style.width = `${A4_WIDTH_PX}px`;
         clonedElement.style.maxWidth = `${A4_WIDTH_PX}px`;
         clonedElement.style.minWidth = `${A4_WIDTH_PX}px`;
@@ -62,6 +131,15 @@ export async function exportResumeToPdf(elementId = 'resume-document', candidate
         clonedElement.style.height = `${targetHeight}px`;
         clonedElement.style.minHeight = `${targetHeight}px`;
         clonedElement.style.maxHeight = `${targetHeight}px`;
+
+        // 3. Patch cloned iframe's getComputedStyle
+        if (clonedDoc.defaultView) {
+          const origCloneGetComputedStyle = clonedDoc.defaultView.getComputedStyle;
+          clonedDoc.defaultView.getComputedStyle = function(el, pseudo) {
+            const style = origCloneGetComputedStyle.call(clonedDoc.defaultView, el, pseudo);
+            return wrapStyleDeclaration(style);
+          };
+        }
       }
     });
 
@@ -107,5 +185,7 @@ export async function exportResumeToPdf(elementId = 'resume-document', candidate
   } catch (err) {
     console.error("PDF Export error:", err);
     throw new Error(err.message || "Failed to generate PDF document.");
+  } finally {
+    window.getComputedStyle = origWinGetComputedStyle;
   }
 }

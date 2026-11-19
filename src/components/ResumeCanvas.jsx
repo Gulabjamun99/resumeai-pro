@@ -1,44 +1,20 @@
 import React from 'react';
-import { Mail, Phone, MapPin, Globe, Code, ExternalLink } from 'lucide-react';
+import { Mail, Phone, MapPin, Globe, Code, ExternalLink, Award, BookOpen, Briefcase, GraduationCap, Sparkles } from 'lucide-react';
 import { normalizeCvSchema } from '../utils/cvNormalizer.js';
+import { TEMPLATES, getTemplateById } from '../data/templateCatalog.js';
 
-export const TEMPLATES = [
-  {
-    id: 'modern-executive',
-    name: 'Modern Executive',
-    description: 'Clean linear hierarchy with subtle accent styling. Universally preferred by top recruiters.',
-    badge: 'Flagship ATS',
-    layout: 'single-column'
-  },
-  {
-    id: 'classic-ivy',
-    name: 'Classic Ivy League',
-    description: 'Traditional centered serif design. The gold standard for Finance, Consulting & Legal.',
-    badge: 'Ivy Standard',
-    layout: 'single-column'
-  },
-  {
-    id: 'tech-minimal',
-    name: 'Tech Minimalist',
-    description: 'Streamlined monospace-friendly format with skill tags. Built for Engineering & Product.',
-    badge: 'Dev Favorite',
-    layout: 'single-column'
-  },
-  {
-    id: 'compact-ats',
-    name: 'Compact Density ATS',
-    description: 'Maximum content density. Compounds 5-10 verbose years into strictly 1-2 readable pages.',
-    badge: 'Strict 1-2 Page',
-    layout: 'single-column'
-  },
-  {
-    id: 'two-column-pro',
-    name: 'Modern Two-Column Pro',
-    description: 'Distinct sidebar for skills, contact and education. High visual appeal.',
-    badge: 'Dual Column',
-    layout: 'two-column-sidebar'
+export { TEMPLATES, getTemplateById };
+
+function getBulletSymbol(style) {
+  switch (style) {
+    case 'circle': return '○';
+    case 'hyphen': return '–';
+    case 'arrow': return '▸';
+    case 'diamond': return '◆';
+    case 'disc':
+    default: return '•';
   }
-];
+}
 
 export default function ResumeCanvas({ 
   resume, 
@@ -61,10 +37,12 @@ export default function ResumeCanvas({
   const customSections = Array.isArray(cv.customSections) ? cv.customSections : [];
 
   const activeTemplate = templateId || cv.styleProfile?.templateId || 'modern-executive';
-  const activeAccent = accentColor || cv.styleProfile?.accentColor || "#2563eb";
-  const activeFont = fontFamily || cv.styleProfile?.fontFamily || "font-sans";
+  const templateConfig = getTemplateById(activeTemplate);
 
-  // Common styles
+  const activeAccent = accentColor || cv.styleProfile?.accentColor || templateConfig.accentColor || "#2563eb";
+  const activeFont = fontFamily || cv.styleProfile?.fontFamily || templateConfig.fontFamily || "font-sans";
+
+  // Common A4 canvas dimensions
   const a4CanvasStyle = {
     width: '100%',
     maxWidth: '820px',
@@ -73,7 +51,7 @@ export default function ResumeCanvas({
   };
 
   // ========================================================
-  // TEMPLATE 1: CLASSIC IVY LEAGUE (Centred, Serif, Formal)
+  // 1. CLASSIC IVY LEAGUE (Centred, Serif, Formal)
   // ========================================================
   if (activeTemplate === 'classic-ivy') {
     return (
@@ -82,7 +60,6 @@ export default function ResumeCanvas({
         className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col font-serif p-10 sm:p-12 transition-all duration-200 print:shadow-none print:m-0`}
         style={{ ...a4CanvasStyle, color: '#111827' }}
       >
-        {/* Centered Header */}
         <header className="text-center border-b pb-4 mb-4" style={{ borderColor: '#d1d5db' }}>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-wide uppercase text-slate-950">
             {header.name || "Candidate Name"}
@@ -108,7 +85,6 @@ export default function ResumeCanvas({
           </div>
         </header>
 
-        {/* Professional Summary */}
         {header.summary && (
           <section className="mb-4">
             <h2 className="text-xs font-bold uppercase tracking-widest border-b pb-1 mb-1.5 text-slate-900" style={{ borderColor: '#9ca3af' }}>
@@ -120,7 +96,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Education (Ivy prioritizes education high) */}
         {education.length > 0 && (
           <section className="mb-4">
             <h2 className="text-xs font-bold uppercase tracking-widest border-b pb-1 mb-2 text-slate-900" style={{ borderColor: '#9ca3af' }}>
@@ -144,7 +119,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Experience */}
         {experiences.length > 0 && (
           <section className="mb-4">
             <h2 className="text-xs font-bold uppercase tracking-widest border-b pb-1 mb-2.5 text-slate-900" style={{ borderColor: '#9ca3af' }}>
@@ -175,7 +149,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Key Projects */}
         {projects.length > 0 && (
           <section className="mb-4">
             <h2 className="text-xs font-bold uppercase tracking-widest border-b pb-1 mb-2 text-slate-900" style={{ borderColor: '#9ca3af' }}>
@@ -199,7 +172,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Skills */}
         {skills.length > 0 && (
           <section className="mb-3 font-sans">
             <h2 className="text-xs font-bold uppercase tracking-widest border-b pb-1 mb-1.5 font-serif text-slate-900" style={{ borderColor: '#9ca3af' }}>
@@ -212,7 +184,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Certifications & Languages */}
         {(certifications.length > 0 || languages.length > 0) && (
           <section className="font-sans text-xs text-slate-800">
             <h2 className="text-xs font-bold uppercase tracking-widest border-b pb-1 mb-1.5 font-serif text-slate-900" style={{ borderColor: '#9ca3af' }}>
@@ -237,7 +208,7 @@ export default function ResumeCanvas({
   }
 
   // ========================================================
-  // TEMPLATE 2: TECH MINIMALIST (Modern Tech / Engineering)
+  // 2. TECH MINIMALIST (Modern Tech / Engineering)
   // ========================================================
   if (activeTemplate === 'tech-minimal') {
     return (
@@ -246,7 +217,6 @@ export default function ResumeCanvas({
         className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} p-8 sm:p-10 transition-all duration-200 print:shadow-none print:m-0`}
         style={a4CanvasStyle}
       >
-        {/* Header */}
         <header className="flex flex-col sm:flex-row sm:items-end justify-between border-b pb-3.5 mb-4 gap-2" style={{ borderColor: '#e2e8f0' }}>
           <div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
@@ -272,7 +242,6 @@ export default function ResumeCanvas({
           </div>
         </header>
 
-        {/* Summary */}
         {header.summary && (
           <section className="mb-4">
             <p className="text-xs text-slate-700 leading-relaxed">
@@ -281,7 +250,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Tech Skills Pills */}
         {skills.length > 0 && (
           <section className="mb-4">
             <h2 className="text-[11px] font-mono font-bold uppercase tracking-widest text-slate-500 mb-2">
@@ -300,7 +268,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Experience */}
         {experiences.length > 0 && (
           <section className="mb-4">
             <h2 className="text-[11px] font-mono font-bold uppercase tracking-widest text-slate-500 mb-2.5">
@@ -331,7 +298,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Projects */}
         {projects.length > 0 && (
           <section className="mb-4">
             <h2 className="text-[11px] font-mono font-bold uppercase tracking-widest text-slate-500 mb-2">
@@ -355,7 +321,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Education & Certs */}
         {(education.length > 0 || certifications.length > 0) && (
           <section className="mb-3">
             <h2 className="text-[11px] font-mono font-bold uppercase tracking-widest text-slate-500 mb-1.5">
@@ -382,7 +347,7 @@ export default function ResumeCanvas({
   }
 
   // ========================================================
-  // TEMPLATE 3: COMPACT ATS PRO (Maximum Content Density)
+  // 3. COMPACT ATS PRO (Maximum Content Density)
   // ========================================================
   if (activeTemplate === 'compact-ats') {
     return (
@@ -391,7 +356,6 @@ export default function ResumeCanvas({
         className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} p-6 sm:p-8 transition-all duration-200 print:shadow-none print:m-0`}
         style={a4CanvasStyle}
       >
-        {/* Compact Header */}
         <header className="border-b pb-2.5 mb-3" style={{ borderColor: activeAccent }}>
           <div className="flex flex-col sm:flex-row sm:items-baseline justify-between">
             <h1 className="text-xl sm:text-2xl font-black uppercase text-slate-950 tracking-tight">
@@ -413,7 +377,6 @@ export default function ResumeCanvas({
           </div>
         </header>
 
-        {/* Compact Summary */}
         {header.summary && (
           <section className="mb-2.5">
             <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b pb-0.5 mb-1" style={{ borderColor: '#cbd5e1' }}>
@@ -425,7 +388,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Compact Skills */}
         {skills.length > 0 && (
           <section className="mb-2.5">
             <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b pb-0.5 mb-1" style={{ borderColor: '#cbd5e1' }}>
@@ -437,7 +399,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Compact Experience */}
         {experiences.length > 0 && (
           <section className="mb-3">
             <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b pb-0.5 mb-1.5" style={{ borderColor: '#cbd5e1' }}>
@@ -468,7 +429,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Compact Projects */}
         {projects.length > 0 && (
           <section className="mb-2.5">
             <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b pb-0.5 mb-1" style={{ borderColor: '#cbd5e1' }}>
@@ -490,7 +450,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Compact Education */}
         {education.length > 0 && (
           <section className="mb-2">
             <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b pb-0.5 mb-1" style={{ borderColor: '#cbd5e1' }}>
@@ -511,7 +470,6 @@ export default function ResumeCanvas({
           </section>
         )}
 
-        {/* Certifications & Languages */}
         {(certifications.length > 0 || languages.length > 0) && (
           <section className="text-[10.5px] text-slate-600">
             {certifications.length > 0 && (
@@ -527,9 +485,10 @@ export default function ResumeCanvas({
   }
 
   // ========================================================
-  // TEMPLATE 4: TWO-COLUMN SIDEBAR PRO (Dual-Stream Layout)
+  // 4. TWO-COLUMN LAYOUTS (Two-Column Pro, Sidebar Accent, etc.)
   // ========================================================
-  if (activeTemplate === 'two-column-pro' || cv.layoutType === 'two-column-sidebar') {
+  if (templateConfig.layout === 'two-column-left' || templateConfig.layout === 'two-column-sidebar' || activeTemplate === 'two-column-pro') {
+    const bulletChar = getBulletSymbol(templateConfig.bulletStyle);
     return (
       <div
         id={id}
@@ -673,7 +632,6 @@ export default function ResumeCanvas({
 
         {/* Right Main Column */}
         <main className="flex-1 p-7 sm:p-8 flex flex-col gap-4 bg-white text-left">
-          {/* Header */}
           <header className="border-b border-slate-200 pb-3">
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 uppercase leading-none">
               {header.name || "Candidate Name"}
@@ -685,7 +643,6 @@ export default function ResumeCanvas({
             )}
           </header>
 
-          {/* Summary */}
           {header.summary && (
             <section>
               <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-1.5">
@@ -697,7 +654,6 @@ export default function ResumeCanvas({
             </section>
           )}
 
-          {/* Experience */}
           {experiences.length > 0 && (
             <section>
               <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2.5">
@@ -718,9 +674,12 @@ export default function ResumeCanvas({
                     </div>
 
                     {Array.isArray(exp.bullets) && exp.bullets.length > 0 && (
-                      <ul className="list-disc list-outside pl-4 space-y-1 text-xs text-slate-700 leading-relaxed mt-0.5">
+                      <ul className="space-y-1 text-xs text-slate-700 leading-relaxed mt-0.5">
                         {exp.bullets.map((b, bIdx) => (
-                          <li key={bIdx} className="pl-0.5">{b}</li>
+                          <li key={bIdx} className="flex items-start gap-1.5">
+                            <span className="shrink-0 text-slate-400 font-bold select-none">{bulletChar}</span>
+                            <span className="flex-1">{b}</span>
+                          </li>
                         ))}
                       </ul>
                     )}
@@ -730,7 +689,6 @@ export default function ResumeCanvas({
             </section>
           )}
 
-          {/* Projects */}
           {projects.length > 0 && (
             <section>
               <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2">
@@ -757,19 +715,209 @@ export default function ResumeCanvas({
   }
 
   // ========================================================
-  // DEFAULT / TEMPLATE 5: MODERN EXECUTIVE (Flagship ATS)
+  // 5. UNIVERSAL PARAMETRIC RENDERER (Supports remaining 70+ ATS Templates)
   // ========================================================
-  return (
-    <div
-      id={id}
-      className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} transition-all duration-200 print:shadow-none print:m-0`}
-      style={{
-        ...a4CanvasStyle,
-        padding: '36px 44px'
-      }}
-    >
-      {/* 1. Header with Accent Bar */}
-      <header className="border-b-2 pb-3.5 mb-3.5" style={{ borderColor: activeAccent }}>
+  const density = templateConfig.density || 'balanced';
+  const headerStyle = templateConfig.headerStyle || 'accent-bar';
+  const dividerStyle = templateConfig.dividerStyle || 'solid-accent';
+  const bulletStyle = templateConfig.bulletStyle || 'disc';
+  const skillsLayout = templateConfig.skillsLayout || 'inline-pipe';
+  const bulletChar = getBulletSymbol(bulletStyle);
+
+  // Density spacing maps
+  const paddingMap = {
+    'ultra-compact': 'p-6 sm:p-7',
+    'compact': 'p-7 sm:p-9',
+    'balanced': 'p-8 sm:p-11',
+    'spacious': 'p-10 sm:p-12'
+  };
+
+  const sectionMarginMap = {
+    'ultra-compact': 'mb-2.5',
+    'compact': 'mb-3',
+    'balanced': 'mb-3.5',
+    'spacious': 'mb-4.5'
+  };
+
+  const itemSpaceMap = {
+    'ultra-compact': 'space-y-2',
+    'compact': 'space-y-2.5',
+    'balanced': 'space-y-3.5',
+    'spacious': 'space-y-4'
+  };
+
+  // Section divider builder
+  const renderDivider = (title, icon) => {
+    switch (dividerStyle) {
+      case 'solid-accent':
+        return (
+          <h2 className="text-xs font-bold uppercase tracking-wider border-b-2 pb-1 mb-2 flex items-center gap-1.5" style={{ color: activeAccent, borderColor: activeAccent }}>
+            {icon}
+            <span>{title}</span>
+          </h2>
+        );
+      case 'double-rule':
+        return (
+          <h2 className="text-xs font-bold uppercase tracking-wider border-b-4 border-double pb-1 mb-2 text-slate-900" style={{ borderColor: activeAccent }}>
+            <span>{title}</span>
+          </h2>
+        );
+      case 'left-callout':
+        return (
+          <h2 className="text-xs font-bold uppercase tracking-wider pl-2.5 border-l-4 pb-0.5 mb-2 text-slate-900 flex items-center gap-1.5" style={{ borderLeftColor: activeAccent }}>
+            <span>{title}</span>
+          </h2>
+        );
+      case 'dashed':
+        return (
+          <h2 className="text-xs font-bold uppercase tracking-wider border-b border-dashed pb-1 mb-2 text-slate-800" style={{ borderColor: activeAccent }}>
+            <span>{title}</span>
+          </h2>
+        );
+      case 'pill-header':
+        return (
+          <div className="mb-2">
+            <span className="inline-block text-[10.5px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded text-white" style={{ backgroundColor: activeAccent }}>
+              {title}
+            </span>
+          </div>
+        );
+      case 'none':
+        return (
+          <h2 className="text-xs font-bold uppercase tracking-wider pb-0.5 mb-1.5 text-slate-900">
+            <span>{title}</span>
+          </h2>
+        );
+      case 'subtle-gray':
+      default:
+        return (
+          <h2 className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1 mb-2 text-slate-900 flex items-center gap-1.5">
+            <span>{title}</span>
+          </h2>
+        );
+    }
+  };
+
+  // Header Renderer
+  const renderHeader = () => {
+    if (headerStyle === 'centered-formal') {
+      return (
+        <header className="text-center border-b pb-3.5 mb-3.5" style={{ borderColor: `${activeAccent}44` }}>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-wide uppercase text-slate-950">
+            {header.name || "Candidate Name"}
+          </h1>
+          {header.title && (
+            <p className="text-xs sm:text-sm italic font-medium mt-1 text-slate-700 tracking-wider">
+              {header.title}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-2 text-[11px] text-slate-600">
+            {contact.location && <span>{contact.location}</span>}
+            {contact.phone && <span>• {contact.phone}</span>}
+            {contact.email && <span>• {contact.email}</span>}
+            {contact.linkedin && <span>• {contact.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, 'in/')}</span>}
+            {contact.github && <span>• {contact.github.replace(/^https?:\/\/(www\.)?github\.com\//i, 'github/')}</span>}
+          </div>
+        </header>
+      );
+    }
+
+    if (headerStyle === 'badge-head') {
+      return (
+        <header className="border-b pb-3 mb-3" style={{ borderColor: '#e2e8f0' }}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+                  {header.name || "Candidate Name"}
+                </h1>
+                {header.title && (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full text-white" style={{ backgroundColor: activeAccent }}>
+                    {header.title}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 text-xs text-slate-600">
+              {contact.email && <span>{contact.email}</span>}
+              {contact.phone && <span>• {contact.phone}</span>}
+              {contact.location && <span>• {contact.location}</span>}
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    if (headerStyle === 'bordered-box') {
+      return (
+        <header className="p-3.5 rounded-xl border mb-3.5 bg-slate-50/70" style={{ borderColor: `${activeAccent}33` }}>
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+            <div>
+              <h1 className="text-2xl font-black text-slate-950 tracking-tight">
+                {header.name || "Candidate Name"}
+              </h1>
+              {header.title && (
+                <p className="text-xs font-bold mt-0.5" style={{ color: activeAccent }}>
+                  {header.title}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 text-[11px] text-slate-600">
+              {contact.email && <span>{contact.email}</span>}
+              {contact.phone && <span>• {contact.phone}</span>}
+              {contact.location && <span>• {contact.location}</span>}
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    if (headerStyle === 'left-accent') {
+      return (
+        <header className="pl-3.5 border-l-4 mb-3.5 py-0.5" style={{ borderColor: activeAccent }}>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+            {header.name || "Candidate Name"}
+          </h1>
+          {header.title && (
+            <p className="text-xs sm:text-sm font-bold tracking-wide mt-0.5" style={{ color: activeAccent }}>
+              {header.title}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-600">
+            {contact.email && <span>{contact.email}</span>}
+            {contact.phone && <span>• {contact.phone}</span>}
+            {contact.location && <span>• {contact.location}</span>}
+            {contact.linkedin && <span>• {contact.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, 'in/')}</span>}
+          </div>
+        </header>
+      );
+    }
+
+    if (headerStyle === 'top-strip') {
+      return (
+        <header className="pt-2 border-t-4 border-b pb-3 mb-3.5" style={{ borderTopColor: activeAccent, borderBottomColor: '#e2e8f0' }}>
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950">
+              {header.name || "Candidate Name"}
+            </h1>
+            {header.title && (
+              <span className="text-xs font-bold tracking-wide" style={{ color: activeAccent }}>
+                {header.title}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-600">
+            {contact.email && <span>{contact.email}</span>}
+            {contact.phone && <span>• {contact.phone}</span>}
+            {contact.location && <span>• {contact.location}</span>}
+          </div>
+        </header>
+      );
+    }
+
+    // Default: Accent Bar
+    return (
+      <header className="border-b-2 pb-3 mb-3.5" style={{ borderColor: activeAccent }}>
         <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 uppercase">
           {header.name || "Candidate Name"}
         </h1>
@@ -778,8 +926,6 @@ export default function ResumeCanvas({
             {header.title}
           </p>
         )}
-
-        {/* Contact Strip */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 text-xs text-slate-600 font-medium">
           {contact.email && (
             <span className="flex items-center gap-1">
@@ -813,45 +959,92 @@ export default function ResumeCanvas({
           )}
         </div>
       </header>
+    );
+  };
+
+  // Skills format renderer
+  const renderSkills = () => {
+    if (!skills.length) return null;
+
+    if (skillsLayout === 'inline-pipe') {
+      return (
+        <p className="text-xs text-slate-800 leading-relaxed font-medium">
+          {skills.join('  |  ')}
+        </p>
+      );
+    }
+
+    if (skillsLayout === 'dots') {
+      return (
+        <p className="text-xs text-slate-800 leading-relaxed font-medium">
+          {skills.join('  •  ')}
+        </p>
+      );
+    }
+
+    if (skillsLayout === 'pills') {
+      return (
+        <div className="flex flex-wrap gap-1.5">
+          {skills.map((s, idx) => (
+            <span
+              key={idx}
+              className="text-[11px] font-medium px-2.5 py-0.5 rounded-full"
+              style={{ backgroundColor: `${activeAccent}12`, color: activeAccent, border: `1px solid ${activeAccent}33` }}
+            >
+              {s}
+            </span>
+          ))}
+        </div>
+      );
+    }
+
+    // Default tags
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {skills.map((s, idx) => (
+          <span
+            key={idx}
+            className="bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-medium px-2.5 py-0.5 rounded"
+          >
+            {s}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div
+      id={id}
+      className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} ${paddingMap[density] || 'p-8 sm:p-10'} transition-all duration-200 print:shadow-none print:m-0`}
+      style={a4CanvasStyle}
+    >
+      {/* 1. Header */}
+      {renderHeader()}
 
       {/* 2. Professional Summary */}
       {header.summary && (
-        <section className="mb-3.5">
-          <h2 className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1 mb-1.5 flex items-center gap-1.5" style={{ color: activeAccent }}>
-            <span>Professional Summary</span>
-          </h2>
+        <section className={sectionMarginMap[density] || 'mb-3.5'}>
+          {renderDivider("Professional Summary")}
           <p className="text-xs text-slate-700 leading-relaxed text-justify">
             {header.summary}
           </p>
         </section>
       )}
 
-      {/* 3. Core Competencies & Skills */}
+      {/* 3. Core Skills */}
       {skills.length > 0 && (
-        <section className="mb-3.5">
-          <h2 className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1 mb-2 flex items-center gap-1.5" style={{ color: activeAccent }}>
-            <span>Key Skills & Competencies</span>
-          </h2>
-          <div className="flex flex-wrap gap-1.5">
-            {skills.map((s, idx) => (
-              <span
-                key={idx}
-                className="bg-slate-50 border border-slate-200 text-slate-800 text-[11px] font-medium px-2.5 py-0.5 rounded"
-              >
-                {s}
-              </span>
-            ))}
-          </div>
+        <section className={sectionMarginMap[density] || 'mb-3.5'}>
+          {renderDivider("Skills & Core Competencies")}
+          {renderSkills()}
         </section>
       )}
 
       {/* 4. Work Experience */}
       {experiences.length > 0 && (
-        <section className="mb-3.5">
-          <h2 className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1 mb-2.5 flex items-center gap-1.5" style={{ color: activeAccent }}>
-            <span>Work Experience</span>
-          </h2>
-          <div className="flex flex-col gap-3.5">
+        <section className={sectionMarginMap[density] || 'mb-3.5'}>
+          {renderDivider("Work Experience")}
+          <div className={`flex flex-col ${itemSpaceMap[density] || 'gap-3.5'}`}>
             {experiences.map((exp, expIdx) => (
               <div key={exp.id || expIdx} className="flex flex-col gap-0.5">
                 <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-0.5">
@@ -866,9 +1059,12 @@ export default function ResumeCanvas({
                 </div>
 
                 {Array.isArray(exp.bullets) && exp.bullets.length > 0 && (
-                  <ul className="list-disc list-outside pl-4 space-y-1 text-xs text-slate-700 leading-relaxed mt-0.5">
+                  <ul className="space-y-1 text-xs text-slate-700 leading-relaxed mt-0.5">
                     {exp.bullets.map((b, bIdx) => (
-                      <li key={bIdx} className="pl-0.5">{b}</li>
+                      <li key={bIdx} className="flex items-start gap-1.5">
+                        <span className="shrink-0 text-slate-400 font-bold select-none">{bulletChar}</span>
+                        <span className="flex-1">{b}</span>
+                      </li>
                     ))}
                   </ul>
                 )}
@@ -878,12 +1074,10 @@ export default function ResumeCanvas({
         </section>
       )}
 
-      {/* 5. Projects */}
+      {/* 5. Key Projects */}
       {projects.length > 0 && (
-        <section className="mb-3.5">
-          <h2 className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1 mb-2 flex items-center gap-1.5" style={{ color: activeAccent }}>
-            <span>Key Projects & Technical Initiatives</span>
-          </h2>
+        <section className={sectionMarginMap[density] || 'mb-3.5'}>
+          {renderDivider("Key Projects & Initiatives")}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {projects.map((proj, idx) => (
               <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
@@ -902,10 +1096,8 @@ export default function ResumeCanvas({
 
       {/* 6. Education & Credentials */}
       {(education.length > 0 || certifications.length > 0) && (
-        <section className="mb-3">
-          <h2 className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1 mb-2 flex items-center gap-1.5" style={{ color: activeAccent }}>
-            <span>Education & Credentials</span>
-          </h2>
+        <section className={sectionMarginMap[density] || 'mb-3'}>
+          {renderDivider("Education & Credentials")}
           <div className="flex flex-wrap justify-between gap-4 text-xs text-slate-700">
             {education.length > 0 && (
               <div className="flex flex-col gap-2 flex-1 min-w-[240px]">
@@ -942,9 +1134,7 @@ export default function ResumeCanvas({
       {/* 7. Languages */}
       {languages.length > 0 && (
         <section className="mb-2">
-          <h2 className="text-xs font-bold uppercase tracking-wider border-b border-slate-200 pb-1 mb-1.5" style={{ color: activeAccent }}>
-            Languages
-          </h2>
+          {renderDivider("Languages")}
           <div className="flex flex-wrap gap-2 text-xs text-slate-700">
             {languages.map((l, idx) => (
               <span key={idx} className="bg-slate-50 border border-slate-200 px-2 py-0.5 rounded text-[10.5px]">
