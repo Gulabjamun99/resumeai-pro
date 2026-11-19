@@ -80,10 +80,10 @@ export function extractLinesFromPdfItems(items) {
   return lines.join('\n');
 }
 
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
+const pdfjsWorker = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).href;
 
 const KNOWN_ROLE_KEYWORDS = /\b(executive|manager|engineer|developer|specialist|lead|director|analyst|consultant|associate|officer|coordinator|intern|architect|designer|doctor|nurse|head|vice president|vp|president|founder|co-founder|administrator|trainee|technician|representative|recruiter|general manager|gm|ceo|cto|cfo|cmo|coo)\b/i;
-const KNOWN_COMPANY_KEYWORDS = /\b(pvt\.?\s*ltd\.?|ltd\.?|inc\.?|llc|corp\.?|corporation|technologies|systems|hospital|clinic|services|labs|solutions|bank|solutions|enterprises|ventures|holdings|group|consulting|associates|global|software|infotech|agency)\b/i;
+const KNOWN_COMPANY_KEYWORDS = /\b(pvt\.?\s*ltd\.?|ltd\.?|inc\.?|llc|corp\.?|corporation|technologies|systems|hospital|clinic|services|labs|solutions|bank|solutions|enterprises|ventures|holdings|group|consulting|associates|global|infotech|agency)\b/i;
 const DEGREE_REGEX = /\b(mba|bba|mca|bca|b\.?tech|m\.?tech|b\.?e|m\.?e|b\.?sc|m\.?sc|b\.?com|m\.?com|ph\.?d|bachelor|master|doctorate|diploma|matriculation|higher secondary|cbse|icse)\b/i;
 
 function cleanBullet(str) {
@@ -275,7 +275,7 @@ export function parseDeterministicCvText(rawText, fileName = "Resume.pdf") {
             id: `exp-${experiences.length + 1}`,
             role: title || "Professional Specialist",
             company: "Organization",
-            period: "Career Period",
+            period: "",
             location: "",
             bullets: []
           };
@@ -311,21 +311,17 @@ export function parseDeterministicCvText(rawText, fileName = "Resume.pdf") {
             company = splitAt[1].trim();
           } else if (KNOWN_COMPANY_KEYWORDS.test(single)) {
             company = single;
-            const prev = rawLines[i - 1];
-            if (prev && prev.length < 60 && !SECTION_EXP.test(prev)) role = prev;
+            if (currentExp && currentExp.role !== "Specialist") role = currentExp.role;
           } else {
             role = single;
-            const prev = rawLines[i - 1];
-            if (prev && prev.length < 60 && !SECTION_EXP.test(prev)) company = prev;
+            if (currentExp && currentExp.company !== "Organization") company = currentExp.company;
           }
-        } else {
-          const prev1 = rawLines[i - 1] || "";
-          const prev2 = rawLines[i - 2] || "";
-          if (prev1 && !SECTION_EXP.test(prev1)) role = prev1;
-          if (prev2 && !SECTION_EXP.test(prev2)) company = prev2;
+        } else if (currentExp) {
+          role = currentExp.role;
+          company = currentExp.company;
         }
 
-        if (currentExp && currentExp.bullets.length === 0 && (!currentExp.period || currentExp.period === "")) {
+        if (currentExp && (!currentExp.period || currentExp.period === "")) {
           currentExp.role = role !== "Specialist" ? role : currentExp.role;
           currentExp.company = company !== "Organization" ? company : currentExp.company;
           currentExp.period = datePart;
@@ -343,13 +339,33 @@ export function parseDeterministicCvText(rawText, fileName = "Resume.pdf") {
         continue;
       }
 
-      if (currentExp && line.length > 20) {
+      // Neither a bullet nor has dates
+      if (currentExp && currentExp.period) {
         currentExp.bullets.push(cleanBullet(line));
-      } else if (!currentExp && line.length < 60) {
+      } else if (currentExp && !currentExp.period) {
+        if (KNOWN_ROLE_KEYWORDS.test(line)) {
+          currentExp.role = line;
+        } else if (KNOWN_COMPANY_KEYWORDS.test(line)) {
+          currentExp.company = line;
+        } else if (currentExp.company === "Organization") {
+          currentExp.company = line;
+        } else {
+          currentExp.role = line;
+        }
+      } else {
+        let comp = "Organization";
+        let r = line;
+        if (KNOWN_ROLE_KEYWORDS.test(line)) {
+          r = line;
+          comp = "Organization";
+        } else if (KNOWN_COMPANY_KEYWORDS.test(line)) {
+          comp = line;
+          r = "Specialist";
+        }
         currentExp = {
           id: `exp-${experiences.length + 1}`,
-          role: line,
-          company: "Organization",
+          role: r,
+          company: comp,
           period: "",
           location: "",
           bullets: []

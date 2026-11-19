@@ -20,6 +20,24 @@ test.describe('ResumeAI Pro — Universal 3-Persona & Multi-Template E2E Suite',
     await expect(page.locator('text=Click to upload or drag & drop your CV')).toBeVisible();
   });
 
+  test('Persona 1: Upload Existing CV and Faithful Verbatim Extraction', async ({ page }) => {
+    const fileInput = page.locator('input[type="file"]');
+    await fileInput.setInputFiles('tests/fixtures/e2e_test_candidate.txt');
+
+    // Should open Studio with faithfully parsed CV
+    await expect(page.locator('text=E2E Test Candidate')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=ABC Technologies')).toBeVisible();
+    await expect(page.locator('text=Software Engineer')).toBeVisible();
+
+    const canvasText = await page.locator('#resume-document').innerText();
+    expect(canvasText).toContain('ABC Technologies');
+    expect(canvasText).toContain('Software Engineer');
+    expect(canvasText).toContain('Spearheaded software recruitment');
+    expect(canvasText).toContain('Java');
+    expect(canvasText).toContain('Python');
+    expect(canvasText).toContain('SQL');
+  });
+
   test('Persona 2: 1-Page Fresher Wizard & Zero Dummy Data', async ({ page }) => {
     // Switch to Persona 2
     await page.click('button:has-text("2. Build Fresh with AI")');

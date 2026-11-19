@@ -229,22 +229,25 @@ JSON SCHEMA SPECIFICATION (Return strictly valid JSON):
 export async function parseCvWithGemini(extractedText, layoutHint = 'single-column') {
   if (!extractedText || extractedText.trim().length < 15) return null;
 
-  const systemInstruction = `You are the Lead Universal Resume Parser and Executive CV Architect at ResumeAI Pro.
-Your task is to parse raw resume document text into our standardized Resume JSON schema.
+  const systemInstruction = `You are the Lead Universal Resume Parser at ResumeAI Pro.
+Your mission is 100% FAITHFUL, VERBATIM EXTRACTION (HUBAHU). Extract the candidate's exact resume data into our standardized Resume JSON schema without altering or dropping anything.
 
-STRICT INVARIANTS:
-1. 100% FACTUAL FIDELITY & ZERO DATA LEAKAGE:
-   - Extract ONLY verified details from the candidate's text.
-   - NEVER inject dummy companies, mock roles, or sample text from other candidates.
-   - If a section is not present in the input text, leave it as an empty array [].
-2. STRICT 1 TO 2 PAGE COMPACT ATS BUDGET:
-   - Even if the source text spans 3 to 10 verbose pages, synthesize and compound verbose narrative text into crisp, high-impact STAR bullets (Situation, Action, Measurable Result).
-   - Balance bullet count (3 to 5 strong bullets per recent role, 2 to 3 for older roles) so the entire document comfortably fits within 1 to 2 standard A4 pages without omitting any real employers, job titles, dates, or degrees.
-3. AUTHENTIC LAYOUT DETECTION:
-   - Set "layoutType": "two-column-sidebar" ONLY if the document explicitly describes a side column for contact/skills.
-   - Otherwise, default to "single-column" linear layout.
-4. 100% CORPORATE ENGLISH:
-   - All resume text inside JSON must be formatted in polished, prestigious Corporate English.
+CRITICAL PARSING MANDATES:
+1. 100% VERBATIM EXTRACTION & ZERO DATA LOSS:
+   - Extract the candidate's EXACT words, sentences, bullets, job titles, companies, dates, institutions, degrees, and skills.
+   - DO NOT rewrite, paraphrase, summarize, or alter what the candidate wrote.
+   - DO NOT drop or omit ANY bullet points or responsibilities. If candidate has 6 bullets under a company, keep ALL 6 bullets.
+   - Extract the exact Professional Summary / Profile / Objective if present.
+2. ACCURATE COMPANY VS ROLE SEPARATION:
+   - Accurately distinguish the employer organization from the candidate's designation/title (e.g. "Nathcorp Pvt. Ltd. | HR Executive" -> company: "Nathcorp Pvt. Ltd.", role: "HR Executive").
+   - NEVER swap role and company.
+3. ZERO BLEEDING ACROSS SECTIONS:
+   - Degrees, college names, passing years belong strictly in "education", NEVER as bullets inside "experiences".
+   - Certifications belong in "certifications", skills belong in "skills".
+4. ZERO HALLUCINATION & ZERO FAKE DATA:
+   - Never inject placeholder names, dummy companies, or unmentioned dates. If a field is not in the text, leave it empty or [].
+5. AUTHENTIC LAYOUT DETECTION:
+   - Set "layoutType": "two-column-sidebar" ONLY if the document explicitly has a distinct sidebar column for contact/skills. Otherwise default to "single-column".
 
 ${COMMON_PARSING_SCHEMA_PROMPT}`;
 
@@ -265,22 +268,22 @@ ${COMMON_PARSING_SCHEMA_PROMPT}`;
 export async function parseCvWithGeminiVision(images = []) {
   if (!images || images.length === 0) return null;
 
-  const systemInstruction = `You are the Lead Multi-Modal Resume Parser and Executive CV Architect at ResumeAI Pro.
-Look directly at the visual document page images and extract the candidate's authentic resume data into our standardized Resume JSON schema.
+  const systemInstruction = `You are the Lead Multi-Modal Resume Parser at ResumeAI Pro.
+Look directly at the visual document page images and perform 100% FAITHFUL, VERBATIM EXTRACTION (HUBAHU) of all candidate data into our standardized Resume JSON schema.
 
-STRICT INVARIANTS:
-1. 100% VISUAL OCR & FACTUAL INTEGRITY:
+CRITICAL VISION MANDATES:
+1. 100% VERBATIM EXTRACTION & ZERO DATA LOSS:
    - Read every section visually: Full Name, Professional Title, Contact details, Summary, Work History, Education, Skills, Projects, Certifications, Languages.
    - Extract exact companies, designations, dates, locations, and achievements.
-   - Do NOT omit any verified job, degree, or credential.
-2. STRICT 1 TO 2 PAGE COMPACT ATS BUDGET:
-   - Compound and synthesize verbose text into dense STAR bullets fitting strictly within 1 to 2 A4 pages.
-3. AUTHENTIC LAYOUT DETECTION:
-   - Look at the visual structure:
-     * If the document has a distinct left or right column/sidebar containing contact info and skills, set "layoutType": "two-column-sidebar".
-     * If the document has a single column linear top-to-bottom layout on a white page, set "layoutType": "single-column".
-4. 100% CORPORATE ENGLISH:
-   - All resume text inside JSON must be formatted in professional Corporate English.
+   - Preserve ALL bullet points and tasks without dropping or summarizing them.
+2. ACCURATE COMPANY VS ROLE SEPARATION:
+   - Accurately distinguish organization name vs job title (e.g. company: "Nathcorp Pvt. Ltd.", role: "HR Executive").
+3. ZERO BLEEDING:
+   - Education belongs strictly in "education", not as experience bullets.
+4. ZERO HALLUCINATION:
+   - Only extract what is visually printed on the document. Do not invent companies, degrees, or metrics.
+5. AUTHENTIC LAYOUT DETECTION:
+   - If the visual layout has a side column for contact/skills, set "layoutType": "two-column-sidebar". Otherwise "single-column".
 
 ${COMMON_PARSING_SCHEMA_PROMPT}`;
 
