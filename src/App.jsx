@@ -28,13 +28,16 @@ export default function App() {
   const fileInputRef = useRef(null);
 
   // Push new CV version into history
+  const historyRef = useRef({ history: [], index: -1 });
+  historyRef.current = { history: versionHistory, index: historyIndex };
+
   const handleUpdateCv = useCallback((newCv, note = 'AI Update') => {
     const normalized = normalizeCvSchema(newCv);
     setCvData(normalized);
 
     setVersionHistory(prev => {
-      const upToCurrent = prev.slice(0, historyIndex + 1);
-      return [
+      const upToCurrent = prev.slice(0, historyRef.current.index + 1);
+      const newHistory = [
         ...upToCurrent,
         {
           version: upToCurrent.length + 1,
@@ -43,28 +46,35 @@ export default function App() {
           data: JSON.parse(JSON.stringify(normalized))
         }
       ];
+      return newHistory;
     });
     setHistoryIndex(prev => prev + 1);
-  }, [historyIndex]);
+  }, []);
 
-  // Undo / Redo
+  // Undo / Redo with ref synchronization
   const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const targetIndex = historyIndex - 1;
-      const targetSnapshot = versionHistory[targetIndex];
-      setCvData(JSON.parse(JSON.stringify(targetSnapshot.data)));
-      setHistoryIndex(targetIndex);
+    const { history, index } = historyRef.current;
+    if (index > 0) {
+      const targetIndex = index - 1;
+      const snapshot = history[targetIndex];
+      if (snapshot && snapshot.data) {
+        setCvData(JSON.parse(JSON.stringify(snapshot.data)));
+        setHistoryIndex(targetIndex);
+      }
     }
-  }, [historyIndex, versionHistory]);
+  }, []);
 
   const handleRedo = useCallback(() => {
-    if (historyIndex < versionHistory.length - 1) {
-      const targetIndex = historyIndex + 1;
-      const targetSnapshot = versionHistory[targetIndex];
-      setCvData(JSON.parse(JSON.stringify(targetSnapshot.data)));
-      setHistoryIndex(targetIndex);
+    const { history, index } = historyRef.current;
+    if (index < history.length - 1) {
+      const targetIndex = index + 1;
+      const snapshot = history[targetIndex];
+      if (snapshot && snapshot.data) {
+        setCvData(JSON.parse(JSON.stringify(snapshot.data)));
+        setHistoryIndex(targetIndex);
+      }
     }
-  }, [historyIndex, versionHistory]);
+  }, []);
 
   // Start fresh or switch CV (Zero mock retention)
   const handleStartNewResume = () => {
@@ -180,6 +190,7 @@ export default function App() {
             onUpdateResume={handleUpdateCv}
             versionHistory={versionHistory}
             currentVersion={historyIndex + 1}
+            onRollback={handleUndo}
             initialMode={activePersona}
           />
         </main>

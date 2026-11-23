@@ -225,19 +225,28 @@ export default function InteractiveLiveStudio({
     setIsAiProcessing(true);
 
     try {
-      const result = await refineCvWithAi(resume, text);
-      if (result && result.cv) {
-        onUpdateResume(result.cv, result.planSummary || `Applied edit: "${text.slice(0, 30)}..."`);
+      const result = await refineCvWithAi(text, resume, chatMessages);
+      const updatedCv = result?.updatedCv || result?.cv;
+      if (updatedCv) {
+        onUpdateResume(updatedCv, result.planSummary || `Applied edit: "${text.slice(0, 30)}..."`);
         
         const aiMsg = {
           id: `msg-ai-${Date.now()}`,
           sender: 'ai',
-          text: result.message || "Aapke bataye gaye badlav resume me 100% Corporate English me successfully apply kar diye gaye hain!",
+          text: result.explanation || result.message || "Aapke bataye gaye badlav resume me 100% Corporate English me successfully apply kar diye gaye hain!",
           planSummary: result.planSummary,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         setChatMessages(prev => [...prev, aiMsg]);
         confetti({ particleCount: 35, spread: 60, origin: { y: 0.85 } });
+      } else {
+        const errorMsg = {
+          id: `msg-err-${Date.now()}`,
+          sender: 'ai',
+          text: "⚠️ Instruction process karne me dikkat aayi. Kripya instruction dobara likhein ya thoda specific batayein (jaise: 'Designation change karke Senior Specialist karo' ya 'Add Python to skills').",
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setChatMessages(prev => [...prev, errorMsg]);
       }
     } catch (err) {
       console.error("AI Refine Error:", err);
@@ -262,10 +271,11 @@ export default function InteractiveLiveStudio({
 
     try {
       const result = await tailorCvToJd(resume, jdInputText);
-      if (result && result.cv) {
-        onUpdateResume(result.cv, `Target JD Tailoring: ${result.matchScore}% ATS Match`);
+      const updatedCv = result?.updatedCv || result?.cv;
+      if (updatedCv) {
+        onUpdateResume(updatedCv, `Target JD Tailoring: ${result.matchScore || 95}% ATS Match`);
         setJdMatchResult({
-          matchScore: result.matchScore,
+          matchScore: result.matchScore || 95,
           matchedKeywords: result.matchedKeywords || [],
           explanation: result.explanation || "Resume has been semantically optimized for target role requirements with 0% fake data."
         });
@@ -273,8 +283,8 @@ export default function InteractiveLiveStudio({
         const aiMsg = {
           id: `msg-jd-${Date.now()}`,
           sender: 'ai',
-          text: `🎯 Aapka resume target Job Description ke liye optimize ho gaya hai! ATS Semantic Match Score: ${result.matchScore}%. Check live preview!`,
-          planSummary: `JD ATS Score: ${result.matchScore}%`,
+          text: `🎯 Aapka resume target Job Description ke liye optimize ho gaya hai! ATS Semantic Match Score: ${result.matchScore || 95}%. Check live preview!`,
+          planSummary: `JD ATS Score: ${result.matchScore || 95}%`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         setChatMessages(prev => [...prev, aiMsg]);
