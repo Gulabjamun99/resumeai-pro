@@ -83,6 +83,8 @@ export function normalizeCvSchema(rawCv) {
     title: proj.title || proj.name || "Project",
     description: proj.description || proj.summary || "",
     tech: proj.tech || proj.technologies || "",
+    link: proj.link || proj.url || "",
+    url: proj.url || proj.link || "",
     bullets: Array.isArray(proj.bullets)
       ? proj.bullets.filter(b => typeof b === 'string' && b.trim().length > 0)
       : (proj.description ? [proj.description] : [])

@@ -42,6 +42,27 @@ export default function ResumeCanvas({
   const activeAccent = accentColor || cv.styleProfile?.accentColor || templateConfig.accentColor || "#2563eb";
   const activeFont = fontFamily || cv.styleProfile?.fontFamily || templateConfig.fontFamily || "font-sans";
 
+  // Helper for rendering interactive project hyperlinks
+  const renderProjectLink = (proj) => {
+    const url = proj.link || proj.url;
+    if (!url) return null;
+    const isPlayStore = url.includes('play.google.com');
+    const isVercel = url.includes('vercel.app');
+    const label = isPlayStore ? 'Play Store' : isVercel ? 'Live Demo' : 'Link';
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[10px] text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-0.5 font-mono ml-2 font-medium"
+        onClick={e => e.stopPropagation()}
+      >
+        <span>{label}</span>
+        <ExternalLink className="w-2.5 h-2.5 inline" />
+      </a>
+    );
+  };
+
   // Common A4 canvas dimensions
   const a4CanvasStyle = {
     width: '100%',
@@ -158,11 +179,18 @@ export default function ResumeCanvas({
               {projects.map((proj, idx) => (
                 <div key={idx} className="text-xs font-sans">
                   <div className="flex items-baseline justify-between">
-                    <span className="font-bold text-slate-900 font-serif">{proj.title}</span>
+                    <div className="flex items-center flex-wrap">
+                      <span className="font-bold text-slate-900 font-serif">{proj.title}</span>
+                      {renderProjectLink(proj)}
+                    </div>
                     {proj.tech && <span className="text-[10.5px] text-slate-500 italic">{proj.tech}</span>}
                   </div>
                   {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
-                    <p className="text-[11px] text-slate-700 mt-0.5 leading-snug">{proj.bullets[0]}</p>
+                    <ul className="list-disc list-outside pl-4 space-y-0.5 mt-1 text-[11px] text-slate-700 leading-snug">
+                      {proj.bullets.map((b, bIdx) => (
+                        <li key={bIdx}>{b}</li>
+                      ))}
+                    </ul>
                   ) : proj.description ? (
                     <p className="text-[11px] text-slate-700 mt-0.5 leading-snug">{proj.description}</p>
                   ) : null}
@@ -308,10 +336,15 @@ export default function ResumeCanvas({
                 <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-900">{proj.title}</span>
-                    {proj.tech && <span className="text-[10px] font-mono text-slate-500">{proj.tech}</span>}
+                    {renderProjectLink(proj)}
                   </div>
+                  {proj.tech && <span className="text-[10px] font-mono text-slate-500 block mt-0.5">{proj.tech}</span>}
                   {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
-                    <p className="text-[11px] text-slate-600 mt-1 leading-snug">{proj.bullets[0]}</p>
+                    <ul className="list-disc list-outside pl-3.5 space-y-0.5 mt-1 text-[11px] text-slate-600 leading-snug">
+                      {proj.bullets.map((b, bIdx) => (
+                        <li key={bIdx}>{b}</li>
+                      ))}
+                    </ul>
                   ) : proj.description ? (
                     <p className="text-[11px] text-slate-600 mt-1 leading-snug">{proj.description}</p>
                   ) : null}
@@ -436,13 +469,20 @@ export default function ResumeCanvas({
             </h2>
             <div className="space-y-1.5 text-[11px]">
               {projects.map((proj, idx) => (
-                <div key={idx}>
-                  <span className="font-bold text-slate-900">{proj.title}</span>
-                  {proj.tech && <span className="text-slate-500 font-mono text-[10px]"> [{proj.tech}]</span>}
+                <div key={idx} className="mb-1">
+                  <div className="flex items-baseline justify-between">
+                    <div className="flex items-center flex-wrap">
+                      <span className="font-bold text-slate-900">{proj.title}</span>
+                      {renderProjectLink(proj)}
+                    </div>
+                    {proj.tech && <span className="text-slate-500 font-mono text-[10px]">[{proj.tech}]</span>}
+                  </div>
                   {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
-                    <span className="text-slate-700"> — {proj.bullets[0]}</span>
+                    <p className="text-slate-700 text-[10.5px] leading-tight mt-0.5">
+                      {proj.bullets.join(' • ')}
+                    </p>
                   ) : proj.description ? (
-                    <span className="text-slate-700"> — {proj.description}</span>
+                    <p className="text-slate-700 text-[10.5px] leading-tight mt-0.5">{proj.description}</p>
                   ) : null}
                 </div>
               ))}
@@ -697,10 +737,17 @@ export default function ResumeCanvas({
               <div className="space-y-2">
                 {projects.map((proj, idx) => (
                   <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                    <span className="text-xs font-bold text-slate-900 block">{proj.title}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-900">{proj.title}</span>
+                      {renderProjectLink(proj)}
+                    </div>
                     {proj.tech && <span className="text-[10px] text-blue-600 font-mono block mt-0.5">{proj.tech}</span>}
                     {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
-                      <p className="text-[11px] text-slate-600 mt-1 leading-snug">{proj.bullets[0]}</p>
+                      <ul className="list-disc list-outside pl-3.5 space-y-0.5 mt-1 text-[11px] text-slate-600 leading-snug">
+                        {proj.bullets.map((b, bIdx) => (
+                          <li key={bIdx}>{b}</li>
+                        ))}
+                      </ul>
                     ) : proj.description ? (
                       <p className="text-[11px] text-slate-600 mt-1 leading-snug">{proj.description}</p>
                     ) : null}
@@ -948,13 +995,25 @@ export default function ResumeCanvas({
           {contact.linkedin && (
             <span className="flex items-center gap-1">
               <Globe className="w-3.5 h-3.5 text-slate-400" />
-              <span>{contact.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, 'in/')}</span>
+              <a href={contact.linkedin} target="_blank" rel="noreferrer" className="text-slate-600 hover:text-blue-600 hover:underline">
+                {contact.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, 'in/')}
+              </a>
             </span>
           )}
           {contact.github && (
             <span className="flex items-center gap-1">
               <Code className="w-3.5 h-3.5 text-slate-400" />
-              <span>{contact.github.replace(/^https?:\/\/(www\.)?github\.com\//i, 'github.com/')}</span>
+              <a href={contact.github} target="_blank" rel="noreferrer" className="text-slate-600 hover:text-blue-600 hover:underline">
+                {contact.github.replace(/^https?:\/\/(www\.)?github\.com\//i, 'github.com/')}
+              </a>
+            </span>
+          )}
+          {contact.portfolio && (
+            <span className="flex items-center gap-1">
+              <Globe className="w-3.5 h-3.5 text-slate-400" />
+              <a href={contact.portfolio} target="_blank" rel="noreferrer" className="text-slate-600 hover:text-blue-600 hover:underline">
+                {contact.portfolio.replace(/^https?:\/\//i, '')}
+              </a>
             </span>
           )}
         </div>
@@ -1081,10 +1140,17 @@ export default function ResumeCanvas({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {projects.map((proj, idx) => (
               <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                <span className="text-xs font-bold text-slate-900 block">{proj.title}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900">{proj.title}</span>
+                  {renderProjectLink(proj)}
+                </div>
                 {proj.tech && <span className="text-[10px] font-mono block mt-0.5" style={{ color: activeAccent }}>{proj.tech}</span>}
                 {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
-                  <p className="text-[11px] text-slate-600 mt-1 leading-snug">{proj.bullets[0]}</p>
+                  <ul className="list-disc list-outside pl-3.5 space-y-0.5 mt-1 text-[11px] text-slate-600 leading-snug">
+                    {proj.bullets.map((b, bIdx) => (
+                      <li key={bIdx}>{b}</li>
+                    ))}
+                  </ul>
                 ) : proj.description ? (
                   <p className="text-[11px] text-slate-600 mt-1 leading-snug">{proj.description}</p>
                 ) : null}
