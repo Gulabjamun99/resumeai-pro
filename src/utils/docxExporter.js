@@ -54,7 +54,9 @@ export async function exportResumeToDocx(resume) {
               contact.email ? `Email: ${contact.email}` : '',
               contact.phone ? `Phone: ${contact.phone}` : '',
               contact.location ? `Location: ${contact.location}` : '',
-              contact.linkedin ? `LinkedIn: ${contact.linkedin}` : ''
+              contact.linkedin ? `LinkedIn: ${contact.linkedin}` : '',
+              contact.github ? `GitHub: ${contact.github}` : '',
+              contact.website || contact.portfolio ? `Portfolio: ${contact.website || contact.portfolio}` : ''
             ].filter(Boolean).join("  |  "),
             size: 18,
             color: "475569"
@@ -166,11 +168,13 @@ export async function exportResumeToDocx(resume) {
       );
 
       projects.forEach(p => {
+        const projectLink = p.link || p.url;
         docChildren.push(
           new Paragraph({
             children: [
               new TextRun({ text: p.title || "Project", bold: true, size: 20, color: "0F172A" }),
-              p.tech ? new TextRun({ text: ` (${p.tech})`, color: "2563EB", size: 18 }) : new TextRun("")
+              p.tech ? new TextRun({ text: ` (${p.tech})`, color: "2563EB", size: 18 }) : new TextRun(""),
+              projectLink ? new TextRun({ text: ` [${projectLink}]`, color: "2563EB", size: 17 }) : new TextRun("")
             ],
             spacing: { before: 100, after: 40 }
           })

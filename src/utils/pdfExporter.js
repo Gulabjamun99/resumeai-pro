@@ -99,6 +99,28 @@ export async function exportResumeToPdf(elementId = 'resume-document', candidate
     const A4_WIDTH_PX = 794;
     const A4_HEIGHT_PX = 1123; // Exact ratio: 794 * (297 / 210) = 1122.94px -> 1123px
 
+    // Collect all clickable hyperlinks in the resume canvas
+    const elRect = element.getBoundingClientRect();
+    const links = element.querySelectorAll('a[href]');
+    const linkBoxes = [];
+    const scaleFactor = element.offsetWidth > 0 ? (210 / element.offsetWidth) : (210 / A4_WIDTH_PX);
+    
+    links.forEach(a => {
+      const href = a.getAttribute('href');
+      if (href && (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('mailto:'))) {
+        const aRect = a.getBoundingClientRect();
+        const relLeft = aRect.left - elRect.left;
+        const relTop = aRect.top - elRect.top;
+        linkBoxes.push({
+          url: href,
+          x: relLeft * scaleFactor,
+          yTotal: relTop * scaleFactor,
+          w: Math.max(aRect.width * scaleFactor, 4),
+          h: Math.max(aRect.height * scaleFactor, 3)
+        });
+      }
+    });
+
     const canvas = await html2canvas(element, {
       scale: 2.5,
       useCORS: true,
@@ -178,6 +200,20 @@ export async function exportResumeToPdf(elementId = 'resume-document', candidate
 
       const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.98);
       pdf.addImage(pageImgData, 'JPEG', 0, 0, pdfWidth, pageHeight, undefined, 'FAST');
+
+      // Add clickable PDF link annotations for links on this page
+      const pageTopMm = p * pageHeight;
+      const pageBottomMm = (p + 1) * pageHeight;
+      linkBoxes.forEach(l => {
+        if (l.yTotal >= pageTopMm && l.yTotal < pageBottomMm) {
+          const yOnPage = l.yTotal - pageTopMm;
+          try {
+            pdf.link(l.x, yOnPage, l.w, l.h, { url: l.url });
+          } catch (e) {
+            // Silently ignore malformed annotation
+          }
+        }
+      });
     }
 
     pdf.save(filename);

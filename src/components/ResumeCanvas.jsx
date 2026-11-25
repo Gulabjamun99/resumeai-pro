@@ -21,7 +21,9 @@ export default function ResumeCanvas({
   id = "resume-document", 
   accentColor = "#2563eb",
   fontFamily = "font-sans",
-  templateId = "modern-executive"
+  templateId = "modern-executive",
+  autoFitTokens = null,
+  highlightedPaths = []
 }) {
   if (!resume) return null;
 
@@ -41,6 +43,18 @@ export default function ResumeCanvas({
 
   const activeAccent = accentColor || cv.styleProfile?.accentColor || templateConfig.accentColor || "#2563eb";
   const activeFont = fontFamily || cv.styleProfile?.fontFamily || templateConfig.fontFamily || "font-sans";
+
+  // Visual highlight helper for modified field paths
+  const isPathHighlighted = (pathPrefix) => {
+    if (!Array.isArray(highlightedPaths) || highlightedPaths.length === 0) return false;
+    return highlightedPaths.some(p => p.startsWith(pathPrefix));
+  };
+
+  const getHighlightClass = (pathPrefix) => {
+    return isPathHighlighted(pathPrefix)
+      ? 'transition-all duration-700 bg-emerald-50/80 ring-2 ring-emerald-400/50 rounded-sm'
+      : '';
+  };
 
   // Helper for rendering interactive project hyperlinks
   const renderProjectLink = (proj) => {
@@ -63,12 +77,18 @@ export default function ResumeCanvas({
     );
   };
 
-  // Common A4 canvas dimensions
+  // Common A4 canvas dimensions & Auto-Fit Token Binding
   const a4CanvasStyle = {
     width: '100%',
     maxWidth: '820px',
     minHeight: '1120px',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    '--font-scale': `${autoFitTokens?.fontScale || 1.0}`,
+    '--line-height': `${autoFitTokens?.lineHeight || 1.35}`,
+    '--section-spacing': `${autoFitTokens?.sectionSpacingPx || 14}px`,
+    '--item-spacing': `${autoFitTokens?.itemSpacingPx || 8}px`,
+    fontSize: `calc(1rem * var(--font-scale, 1.0))`,
+    lineHeight: `var(--line-height, 1.35)`
   };
 
   // ========================================================
@@ -1083,7 +1103,7 @@ export default function ResumeCanvas({
 
       {/* 2. Professional Summary */}
       {header.summary && (
-        <section className={sectionMarginMap[density] || 'mb-3.5'}>
+        <section className={`${sectionMarginMap[density] || 'mb-3.5'} break-inside-avoid ${getHighlightClass('header.summary')}`}>
           {renderDivider("Professional Summary")}
           <p className="text-xs text-slate-700 leading-relaxed text-justify">
             {header.summary}
@@ -1093,7 +1113,7 @@ export default function ResumeCanvas({
 
       {/* 3. Core Skills */}
       {skills.length > 0 && (
-        <section className={sectionMarginMap[density] || 'mb-3.5'}>
+        <section className={`${sectionMarginMap[density] || 'mb-3.5'} break-inside-avoid ${getHighlightClass('skills')}`}>
           {renderDivider("Skills & Core Competencies")}
           {renderSkills()}
         </section>
@@ -1101,11 +1121,11 @@ export default function ResumeCanvas({
 
       {/* 4. Work Experience */}
       {experiences.length > 0 && (
-        <section className={sectionMarginMap[density] || 'mb-3.5'}>
+        <section className={`${sectionMarginMap[density] || 'mb-3.5'} ${getHighlightClass('experiences')}`}>
           {renderDivider("Work Experience")}
           <div className={`flex flex-col ${itemSpaceMap[density] || 'gap-3.5'}`}>
             {experiences.map((exp, expIdx) => (
-              <div key={exp.id || expIdx} className="flex flex-col gap-0.5">
+              <div key={exp.id || expIdx} className="flex flex-col gap-0.5 break-inside-avoid">
                 <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-0.5">
                   <div className="flex flex-wrap items-baseline gap-1.5">
                     <span className="text-xs font-bold text-slate-900">{exp.role}</span>
@@ -1135,11 +1155,11 @@ export default function ResumeCanvas({
 
       {/* 5. Key Projects */}
       {projects.length > 0 && (
-        <section className={sectionMarginMap[density] || 'mb-3.5'}>
+        <section className={`${sectionMarginMap[density] || 'mb-3.5'} ${getHighlightClass('projects')}`}>
           {renderDivider("Key Projects & Initiatives")}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {projects.map((proj, idx) => (
-              <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+              <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg break-inside-avoid">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-900">{proj.title}</span>
                   {renderProjectLink(proj)}

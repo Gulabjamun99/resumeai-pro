@@ -10,6 +10,7 @@ import { CATEGORIES, TEMPLATES } from '../data/templateCatalog.js';
 import { exportResumeToPdf } from '../utils/pdfExporter.js';
 import { exportResumeToDocx } from '../utils/docxExporter.js';
 import { refineCvWithAi, tailorCvToJd } from '../services/geminiService.js';
+import { calculateAutoFitTokens } from '../utils/autoFitEngine.js';
 import confetti from 'canvas-confetti';
 
 export { TEMPLATES };
@@ -142,6 +143,11 @@ export default function InteractiveLiveStudio({
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
 
+  // 1/2-Page Auto-Fit & Visual Highlighting State
+  const [pageMode, setPageMode] = useState(initialMode === 'fresh' ? 1 : 1);
+  const [autoFitTokens, setAutoFitTokens] = useState({ fontScale: 1, lineHeight: 1.35, sectionSpacingPx: 14, itemSpacingPx: 8 });
+  const [highlightedPaths, setHighlightedPaths] = useState([]);
+
   // Template Picker State
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [templateSearchQuery, setTemplateSearchQuery] = useState('');
@@ -165,6 +171,35 @@ export default function InteractiveLiveStudio({
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
+
+  // Dynamic Auto-Fit measurement across DOM changes and page mode toggles
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const el = document.getElementById('resume-document');
+      if (el) {
+        const tokens = calculateAutoFitTokens(el, pageMode);
+        setAutoFitTokens(tokens);
+      }
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [resume, selectedTemplate, pageMode]);
+
+  // Global Ctrl+Z / Cmd+Z Keyboard Shortcut for Undo
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        const tag = document.activeElement?.tagName?.toLowerCase();
+        if (tag !== 'input' && tag !== 'textarea') {
+          e.preventDefault();
+          if (versionHistory.length > 1 && onRollback) {
+            onRollback();
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [versionHistory, onRollback]);
 
   // Handle Design & Style Updates (Persists to CV State)
   const handleUpdateStyle = (newTemplate, newAccent, newFont) => {
@@ -230,6 +265,14 @@ export default function InteractiveLiveStudio({
       if (updatedCv) {
         onUpdateResume(updatedCv, result.planSummary || `Applied edit: "${text.slice(0, 30)}..."`);
         
+        // Trigger soft visual highlight on updated fields for 2.5 seconds
+        if (result.modifiedFieldPaths && result.modifiedFieldPaths.length > 0) {
+          setHighlightedPaths(result.modifiedFieldPaths);
+          setTimeout(() => {
+            setHighlightedPaths([]);
+          }, 2500);
+        }
+
         const aiMsg = {
           id: `msg-ai-${Date.now()}`,
           sender: 'ai',
@@ -277,8 +320,17 @@ export default function InteractiveLiveStudio({
         setJdMatchResult({
           matchScore: result.matchScore || 95,
           matchedKeywords: result.matchedKeywords || [],
+          missingKeywords: result.missingKeywords || [],
           explanation: result.explanation || "Resume has been semantically optimized for target role requirements with 0% fake data."
         });
+
+        // Trigger visual highlight on updated fields for 2.5s
+        if (result.modifiedFieldPaths && result.modifiedFieldPaths.length > 0) {
+          setHighlightedPaths(result.modifiedFieldPaths);
+          setTimeout(() => {
+            setHighlightedPaths([]);
+          }, 2500);
+        }
 
         const aiMsg = {
           id: `msg-jd-${Date.now()}`,
@@ -296,6 +348,11 @@ export default function InteractiveLiveStudio({
     } finally {
       setIsAiProcessing(false);
     }
+  };
+
+  // Inject Missing Keyword from JD into Skills & Bullets
+  const handleInjectKeyword = (keyword) => {
+    handleSendMessage(`Skills me "${keyword}" add kar dijiye aur relevance according ek experience bullet me natural tarike se integrate karein bina fake facts create kiye.`);
   };
 
   // Export Handlers
@@ -792,6 +849,29 @@ export default function InteractiveLiveStudio({
                   </div>
                 )}
 
+                {/* Missing Keywords (Click to Inject) */}
+                {jdMatchResult.missingKeywords && jdMatchResult.missingKeywords.length > 0 && (
+                  <div className="mt-3">
+                    <span className="text-[10.5px] font-bold text-amber-700 uppercase tracking-wider block mb-1.5">
+                      Missing JD Keywords (Click to Inject):
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {jdMatchResult.missingKeywords.map((kw, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleInjectKeyword(kw)}
+                          disabled={isAiProcessing}
+                          className="inline-flex items-center gap-1 text-[10.5px] bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 px-2 py-0.5 rounded-md font-medium shadow-2xs transition cursor-pointer"
+                          title="Click to automatically inject into skills & bullets"
+                        >
+                          <span>+ {kw}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-[11px] text-emerald-800 mt-3 bg-white/70 p-2.5 rounded-xl border border-emerald-200/60 leading-relaxed">
                   {jdMatchResult.explanation}
                 </p>
@@ -879,11 +959,47 @@ export default function InteractiveLiveStudio({
 
             <span className="text-slate-300 mx-1">|</span>
 
-            {/* Strict Page Badge */}
-            <span className="text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-              <span>Strict Max 1–2 Pages (A4 Standard)</span>
-            </span>
+            {/* Strict 1-Page vs Max 2-Page Cap Switcher */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setPageMode(1)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition cursor-pointer flex items-center gap-1.5 ${
+                  pageMode === 1
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Strict 1-Page Mode (Auto-Fit for Freshers & High Impact)"
+              >
+                <span>Strict 1-Page</span>
+                <span className={`text-[9.5px] px-1 py-0.2 rounded font-mono ${pageMode === 1 ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                  Fresher
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPageMode(2)}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition cursor-pointer flex items-center gap-1.5 ${
+                  pageMode === 2
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Max 2-Page Cap (For Experienced Professionals)"
+              >
+                <span>Max 2-Page</span>
+                <span className={`text-[9.5px] px-1 py-0.2 rounded font-mono ${pageMode === 2 ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                  Pro
+                </span>
+              </button>
+            </div>
+
+            {/* Dynamic Auto-Fit Indicator */}
+            {autoFitTokens.fontScale < 1 && (
+              <span className="hidden sm:inline-flex text-[10.5px] font-mono font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Auto-Fit: {Math.round(autoFitTokens.fontScale * 100)}%</span>
+              </span>
+            )}
           </div>
 
           {/* Export Buttons */}
@@ -933,6 +1049,8 @@ export default function InteractiveLiveStudio({
               accentColor={selectedAccent}
               fontFamily={selectedFont}
               templateId={selectedTemplate}
+              autoFitTokens={autoFitTokens}
+              highlightedPaths={highlightedPaths}
             />
           </div>
         </div>

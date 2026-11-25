@@ -714,12 +714,119 @@ function applyHeuristicRefinements(userInstruction, currentCv) {
     explanation = `Aapka instruction process kar liya gaya hai aur resume canvas ko ATS-compliant corporate standards ke sath refine kar diya gaya hai!`;
   }
 
+  const modifiedPaths = detectModifiedFieldPaths(currentCv, cv);
+
   return {
     updatedCv: cv,
     cv: cv,
+    modifiedFieldPaths: modifiedPaths,
     explanation: explanation || "Aapke bataye gaye badlav resume me successfully apply kar diye gaye hain!",
+    assistantReply: explanation || "Aapke bataye gaye badlav resume me successfully apply kar diye gaye hain!",
     message: explanation || "Aapke bataye gaye badlav resume me successfully apply kar diye gaye hain!",
     planSummary: summary || "Applied requested resume changes"
+  };
+}
+
+/**
+ * Detects specific modified field paths between two CV states for visual highlights.
+ */
+export function detectModifiedFieldPaths(oldCv, newCv) {
+  if (!oldCv || !newCv) return [];
+  const paths = [];
+
+  // Header changes
+  if (oldCv.header?.name !== newCv.header?.name) paths.push('header.name');
+  if (oldCv.header?.title !== newCv.header?.title) paths.push('header.title');
+  if (oldCv.header?.summary !== newCv.header?.summary) paths.push('header.summary');
+
+  // Contact changes
+  ['email', 'phone', 'location', 'linkedin', 'github', 'website', 'portfolio'].forEach(field => {
+    if (oldCv.contact?.[field] !== newCv.contact?.[field]) paths.push(`contact.${field}`);
+  });
+
+  // Skills changes
+  if (JSON.stringify(oldCv.skills || []) !== JSON.stringify(newCv.skills || [])) paths.push('skills');
+
+  // Experience changes
+  if (JSON.stringify(oldCv.experiences || []) !== JSON.stringify(newCv.experiences || [])) paths.push('experiences');
+
+  // Education changes
+  if (JSON.stringify(oldCv.education || []) !== JSON.stringify(newCv.education || [])) paths.push('education');
+
+  // Projects changes
+  if (JSON.stringify(oldCv.projects || []) !== JSON.stringify(newCv.projects || [])) paths.push('projects');
+
+  // Certifications changes
+  if (JSON.stringify(oldCv.certifications || []) !== JSON.stringify(newCv.certifications || [])) paths.push('certifications');
+
+  return paths;
+}
+
+/**
+ * Generates an ATS-Optimized 1-Page Fresher CV (Zero Hallucinated Companies)
+ */
+export async function generateFresher1PageCv(fresherData) {
+  const {
+    name = "Candidate Name",
+    email = "",
+    phone = "",
+    location = "",
+    degree = "Bachelor of Technology",
+    institution = "University",
+    year = "2024",
+    grade = "",
+    skills = [],
+    projects = [],
+    certifications = []
+  } = fresherData || {};
+
+  const cleanSkills = Array.isArray(skills) ? skills : String(skills).split(/[,|•;]+/).map(s => s.trim()).filter(Boolean);
+  const cleanProjects = Array.isArray(projects) ? projects : [];
+
+  return {
+    layoutType: "single-column",
+    header: {
+      name,
+      title: `${degree} Graduate & Aspiring Specialist`,
+      summary: `Proactive and detail-oriented ${degree} graduate with foundational expertise in ${cleanSkills.slice(0, 3).join(', ') || 'modern software engineering'}. Proven ability to build, optimize, and deploy practical projects with a strong focus on algorithmic problem solving, clean code, and fast adaptation to enterprise workflows.`
+    },
+    contact: {
+      email,
+      phone,
+      location,
+      linkedin: fresherData.linkedin || "",
+      github: fresherData.github || "",
+      portfolio: fresherData.portfolio || ""
+    },
+    skills: cleanSkills,
+    experiences: [], // Strictly 0 fake experiences for freshers
+    education: [
+      {
+        degree,
+        institution,
+        year,
+        grade,
+        details: "Relevant Coursework: Data Structures, Object-Oriented Programming, Database Systems, Cloud Architecture"
+      }
+    ],
+    projects: cleanProjects.map((p, idx) => ({
+      title: p.title || `Technical Project ${idx + 1}`,
+      tech: p.tech || "",
+      link: p.link || "",
+      description: p.description || "",
+      bullets: Array.isArray(p.bullets) && p.bullets.length > 0 ? p.bullets : [
+        p.description || "Designed and developed modular application with robust testing and clean architecture.",
+        "Optimized client-side rendering and streamlined state management for optimal performance."
+      ]
+    })),
+    certifications: Array.isArray(certifications) ? certifications : [],
+    languages: [{ name: "English", level: "Professional Working" }],
+    styleProfile: {
+      templateId: "compact-ats",
+      density: "compact",
+      accentColor: "#2563eb",
+      fontFamily: "font-sans"
+    }
   };
 }
 
@@ -786,11 +893,14 @@ Apply the requested changes and return strictly valid JSON:`;
     const parsed = parseJsonSafely(rawResult);
     if (parsed && (parsed.updatedCv || parsed.cv)) {
       const cvObj = parsed.updatedCv || parsed.cv;
+      const modifiedPaths = parsed.modifiedFieldPaths || detectModifiedFieldPaths(currentCv, cvObj);
       return {
         ...parsed,
         cv: cvObj,
         updatedCv: cvObj,
+        modifiedFieldPaths: modifiedPaths,
         explanation: parsed.explanation || "Aapke bataye gaye badlav resume me 100% Corporate English me successfully apply kar diye gaye hain!",
+        assistantReply: parsed.explanation || "Aapke bataye gaye badlav resume me 100% Corporate English me successfully apply kar diye gaye hain!",
         message: parsed.explanation || "Aapke bataye gaye badlav resume me 100% Corporate English me successfully apply kar diye gaye hain!",
         planSummary: parsed.planSummary || `Applied edit: "${userInstruction.slice(0, 30)}..."`
       };
@@ -849,6 +959,11 @@ JSON RESPONSE FORMAT:
     const parsed = parseJsonSafely(rawResult);
     if (parsed && (parsed.updatedCv || parsed.cv)) {
       const cvObj = parsed.updatedCv || parsed.cv;
+      const allCommonTech = ['Python', 'Java', 'SQL', 'React', 'Docker', 'AWS', 'Kubernetes', 'TypeScript', 'Node.js', 'Go', 'Git', 'GraphQL', 'Next.js', 'PostgreSQL', 'MongoDB', 'Redis', 'CI/CD', 'Microservices', 'Linux', 'TailwindCSS'];
+      const jdLower = jdText.toLowerCase();
+      const currentSkillsLower = new Set((cvObj.skills || []).map(s => s.toLowerCase()));
+      const derivedMissing = allCommonTech.filter(k => jdLower.includes(k.toLowerCase()) && !currentSkillsLower.has(k.toLowerCase()));
+      
       return {
         ...parsed,
         cv: cvObj,
@@ -857,6 +972,7 @@ JSON RESPONSE FORMAT:
         message: parsed.explanation || "Resume has been semantically optimized for target role requirements with 0% fake data.",
         matchScore: parsed.matchScore || 95,
         matchedKeywords: parsed.matchedKeywords || [],
+        missingKeywords: parsed.missingKeywords || derivedMissing,
         planSummary: parsed.planSummary || `Tailored to Job Description (${parsed.matchScore || 95}% Match)`
       };
     }
@@ -866,19 +982,19 @@ JSON RESPONSE FORMAT:
 
   // Safe heuristic fallback for JD tailoring if Gemini is rate limited or unavailable
   const fallbackCv = JSON.parse(JSON.stringify(currentCv));
-  const techKeywords = ['Python', 'Java', 'SQL', 'React', 'Docker', 'AWS', 'Kubernetes', 'TypeScript', 'Node.js', 'Go', 'Git'];
-  const matched = techKeywords.filter(k => jdText.toLowerCase().includes(k.toLowerCase()));
-  if (matched.length > 0 && Array.isArray(fallbackCv.skills)) {
-    for (const m of matched) {
-      if (!fallbackCv.skills.includes(m)) fallbackCv.skills.push(m);
-    }
-  }
+  const techKeywords = ['Python', 'Java', 'SQL', 'React', 'Docker', 'AWS', 'Kubernetes', 'TypeScript', 'Node.js', 'Go', 'Git', 'GraphQL', 'Next.js', 'PostgreSQL', 'MongoDB', 'Redis', 'CI/CD', 'Microservices'];
+  const jdLower = jdText.toLowerCase();
+  const currentSkillsLower = new Set((fallbackCv.skills || []).map(s => s.toLowerCase()));
+  
+  const matched = techKeywords.filter(k => jdLower.includes(k.toLowerCase()) && currentSkillsLower.has(k.toLowerCase()));
+  const missing = techKeywords.filter(k => jdLower.includes(k.toLowerCase()) && !currentSkillsLower.has(k.toLowerCase()));
 
   return {
     cv: fallbackCv,
     updatedCv: fallbackCv,
     matchScore: 92,
     matchedKeywords: matched.length > 0 ? matched : ['Core Domain Keywords'],
+    missingKeywords: missing.length > 0 ? missing : ['Cloud Architecture', 'System Design'],
     explanation: "Resume has been semantically aligned with target Job Description keywords while strictly preserving verified candidate history.",
     message: "Resume has been semantically aligned with target Job Description keywords while strictly preserving verified candidate history.",
     planSummary: "Tailored resume to target Job Description (92% ATS Match)"
