@@ -545,153 +545,183 @@ export default function ResumeCanvas({
   }
 
   // ========================================================
-  // 4. TWO-COLUMN LAYOUTS (Two-Column Pro, Sidebar Accent, etc.)
+  // 4. TWO-SIDED / DUAL-COLUMN FAMILY (Left, Dark-Left, Right-Split, Banner+2Col)
   // ========================================================
-  if (templateConfig.layout === 'two-column-left' || templateConfig.layout === 'two-column-sidebar' || activeTemplate === 'two-column-pro') {
+  const isTwoColLayout = [
+    'two-column-left',
+    'two-column-sidebar',
+    'two-column-dark',
+    'two-column-right',
+    'banner-two-column'
+  ].includes(templateConfig.layout) || activeTemplate === 'two-column-pro';
+
+  if (isTwoColLayout) {
     const bulletChar = getBulletSymbol(templateConfig.bulletStyle);
-    return (
-      <div
-        id={id}
-        className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-row text-left ${activeFont} transition-all duration-200 print:shadow-none print:m-0`}
-        style={a4CanvasStyle}
-      >
-        {/* Left Sidebar */}
-        <aside 
-          className="w-[33%] min-w-[240px] p-6 sm:p-7 flex flex-col gap-5 shrink-0 border-r border-slate-200"
-          style={{ backgroundColor: cv.styleProfile?.sidebarBg || '#f8fafc' }}
-        >
-          {/* Contact */}
-          <section>
-            <h3 
+    const isDarkSidebar = templateConfig.layout === 'two-column-dark';
+    const isRightSidebar = templateConfig.layout === 'two-column-right';
+    const isBannerTop = templateConfig.layout === 'banner-two-column';
+
+    const sidebarText = isDarkSidebar ? 'text-slate-200' : 'text-slate-600';
+    const sidebarHeadingColor = isDarkSidebar ? '#93c5fd' : activeAccent;
+    const sidebarBorderColor = isDarkSidebar ? 'rgba(255,255,255,0.16)' : `${activeAccent}33`;
+    const sidebarBgStyle = isDarkSidebar
+      ? { backgroundColor: '#0f172a' }
+      : { backgroundColor: cv.styleProfile?.sidebarBg || `${activeAccent}08` };
+
+    const renderSidebarContent = () => (
+      <>
+        {!isBannerTop && (
+          <section className="break-inside-avoid">
+            <h3
               className="text-[11px] font-bold tracking-widest uppercase border-b pb-1 mb-2.5"
-              style={{ color: activeAccent, borderColor: `${activeAccent}33` }}
+              style={{ color: sidebarHeadingColor, borderColor: sidebarBorderColor }}
             >
               Contact
             </h3>
-            <div className="flex flex-col gap-2 text-xs text-slate-600 font-medium">
+            <div className={`flex flex-col gap-2 text-xs font-medium ${sidebarText}`}>
               {contact.email && (
                 <div className="flex items-center gap-2 break-all">
-                  <Mail className="w-3.5 h-3.5 shrink-0" style={{ color: activeAccent }} />
-                  <a href={`mailto:${contact.email}`} className="text-slate-700 hover:underline">{contact.email}</a>
+                  <Mail className="w-3.5 h-3.5 shrink-0" style={{ color: sidebarHeadingColor }} />
+                  <a href={`mailto:${contact.email}`} className="hover:underline">{contact.email}</a>
                 </div>
               )}
               {contact.phone && (
                 <div className="flex items-center gap-2">
-                  <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: activeAccent }} />
+                  <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: sidebarHeadingColor }} />
                   <span>{contact.phone}</span>
                 </div>
               )}
               {contact.location && (
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: activeAccent }} />
+                  <MapPin className="w-3.5 h-3.5 shrink-0" style={{ color: sidebarHeadingColor }} />
                   <span>{contact.location}</span>
                 </div>
               )}
               {contact.linkedin && (
                 <div className="flex items-center gap-2 break-all">
-                  <Globe className="w-3.5 h-3.5 shrink-0" style={{ color: activeAccent }} />
-                  <a href={contact.linkedin} target="_blank" rel="noreferrer" className="text-slate-700 hover:underline">
+                  <Globe className="w-3.5 h-3.5 shrink-0" style={{ color: sidebarHeadingColor }} />
+                  <a href={contact.linkedin} target="_blank" rel="noreferrer" className="hover:underline">
                     {contact.linkedin.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, 'in/')}
                   </a>
                 </div>
               )}
               {contact.github && (
                 <div className="flex items-center gap-2 break-all">
-                  <Code className="w-3.5 h-3.5 shrink-0" style={{ color: activeAccent }} />
-                  <span>{contact.github.replace(/^https?:\/\/(www\.)?github\.com\//i, 'github.com/')}</span>
+                  <Code className="w-3.5 h-3.5 shrink-0" style={{ color: sidebarHeadingColor }} />
+                  <a href={contact.github} target="_blank" rel="noreferrer" className="hover:underline">
+                    {contact.github.replace(/^https?:\/\/(www\.)?github\.com\//i, 'github.com/')}
+                  </a>
+                </div>
+              )}
+              {contact.portfolio && (
+                <div className="flex items-center gap-2 break-all">
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0" style={{ color: sidebarHeadingColor }} />
+                  <a href={contact.portfolio} target="_blank" rel="noreferrer" className="hover:underline">
+                    {contact.portfolio.replace(/^https?:\/\//i, '')}
+                  </a>
                 </div>
               )}
             </div>
           </section>
+        )}
 
-          {/* Core Skills */}
-          {skills.length > 0 && (
-            <section>
-              <h3 
-                className="text-[11px] font-bold tracking-widest uppercase border-b pb-1 mb-2.5"
-                style={{ color: activeAccent, borderColor: `${activeAccent}33` }}
-              >
-                Core Competencies
-              </h3>
-              <div className="flex flex-wrap gap-1.5">
-                {skills.map((s, idx) => (
-                  <span 
-                    key={idx}
-                    className="text-[11px] font-medium px-2 py-0.5 rounded bg-white border border-slate-200/90 text-slate-800 shadow-2xs"
-                  >
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
+        {skills.length > 0 && (
+          <section className={`break-inside-avoid ${getHighlightClass('skills')}`}>
+            <h3
+              className="text-[11px] font-bold tracking-widest uppercase border-b pb-1 mb-2.5"
+              style={{ color: sidebarHeadingColor, borderColor: sidebarBorderColor }}
+            >
+              Core Competencies
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {skills.map((s, idx) => (
+                <span
+                  key={idx}
+                  className={`text-[11px] font-medium px-2 py-0.5 rounded shadow-2xs ${
+                    isDarkSidebar
+                      ? 'bg-slate-800 border border-slate-700 text-slate-100'
+                      : 'bg-white border border-slate-200/90 text-slate-800'
+                  }`}
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
 
-          {/* Education */}
-          {education.length > 0 && (
-            <section>
-              <h3 
-                className="text-[11px] font-bold tracking-widest uppercase border-b pb-1 mb-2.5"
-                style={{ color: activeAccent, borderColor: `${activeAccent}33` }}
-              >
-                Education
-              </h3>
-              <div className="flex flex-col gap-3">
-                {education.map((edu, idx) => (
-                  <div key={idx} className="text-xs">
-                    <span className="font-bold text-slate-900 block leading-tight">{edu.degree}</span>
-                    {edu.institution && <span className="text-slate-600 block text-[11px] mt-0.5">{edu.institution}</span>}
-                    {(edu.year || edu.grade) && (
-                      <span className="text-slate-500 block text-[10.5px] mt-0.5 font-mono">
-                        {[edu.year, edu.grade].filter(Boolean).join(" • ")}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+        {education.length > 0 && (
+          <section className={`break-inside-avoid ${getHighlightClass('education')}`}>
+            <h3
+              className="text-[11px] font-bold tracking-widest uppercase border-b pb-1 mb-2.5"
+              style={{ color: sidebarHeadingColor, borderColor: sidebarBorderColor }}
+            >
+              Education
+            </h3>
+            <div className="flex flex-col gap-3">
+              {education.map((edu, idx) => (
+                <div key={idx} className="text-xs">
+                  <span className={`font-bold block leading-tight ${isDarkSidebar ? 'text-white' : 'text-slate-900'}`}>{edu.degree}</span>
+                  {edu.institution && <span className={`block text-[11px] mt-0.5 ${isDarkSidebar ? 'text-slate-300' : 'text-slate-600'}`}>{edu.institution}</span>}
+                  {(edu.year || edu.grade) && (
+                    <span className={`block text-[10.5px] mt-0.5 font-mono ${isDarkSidebar ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {[edu.year, edu.grade].filter(Boolean).join(" • ")}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
-          {/* Certifications */}
-          {certifications.length > 0 && (
-            <section>
-              <h3 
-                className="text-[11px] font-bold tracking-widest uppercase border-b pb-1 mb-2"
-                style={{ color: activeAccent, borderColor: `${activeAccent}33` }}
-              >
-                Certifications
-              </h3>
-              <div className="flex flex-col gap-1 text-xs text-slate-700">
-                {certifications.map((c, idx) => (
-                  <div key={idx} className="text-[11px] leading-snug">
-                    • {typeof c === 'string' ? c : c.name || ''}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+        {certifications.length > 0 && (
+          <section className="break-inside-avoid">
+            <h3
+              className="text-[11px] font-bold tracking-widest uppercase border-b pb-1 mb-2"
+              style={{ color: sidebarHeadingColor, borderColor: sidebarBorderColor }}
+            >
+              Certifications
+            </h3>
+            <div className={`flex flex-col gap-1 text-xs ${sidebarText}`}>
+              {certifications.map((c, idx) => (
+                <div key={idx} className="text-[11px] leading-snug">
+                  • {typeof c === 'string' ? c : c.name || ''}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
-          {/* Languages */}
-          {languages.length > 0 && (
-            <section>
-              <h3 
-                className="text-[11px] font-bold tracking-widest uppercase border-b pb-1 mb-2"
-                style={{ color: activeAccent, borderColor: `${activeAccent}33` }}
-              >
-                Languages
-              </h3>
-              <div className="flex flex-wrap gap-1.5 text-xs">
-                {languages.map((l, idx) => (
-                  <span key={idx} className="text-[11px] text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded">
-                    {l.name} {l.level ? `(${l.level})` : ''}
-                  </span>
-                ))}
-              </div>
-            </section>
-          )}
-        </aside>
+        {languages.length > 0 && (
+          <section className="break-inside-avoid">
+            <h3
+              className="text-[11px] font-bold tracking-widest uppercase border-b pb-1 mb-2"
+              style={{ color: sidebarHeadingColor, borderColor: sidebarBorderColor }}
+            >
+              Languages
+            </h3>
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              {languages.map((l, idx) => (
+                <span
+                  key={idx}
+                  className={`text-[11px] px-2 py-0.5 rounded ${
+                    isDarkSidebar
+                      ? 'bg-slate-800 border border-slate-700 text-slate-200'
+                      : 'bg-white border border-slate-200 text-slate-700'
+                  }`}
+                >
+                  {l.name} {l.level ? `(${l.level})` : ''}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+      </>
+    );
 
-        {/* Right Main Column */}
-        <main className="flex-1 p-7 sm:p-8 flex flex-col gap-4 bg-white text-left">
+    const renderMainBody = () => (
+      <main className="flex-1 p-7 sm:p-8 flex flex-col gap-4 bg-white text-left">
+        {!isBannerTop && (
           <header className="border-b border-slate-200 pb-3">
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 uppercase leading-none">
               {header.name || "Candidate Name"}
@@ -702,81 +732,522 @@ export default function ResumeCanvas({
               </p>
             )}
           </header>
+        )}
 
-          {header.summary && (
-            <section>
-              <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-1.5">
-                Executive Profile
-              </h2>
-              <p className="text-xs text-slate-700 leading-relaxed text-justify">
-                {header.summary}
-              </p>
-            </section>
-          )}
+        {header.summary && (
+          <section className={`break-inside-avoid ${getHighlightClass('header.summary')}`}>
+            <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-1.5">
+              Executive Profile
+            </h2>
+            <p className="text-xs text-slate-700 leading-relaxed text-justify">
+              {header.summary}
+            </p>
+          </section>
+        )}
 
-          {experiences.length > 0 && (
-            <section>
-              <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2.5">
-                Professional Experience
-              </h2>
-              <div className="flex flex-col gap-3.5">
-                {experiences.map((exp, expIdx) => (
-                  <div key={exp.id || expIdx}>
-                    <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-0.5">
-                      <div className="flex flex-wrap items-baseline gap-1.5">
-                        <span className="text-[12.5px] font-bold text-slate-900">{exp.role}</span>
-                        <span className="text-xs font-semibold text-slate-600">• {exp.company}</span>
-                        {exp.location && <span className="text-xs text-slate-500">({exp.location})</span>}
-                      </div>
-                      <span className="text-[10.5px] font-mono font-medium text-slate-500 whitespace-nowrap bg-slate-100 px-2 py-0.5 rounded">
-                        {exp.period}
-                      </span>
+        {experiences.length > 0 && (
+          <section className={getHighlightClass('experiences')}>
+            <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2.5">
+              Professional Experience
+            </h2>
+            <div className="flex flex-col gap-3.5">
+              {experiences.map((exp, expIdx) => (
+                <div key={exp.id || expIdx} className="break-inside-avoid">
+                  <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-0.5">
+                    <div className="flex flex-wrap items-baseline gap-1.5">
+                      <span className="text-[12.5px] font-bold text-slate-900">{exp.role}</span>
+                      <span className="text-xs font-semibold text-slate-600">• {exp.company}</span>
+                      {exp.location && <span className="text-xs text-slate-500">({exp.location})</span>}
                     </div>
+                    <span className="text-[10.5px] font-mono font-medium text-slate-500 whitespace-nowrap bg-slate-100 px-2 py-0.5 rounded">
+                      {exp.period}
+                    </span>
+                  </div>
 
+                  {Array.isArray(exp.bullets) && exp.bullets.length > 0 && (
+                    <ul className="space-y-1 text-xs text-slate-700 leading-relaxed mt-0.5">
+                      {exp.bullets.map((b, bIdx) => (
+                        <li key={bIdx} className="flex items-start gap-1.5">
+                          <span className="shrink-0 text-slate-400 font-bold select-none">{bulletChar}</span>
+                          <span className="flex-1">{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {projects.length > 0 && (
+          <section className={getHighlightClass('projects')}>
+            <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2">
+              Key Projects
+            </h2>
+            <div className="space-y-2">
+              {projects.map((proj, idx) => (
+                <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg break-inside-avoid">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">{proj.title}</span>
+                    {renderProjectLink(proj)}
+                  </div>
+                  {proj.tech && <span className="text-[10px] font-mono block mt-0.5" style={{ color: activeAccent }}>{proj.tech}</span>}
+                  {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
+                    <ul className="list-disc list-outside pl-3.5 space-y-0.5 mt-1 text-[11px] text-slate-600 leading-snug">
+                      {proj.bullets.map((b, bIdx) => (
+                        <li key={bIdx}>{b}</li>
+                      ))}
+                    </ul>
+                  ) : proj.description ? (
+                    <p className="text-[11px] text-slate-600 mt-1 leading-snug">{proj.description}</p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+    );
+
+    if (isBannerTop) {
+      return (
+        <div
+          id={id}
+          className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col text-left ${activeFont} transition-all duration-200 print:shadow-none print:m-0`}
+          style={a4CanvasStyle}
+        >
+          {/* Full-Width Executive Top Banner */}
+          <header className="px-8 py-6 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ backgroundColor: activeAccent }}>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight uppercase leading-none">
+                {header.name || "Candidate Name"}
+              </h1>
+              {header.title && (
+                <p className="text-xs sm:text-sm font-semibold mt-1.5 text-white/90 tracking-wide">
+                  {header.title}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-col sm:items-end text-[11px] text-white/90 gap-0.5 font-medium">
+              {contact.email && <a href={`mailto:${contact.email}`} className="hover:underline">{contact.email}</a>}
+              {contact.phone && <span>{contact.phone}{contact.location ? ` • ${contact.location}` : ''}</span>}
+              <div className="flex items-center gap-2 mt-0.5 font-mono text-[10px]">
+                {contact.linkedin && <a href={contact.linkedin} target="_blank" rel="noreferrer" className="underline">LinkedIn</a>}
+                {contact.github && <a href={contact.github} target="_blank" rel="noreferrer" className="underline">GitHub</a>}
+                {contact.portfolio && <a href={contact.portfolio} target="_blank" rel="noreferrer" className="underline">Portfolio</a>}
+              </div>
+            </div>
+          </header>
+
+          {/* 2-Column Body Below Banner */}
+          <div className="flex flex-row flex-1">
+            <aside className="w-[32%] min-w-[230px] p-6 flex flex-col gap-4 shrink-0 border-r border-slate-200" style={sidebarBgStyle}>
+              {renderSidebarContent()}
+            </aside>
+            {renderMainBody()}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        id={id}
+        className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex ${isRightSidebar ? 'flex-row-reverse' : 'flex-row'} text-left ${activeFont} transition-all duration-200 print:shadow-none print:m-0`}
+        style={a4CanvasStyle}
+      >
+        <aside
+          className={`w-[33%] min-w-[240px] p-6 sm:p-7 flex flex-col gap-5 shrink-0 ${
+            isRightSidebar ? 'border-l border-slate-200' : isDarkSidebar ? '' : 'border-r border-slate-200'
+          }`}
+          style={sidebarBgStyle}
+        >
+          {renderSidebarContent()}
+        </aside>
+        {renderMainBody()}
+      </div>
+    );
+  }
+
+  // ========================================================
+  // 4B. VERTICAL TIMELINE-RAIL SPLIT
+  // ========================================================
+  if (templateConfig.layout === 'timeline-split') {
+    const bulletChar = getBulletSymbol(templateConfig.bulletStyle);
+    return (
+      <div
+        id={id}
+        className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} p-8 sm:p-10 transition-all duration-200 print:shadow-none print:m-0`}
+        style={a4CanvasStyle}
+      >
+        <header className="border-b-2 pb-3.5 mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2" style={{ borderColor: activeAccent }}>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 uppercase">
+              {header.name || "Candidate Name"}
+            </h1>
+            {header.title && <p className="text-sm font-bold mt-0.5" style={{ color: activeAccent }}>{header.title}</p>}
+          </div>
+          <div className="flex flex-wrap sm:justify-end gap-x-3 gap-y-0.5 text-[11px] text-slate-600">
+            {contact.email && <span>{contact.email}</span>}
+            {contact.phone && <span>• {contact.phone}</span>}
+            {contact.location && <span>• {contact.location}</span>}
+            {contact.github && <a href={contact.github} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">• GitHub</a>}
+          </div>
+        </header>
+
+        {header.summary && (
+          <section className={`mb-4 break-inside-avoid ${getHighlightClass('header.summary')}`}>
+            <p className="text-xs text-slate-700 leading-relaxed pl-3 border-l-2" style={{ borderColor: activeAccent }}>
+              {header.summary}
+            </p>
+          </section>
+        )}
+
+        {experiences.length > 0 && (
+          <section className={`mb-4 ${getHighlightClass('experiences')}`}>
+            <h2 className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: activeAccent }}>
+              Career Timeline
+            </h2>
+            <div className="space-y-3.5">
+              {experiences.map((exp, idx) => (
+                <div key={exp.id || idx} className="flex gap-4 break-inside-avoid">
+                  <div className="w-28 shrink-0 text-right pt-0.5">
+                    <span className="text-[10.5px] font-mono font-semibold text-slate-500 block">{exp.period}</span>
+                    {exp.location && <span className="text-[10px] text-slate-400 block">{exp.location}</span>}
+                  </div>
+                  <div className="flex-1 pl-4 border-l-2 relative pb-1" style={{ borderColor: `${activeAccent}44` }}>
+                    <span className="w-2.5 h-2.5 rounded-full absolute -left-[6px] top-1 border-2 border-white" style={{ backgroundColor: activeAccent }} />
+                    <div className="text-xs font-bold text-slate-900">
+                      {exp.role} <span className="font-semibold text-slate-600">@ {exp.company}</span>
+                    </div>
                     {Array.isArray(exp.bullets) && exp.bullets.length > 0 && (
-                      <ul className="space-y-1 text-xs text-slate-700 leading-relaxed mt-0.5">
+                      <ul className="space-y-0.5 text-[11.5px] text-slate-700 mt-1">
                         {exp.bullets.map((b, bIdx) => (
                           <li key={bIdx} className="flex items-start gap-1.5">
-                            <span className="shrink-0 text-slate-400 font-bold select-none">{bulletChar}</span>
-                            <span className="flex-1">{b}</span>
+                            <span className="text-slate-400 shrink-0">{bulletChar}</span>
+                            <span>{b}</span>
                           </li>
                         ))}
                       </ul>
                     )}
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
-          {projects.length > 0 && (
-            <section>
-              <h2 className="text-xs font-bold text-slate-950 uppercase tracking-wider border-b border-slate-200 pb-1 mb-2">
-                Key Projects
-              </h2>
-              <div className="space-y-2">
-                {projects.map((proj, idx) => (
-                  <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-900">{proj.title}</span>
-                      {renderProjectLink(proj)}
-                    </div>
-                    {proj.tech && <span className="text-[10px] text-blue-600 font-mono block mt-0.5">{proj.tech}</span>}
-                    {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
-                      <ul className="list-disc list-outside pl-3.5 space-y-0.5 mt-1 text-[11px] text-slate-600 leading-snug">
-                        {proj.bullets.map((b, bIdx) => (
-                          <li key={bIdx}>{b}</li>
-                        ))}
-                      </ul>
-                    ) : proj.description ? (
-                      <p className="text-[11px] text-slate-600 mt-1 leading-snug">{proj.description}</p>
-                    ) : null}
+        {projects.length > 0 && (
+          <section className={`mb-4 ${getHighlightClass('projects')}`}>
+            <h2 className="text-xs font-bold uppercase tracking-widest mb-2.5" style={{ color: activeAccent }}>
+              Key Projects
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {projects.map((proj, idx) => (
+                <div key={idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg break-inside-avoid">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">{proj.title}</span>
+                    {renderProjectLink(proj)}
                   </div>
-                ))}
-              </div>
+                  {proj.tech && <span className="text-[10px] font-mono block mt-0.5" style={{ color: activeAccent }}>{proj.tech}</span>}
+                  <p className="text-[11px] text-slate-600 mt-1 leading-snug">
+                    {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? proj.bullets.join(' • ') : proj.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200">
+          {skills.length > 0 && (
+            <section className={`break-inside-avoid ${getHighlightClass('skills')}`}>
+              <h2 className="text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: activeAccent }}>Skills</h2>
+              <p className="text-[11px] text-slate-700 leading-relaxed">{skills.join(' • ')}</p>
             </section>
           )}
-        </main>
+          {education.length > 0 && (
+            <section className={`break-inside-avoid ${getHighlightClass('education')}`}>
+              <h2 className="text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: activeAccent }}>Education</h2>
+              {education.map((edu, idx) => (
+                <div key={idx} className="text-[11px] mb-1">
+                  <span className="font-bold text-slate-900">{edu.degree}</span> — <span className="text-slate-600">{edu.institution}</span>
+                  {edu.year && <span className="text-slate-400 font-mono text-[10px]"> ({edu.year})</span>}
+                </div>
+              ))}
+            </section>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ========================================================
+  // 4C. BENTO TECH & PRODUCT MAKER LAYOUT
+  // ========================================================
+  if (templateConfig.layout === 'bento-tech') {
+    const bulletChar = getBulletSymbol(templateConfig.bulletStyle);
+    return (
+      <div
+        id={id}
+        className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} p-7 sm:p-9 transition-all duration-200 print:shadow-none print:m-0`}
+        style={a4CanvasStyle}
+      >
+        {/* Bento Grid Header */}
+        <header className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4">
+          <div className="sm:col-span-2 p-3.5 rounded-xl border border-slate-200 bg-slate-50/80 flex flex-col justify-center">
+            <h1 className="text-2xl font-black tracking-tight text-slate-950">{header.name || "Candidate Name"}</h1>
+            {header.title && <p className="text-xs font-mono font-bold mt-0.5" style={{ color: activeAccent }}>{header.title}</p>}
+            {header.summary && <p className="text-[11px] text-slate-600 mt-1.5 leading-snug">{header.summary}</p>}
+          </div>
+          <div className="p-3 rounded-xl border text-[11px] flex flex-col justify-center gap-1 bg-white" style={{ borderColor: `${activeAccent}44` }}>
+            {contact.email && <div className="truncate font-medium text-slate-800">{contact.email}</div>}
+            {contact.phone && <div className="text-slate-600 font-mono text-[10.5px]">{contact.phone}</div>}
+            {contact.location && <div className="text-slate-500 text-[10.5px]">{contact.location}</div>}
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {contact.github && (
+                <a href={contact.github} target="_blank" rel="noreferrer" className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 text-white hover:opacity-90">
+                  GitHub ↗
+                </a>
+              )}
+              {contact.linkedin && (
+                <a href={contact.linkedin} target="_blank" rel="noreferrer" className="text-[10px] font-mono px-1.5 py-0.5 rounded text-white hover:opacity-90" style={{ backgroundColor: activeAccent }}>
+                  LinkedIn ↗
+                </a>
+              )}
+              {contact.portfolio && (
+                <a href={contact.portfolio} target="_blank" rel="noreferrer" className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">
+                  Web ↗
+                </a>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Tech-Stack Pill Matrix */}
+        {skills.length > 0 && (
+          <section className={`mb-3.5 break-inside-avoid ${getHighlightClass('skills')}`}>
+            <h2 className="text-[10.5px] font-mono font-bold uppercase tracking-widest text-slate-500 mb-1.5">
+              &lt;Tech_Stack /&gt;
+            </h2>
+            <div className="flex flex-wrap gap-1.5">
+              {skills.map((s, idx) => (
+                <span key={idx} className="text-[10.5px] font-mono font-medium px-2 py-0.5 rounded-md border" style={{ backgroundColor: `${activeAccent}0d`, borderColor: `${activeAccent}33`, color: '#0f172a' }}>
+                  {s}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Project Showcase Grid */}
+        {projects.length > 0 && (
+          <section className={`mb-3.5 ${getHighlightClass('projects')}`}>
+            <h2 className="text-[10.5px] font-mono font-bold uppercase tracking-widest text-slate-500 mb-1.5">
+              &lt;Shipped_Products_&_Projects /&gt;
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {projects.map((proj, idx) => (
+                <div key={idx} className="p-2.5 rounded-xl border border-slate-200 bg-slate-50/60 break-inside-avoid">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">{proj.title}</span>
+                    {renderProjectLink(proj)}
+                  </div>
+                  {proj.tech && <span className="text-[10px] font-mono block mt-0.5" style={{ color: activeAccent }}>{proj.tech}</span>}
+                  {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
+                    <ul className="list-disc list-outside pl-3.5 space-y-0.5 mt-1 text-[11px] text-slate-700 leading-snug">
+                      {proj.bullets.map((b, bIdx) => <li key={bIdx}>{b}</li>)}
+                    </ul>
+                  ) : proj.description ? (
+                    <p className="text-[11px] text-slate-700 mt-1 leading-snug">{proj.description}</p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Experience */}
+        {experiences.length > 0 && (
+          <section className={`mb-3.5 ${getHighlightClass('experiences')}`}>
+            <h2 className="text-[10.5px] font-mono font-bold uppercase tracking-widest text-slate-500 mb-2">
+              &lt;Engineering_Experience /&gt;
+            </h2>
+            <div className="space-y-3">
+              {experiences.map((exp, idx) => (
+                <div key={exp.id || idx} className="break-inside-avoid">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-xs font-bold text-slate-900">{exp.role} <span className="font-normal text-slate-500">@ {exp.company}</span></span>
+                    <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{exp.period}</span>
+                  </div>
+                  {Array.isArray(exp.bullets) && exp.bullets.length > 0 && (
+                    <ul className="space-y-0.5 text-[11.5px] text-slate-700 mt-1">
+                      {exp.bullets.map((b, bIdx) => (
+                        <li key={bIdx} className="flex items-start gap-1.5">
+                          <span className="text-slate-400 shrink-0">{bulletChar}</span>
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Education & Certs */}
+        {(education.length > 0 || certifications.length > 0) && (
+          <section className="pt-2 border-t border-slate-200 flex flex-wrap justify-between gap-4 text-[11px] break-inside-avoid">
+            {education.map((edu, idx) => (
+              <div key={idx}>
+                <span className="font-bold text-slate-900">{edu.degree}</span> — <span className="text-slate-600">{edu.institution}</span>
+                {edu.year && <span className="text-slate-400 font-mono"> ({edu.year})</span>}
+              </div>
+            ))}
+            {certifications.length > 0 && (
+              <div className="text-slate-600">
+                <span className="font-bold text-slate-800">Certs: </span>
+                {certifications.map(c => typeof c === 'string' ? c : c.name).join(', ')}
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+    );
+  }
+
+  // ========================================================
+  // 4D. HIGH-DENSITY 1-PAGE FRESHER & ACADEMIC GRID
+  // ========================================================
+  if (templateConfig.layout === 'fresher-grid') {
+    const bulletChar = getBulletSymbol(templateConfig.bulletStyle);
+    return (
+      <div
+        id={id}
+        className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} p-6 sm:p-8 transition-all duration-200 print:shadow-none print:m-0`}
+        style={a4CanvasStyle}
+      >
+        <header className="border-b-2 pb-2.5 mb-3 text-center" style={{ borderColor: activeAccent }}>
+          <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase">{header.name || "Candidate Name"}</h1>
+          {header.title && <p className="text-xs font-bold mt-0.5" style={{ color: activeAccent }}>{header.title}</p>}
+          <div className="flex flex-wrap justify-center gap-x-3 gap-y-0.5 mt-1.5 text-[11px] text-slate-600">
+            {contact.email && <span>{contact.email}</span>}
+            {contact.phone && <span>• {contact.phone}</span>}
+            {contact.location && <span>• {contact.location}</span>}
+            {contact.github && <a href={contact.github} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">• GitHub</a>}
+            {contact.linkedin && <a href={contact.linkedin} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">• LinkedIn</a>}
+          </div>
+        </header>
+
+        {header.summary && (
+          <section className={`mb-2.5 break-inside-avoid ${getHighlightClass('header.summary')}`}>
+            <h2 className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: activeAccent }}>Career Objective</h2>
+            <p className="text-[11.5px] text-slate-700 leading-snug">{header.summary}</p>
+          </section>
+        )}
+
+        {education.length > 0 && (
+          <section className={`mb-2.5 break-inside-avoid ${getHighlightClass('education')}`}>
+            <h2 className="text-[11px] font-bold uppercase tracking-wider border-b pb-0.5 mb-1.5" style={{ color: activeAccent, borderColor: '#e2e8f0' }}>
+              Education & Academic Credentials
+            </h2>
+            <div className="space-y-1">
+              {education.map((edu, idx) => (
+                <div key={idx} className="flex justify-between items-baseline text-xs">
+                  <div>
+                    <span className="font-bold text-slate-900">{edu.degree}</span>
+                    <span className="text-slate-600"> — {edu.institution}</span>
+                    {edu.grade && <span className="text-slate-500 font-mono text-[10.5px]"> ({edu.grade})</span>}
+                  </div>
+                  <span className="text-[10.5px] font-mono text-slate-500">{edu.year}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {projects.length > 0 && (
+          <section className={`mb-2.5 ${getHighlightClass('projects')}`}>
+            <h2 className="text-[11px] font-bold uppercase tracking-wider border-b pb-0.5 mb-1.5" style={{ color: activeAccent, borderColor: '#e2e8f0' }}>
+              Academic & Personal Projects (2x2 Matrix)
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {projects.map((proj, idx) => (
+                <div key={idx} className="p-2.5 bg-slate-50/80 border border-slate-200 rounded-lg break-inside-avoid">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900">{proj.title}</span>
+                    {renderProjectLink(proj)}
+                  </div>
+                  {proj.tech && <span className="text-[10px] font-mono block mt-0.5" style={{ color: activeAccent }}>{proj.tech}</span>}
+                  {Array.isArray(proj.bullets) && proj.bullets.length > 0 ? (
+                    <ul className="list-disc list-outside pl-3.5 space-y-0.5 mt-1 text-[10.5px] text-slate-700 leading-tight">
+                      {proj.bullets.map((b, bIdx) => <li key={bIdx}>{b}</li>)}
+                    </ul>
+                  ) : proj.description ? (
+                    <p className="text-[10.5px] text-slate-700 mt-1 leading-tight">{proj.description}</p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {experiences.length > 0 && (
+          <section className={`mb-2.5 ${getHighlightClass('experiences')}`}>
+            <h2 className="text-[11px] font-bold uppercase tracking-wider border-b pb-0.5 mb-1.5" style={{ color: activeAccent, borderColor: '#e2e8f0' }}>
+              Internships & Experience
+            </h2>
+            <div className="space-y-2">
+              {experiences.map((exp, idx) => (
+                <div key={exp.id || idx} className="break-inside-avoid">
+                  <div className="flex justify-between items-baseline text-xs">
+                    <span className="font-bold text-slate-900">{exp.role} <span className="font-semibold text-slate-600">• {exp.company}</span></span>
+                    <span className="text-[10px] font-mono text-slate-500">{exp.period}</span>
+                  </div>
+                  {Array.isArray(exp.bullets) && exp.bullets.length > 0 && (
+                    <ul className="space-y-0.5 text-[11px] text-slate-700 mt-0.5">
+                      {exp.bullets.map((b, bIdx) => (
+                        <li key={bIdx} className="flex items-start gap-1.5">
+                          <span className="text-slate-400 shrink-0">{bulletChar}</span>
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {skills.length > 0 && (
+          <section className={`mb-2 break-inside-avoid ${getHighlightClass('skills')}`}>
+            <h2 className="text-[11px] font-bold uppercase tracking-wider border-b pb-0.5 mb-1.5" style={{ color: activeAccent, borderColor: '#e2e8f0' }}>
+              Technical Skills & Tools
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 text-[11px] text-slate-800">
+              {skills.map((s, idx) => (
+                <div key={idx} className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: activeAccent }} />
+                  <span className="truncate font-medium">{s}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {(certifications.length > 0 || languages.length > 0) && (
+          <section className="text-[10.5px] text-slate-600 pt-1.5 border-t border-slate-200 break-inside-avoid">
+            {certifications.length > 0 && (
+              <p><span className="font-bold text-slate-800">Certifications: </span>{certifications.map(c => typeof c === 'string' ? c : c.name).join(', ')}</p>
+            )}
+            {languages.length > 0 && (
+              <p className="mt-0.5"><span className="font-bold text-slate-800">Languages: </span>{languages.map(l => `${l.name} (${l.level || 'Fluent'})`).join(', ')}</p>
+            )}
+          </section>
+        )}
       </div>
     );
   }

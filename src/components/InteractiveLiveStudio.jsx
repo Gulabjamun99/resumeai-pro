@@ -6,7 +6,7 @@ import {
   TrendingUp, Award, Layers, Grid, List, Search, X
 } from 'lucide-react';
 import ResumeCanvas from './ResumeCanvas.jsx';
-import { CATEGORIES, TEMPLATES } from '../data/templateCatalog.js';
+import { CATEGORIES, TEMPLATES, getTemplateById } from '../data/templateCatalog.js';
 import { exportResumeToPdf } from '../utils/pdfExporter.js';
 import { exportResumeToDocx } from '../utils/docxExporter.js';
 import { refineCvWithAi, tailorCvToJd } from '../services/geminiService.js';
@@ -39,24 +39,144 @@ const QUICK_PROMPTS = [
  */
 function TemplateThumbnail({ tpl, isSelected, accentColor }) {
   const accent = accentColor || tpl.accentColor || '#2563eb';
-  const isTwoCol = tpl.layout === 'two-column-left' || tpl.layout === 'two-column-sidebar';
-  const isCentered = tpl.layout === 'centered-formal' || tpl.headerStyle === 'centered-formal';
-  const isTopStrip = tpl.layout === 'header-banner' || tpl.headerStyle === 'top-strip';
+  const layout = tpl.layout || 'single-column';
+  const isTwoColLeft = layout === 'two-column-left' || layout === 'two-column-sidebar';
+  const isTwoColDark = layout === 'two-column-dark';
+  const isTwoColRight = layout === 'two-column-right';
+  const isBannerTwoCol = layout === 'banner-two-column';
+  const isTimeline = layout === 'timeline-split';
+  const isBento = layout === 'bento-tech';
+  const isFresherGrid = layout === 'fresher-grid';
+  const isCentered = layout === 'centered-formal' || tpl.headerStyle === 'centered-formal';
+  const isTopStrip = layout === 'header-banner' || tpl.headerStyle === 'top-strip';
+
+  if (isTwoColLeft || isTwoColDark || isTwoColRight) {
+    return (
+      <div
+        className={`w-full h-24 rounded-lg border overflow-hidden flex ${isTwoColRight ? 'flex-row-reverse' : 'flex-row'} transition-all select-none ${
+          isSelected ? 'bg-blue-50/50 border-blue-500 shadow-2xs' : 'bg-white border-slate-200 group-hover:border-slate-300'
+        }`}
+      >
+        <div
+          className={`w-[34%] p-1.5 flex flex-col gap-1 ${isTwoColDark ? 'bg-slate-900' : isTwoColRight ? 'border-l border-slate-200' : 'border-r border-slate-200'}`}
+          style={!isTwoColDark ? { backgroundColor: `${accent}12` } : undefined}
+        >
+          <div className="w-full h-1 rounded-full" style={{ backgroundColor: isTwoColDark ? '#60a5fa' : accent }} />
+          <div className={`w-4/5 h-0.5 rounded-full ${isTwoColDark ? 'bg-slate-500' : 'bg-slate-300'}`} />
+          <div className={`w-3/5 h-0.5 rounded-full ${isTwoColDark ? 'bg-slate-600' : 'bg-slate-300'}`} />
+          <div className="flex gap-0.5 mt-auto">
+            <div className={`w-2.5 h-1 rounded-xs ${isTwoColDark ? 'bg-slate-700' : 'bg-slate-300'}`} />
+            <div className={`w-2.5 h-1 rounded-xs ${isTwoColDark ? 'bg-slate-700' : 'bg-slate-300'}`} />
+          </div>
+        </div>
+        <div className="flex-1 p-2 flex flex-col gap-1">
+          <div className="w-14 h-1.5 bg-slate-800 rounded-xs" />
+          <div className="w-8 h-0.5 rounded-full mb-0.5" style={{ backgroundColor: accent }} />
+          <div className="w-full h-0.5 bg-slate-200 rounded-full" />
+          <div className="w-5/6 h-0.5 bg-slate-300 rounded-full" />
+          <div className="w-full h-0.5 bg-slate-200 rounded-full" />
+          <div className="w-3/4 h-0.5 bg-slate-300 rounded-full mt-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isBannerTwoCol) {
+    return (
+      <div
+        className={`w-full h-24 rounded-lg border overflow-hidden flex flex-col transition-all select-none ${
+          isSelected ? 'bg-blue-50/50 border-blue-500 shadow-2xs' : 'bg-white border-slate-200 group-hover:border-slate-300'
+        }`}
+      >
+        <div className="w-full h-5 px-2 flex items-center justify-between" style={{ backgroundColor: accent }}>
+          <div className="w-12 h-1.5 bg-white rounded-xs" />
+          <div className="w-6 h-0.5 bg-white/75 rounded-full" />
+        </div>
+        <div className="flex-1 flex gap-1.5 p-1.5">
+          <div className="w-[32%] bg-slate-50 rounded-xs p-1 flex flex-col gap-1">
+            <div className="w-full h-0.5 rounded-full" style={{ backgroundColor: accent }} />
+            <div className="w-4/5 h-0.5 bg-slate-300 rounded-full" />
+            <div className="w-3/5 h-0.5 bg-slate-300 rounded-full" />
+          </div>
+          <div className="flex-1 flex flex-col gap-1 py-0.5">
+            <div className="w-full h-0.5 bg-slate-600 rounded-full" />
+            <div className="w-5/6 h-0.5 bg-slate-300 rounded-full" />
+            <div className="w-full h-0.5 bg-slate-300 rounded-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isTimeline) {
+    return (
+      <div
+        className={`w-full h-24 rounded-lg border overflow-hidden p-2 flex flex-col justify-between transition-all select-none ${
+          isSelected ? 'bg-blue-50/50 border-blue-500 shadow-2xs' : 'bg-slate-50/70 border-slate-200 group-hover:border-slate-300'
+        }`}
+      >
+        <div className="flex items-center justify-between border-b pb-1" style={{ borderColor: accent }}>
+          <div className="w-14 h-1.5 bg-slate-800 rounded-xs" />
+          <div className="w-6 h-0.5 bg-slate-400 rounded-full" />
+        </div>
+        <div className="flex-1 flex flex-col justify-around py-1">
+          {[1, 2, 3].map(n => (
+            <div key={n} className="flex items-center gap-1.5">
+              <div className="w-4 h-0.5 bg-slate-300 rounded-full" />
+              <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+              <div className="flex-1 h-0.5 bg-slate-400 rounded-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (isBento || isFresherGrid) {
+    return (
+      <div
+        className={`w-full h-24 rounded-lg border overflow-hidden p-2 flex flex-col gap-1.5 transition-all select-none ${
+          isSelected ? 'bg-blue-50/50 border-blue-500 shadow-2xs' : 'bg-slate-50/70 border-slate-200 group-hover:border-slate-300'
+        }`}
+      >
+        <div className="flex gap-1">
+          <div className="flex-1 h-4 rounded-xs bg-white border border-slate-200 p-1 flex flex-col justify-center gap-0.5">
+            <div className="w-10 h-1 bg-slate-800 rounded-xs" />
+            <div className="w-6 h-0.5 rounded-full" style={{ backgroundColor: accent }} />
+          </div>
+          {isBento && (
+            <div className="w-8 h-4 rounded-xs border p-0.5 flex flex-col justify-center gap-0.5" style={{ borderColor: accent }}>
+              <div className="w-full h-0.5 bg-slate-400 rounded-full" />
+              <div className="w-4/5 h-0.5 bg-slate-400 rounded-full" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 grid grid-cols-2 gap-1">
+          <div className="rounded-xs bg-white border border-slate-200 p-1">
+            <div className="w-6 h-0.5 rounded-full mb-0.5" style={{ backgroundColor: accent }} />
+            <div className="w-full h-0.5 bg-slate-300 rounded-full" />
+          </div>
+          <div className="rounded-xs bg-white border border-slate-200 p-1">
+            <div className="w-6 h-0.5 rounded-full mb-0.5" style={{ backgroundColor: accent }} />
+            <div className="w-full h-0.5 bg-slate-300 rounded-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div 
+    <div
       className={`w-full h-24 rounded-lg border overflow-hidden p-2 flex flex-col justify-between transition-all select-none ${
         isSelected ? 'bg-blue-50/50 border-blue-500 shadow-2xs' : 'bg-slate-50/70 border-slate-200 group-hover:border-slate-300'
       }`}
     >
-      {/* Top Banner / Strip if applicable */}
       {isTopStrip ? (
         <div className="w-full h-2 rounded-xs mb-1 flex items-center px-1" style={{ backgroundColor: accent }}>
           <div className="w-8 h-0.5 bg-white/80 rounded-full" />
         </div>
       ) : null}
 
-      {/* Miniature Header Simulation */}
       <div className={`flex flex-col ${isCentered ? 'items-center text-center' : 'items-start'} mb-1`}>
         <div className={`flex items-center gap-1 w-full ${isCentered ? 'justify-center' : ''}`}>
           {!isCentered && (
@@ -74,49 +194,25 @@ function TemplateThumbnail({ tpl, isSelected, accentColor }) {
         </div>
       </div>
 
-      {/* Miniature Body Columns Simulation */}
-      {isTwoCol ? (
-        <div className="flex-1 flex gap-1.5 items-stretch overflow-hidden">
-          {/* Left Rail */}
-          <div className="w-[34%] rounded-xs p-1 flex flex-col gap-1 border-r border-slate-200/60" style={{ backgroundColor: `${accent}0d` }}>
-            <div className="w-full h-0.5 rounded-full" style={{ backgroundColor: accent }} />
-            <div className="w-4/5 h-0.5 bg-slate-300 rounded-full" />
-            <div className="w-3/5 h-0.5 bg-slate-300 rounded-full mt-0.5" />
-            <div className="flex gap-0.5 mt-auto">
-              <div className="w-2 h-0.5 bg-slate-400 rounded-xs" />
-              <div className="w-2 h-0.5 bg-slate-400 rounded-xs" />
-            </div>
+      <div className="flex-1 flex flex-col justify-around py-0.5 overflow-hidden">
+        <div className="w-full h-0.5 rounded-full" style={{ backgroundColor: accent }} />
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1">
+            <div className="w-1 h-0.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+            <div className="w-4/5 h-0.5 bg-slate-400 rounded-full" />
           </div>
-          {/* Right Content */}
-          <div className="flex-1 flex flex-col gap-1 py-0.5">
-            <div className="w-full h-0.5 bg-slate-700 rounded-full" />
-            <div className="w-5/6 h-0.5 bg-slate-300 rounded-full" />
-            <div className="w-full h-0.5 bg-slate-300 rounded-full" />
-            <div className="w-3/4 h-0.5 bg-slate-300 rounded-full" />
+          <div className="flex items-center gap-1">
+            <div className="w-1 h-0.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+            <div className="w-3/5 h-0.5 bg-slate-400 rounded-full" />
           </div>
         </div>
-      ) : (
-        /* Single Column / Compact Simulation */
-        <div className="flex-1 flex flex-col justify-around py-0.5 overflow-hidden">
-          <div className="w-full h-0.5 rounded-full" style={{ backgroundColor: accent }} />
-          <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-1">
-              <div className="w-1 h-0.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
-              <div className="w-4/5 h-0.5 bg-slate-400 rounded-full" />
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-1 h-0.5 rounded-full shrink-0" style={{ backgroundColor: accent }} />
-              <div className="w-3/5 h-0.5 bg-slate-400 rounded-full" />
-            </div>
-          </div>
-          <div className="w-2/3 h-0.5 rounded-full" style={{ backgroundColor: `${accent}66` }} />
-          <div className="flex gap-1">
-            <div className="w-5 h-1 bg-slate-200 rounded-xs" />
-            <div className="w-5 h-1 bg-slate-200 rounded-xs" />
-            <div className="w-5 h-1 bg-slate-200 rounded-xs" />
-          </div>
+        <div className="w-2/3 h-0.5 rounded-full" style={{ backgroundColor: `${accent}66` }} />
+        <div className="flex gap-1">
+          <div className="w-5 h-1 bg-slate-200 rounded-xs" />
+          <div className="w-5 h-1 bg-slate-200 rounded-xs" />
+          <div className="w-5 h-1 bg-slate-200 rounded-xs" />
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -211,18 +307,19 @@ export default function InteractiveLiveStudio({
     setSelectedAccent(accentToUse);
     setSelectedFont(fontToUse);
 
-    const isTwoCol = templateToUse === 'two-column-pro' || templateToUse.includes('sidebar') || templateToUse.includes('split') || templateToUse.includes('duo');
+    const tplMeta = getTemplateById(templateToUse);
+    const resolvedLayout = tplMeta?.layout || 'single-column';
 
     const updatedCv = {
       ...resume,
-      layoutType: isTwoCol ? 'two-column-sidebar' : 'single-column',
+      layoutType: resolvedLayout,
       templateId: templateToUse,
       styleProfile: {
         ...(resume.styleProfile || {}),
         templateId: templateToUse,
         accentColor: accentToUse,
         fontFamily: fontToUse,
-        layoutType: isTwoCol ? 'two-column-sidebar' : 'single-column'
+        layoutType: resolvedLayout
       }
     };
     onUpdateResume(updatedCv, `Applied ${templateToUse} template`);
