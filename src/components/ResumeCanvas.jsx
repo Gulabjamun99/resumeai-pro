@@ -2,6 +2,7 @@ import React from 'react';
 import { Mail, Phone, MapPin, Globe, Code, ExternalLink, Award, BookOpen, Briefcase, GraduationCap, Sparkles } from 'lucide-react';
 import { normalizeCvSchema } from '../utils/cvNormalizer.js';
 import { TEMPLATES, getTemplateById } from '../data/templateCatalog.js';
+import { resolveFontStyle, isDarkHex } from '../utils/resumeStyles.js';
 
 export { TEMPLATES, getTemplateById };
 
@@ -21,6 +22,8 @@ export default function ResumeCanvas({
   id = "resume-document", 
   accentColor = "#2563eb",
   fontFamily = "font-sans",
+  textColor = "",
+  sidebarBgColor = "",
   templateId = "modern-executive",
   autoFitTokens = null,
   highlightedPaths = []
@@ -42,7 +45,11 @@ export default function ResumeCanvas({
   const templateConfig = getTemplateById(activeTemplate);
 
   const activeAccent = accentColor || cv.styleProfile?.accentColor || templateConfig.accentColor || "#2563eb";
-  const activeFont = fontFamily || cv.styleProfile?.fontFamily || templateConfig.fontFamily || "font-sans";
+  const rawFont = fontFamily || cv.styleProfile?.fontFamily || templateConfig.fontFamily || "font-sans";
+  const resolvedFont = resolveFontStyle(rawFont);
+  const activeFont = resolvedFont.baseClass;
+  const activeTextColor = textColor || cv.styleProfile?.textColor || "";
+  const activeSidebarBg = sidebarBgColor || cv.styleProfile?.sidebarBg || "";
 
   // Visual highlight helper for modified field paths
   const isPathHighlighted = (pathPrefix) => {
@@ -83,12 +90,47 @@ export default function ResumeCanvas({
     maxWidth: '820px',
     minHeight: '1120px',
     boxSizing: 'border-box',
+    fontFamily: resolvedFont.cssFamily,
+    ...(activeTextColor ? { color: activeTextColor } : {}),
     '--font-scale': `${autoFitTokens?.fontScale || 1.0}`,
     '--line-height': `${autoFitTokens?.lineHeight || 1.35}`,
     '--section-spacing': `${autoFitTokens?.sectionSpacingPx || 14}px`,
     '--item-spacing': `${autoFitTokens?.itemSpacingPx || 8}px`,
     fontSize: `calc(1rem * var(--font-scale, 1.0))`,
     lineHeight: `var(--line-height, 1.35)`
+  };
+
+  // Dynamic scoped style override when user picks custom Text Color or Column Background Color
+  const renderCustomThemeCss = () => {
+    if (!activeTextColor && !activeSidebarBg) return null;
+    const colDark = isDarkHex(activeSidebarBg);
+    return (
+      <style>{`
+        ${activeTextColor ? `
+          #${id} p, #${id} li, #${id} div, #${id} span:not([style*="color"]) {
+            color: ${activeTextColor};
+          }
+          #${id} aside[data-dark-col="true"] p,
+          #${id} aside[data-dark-col="true"] span,
+          #${id} aside[data-dark-col="true"] a,
+          #${id} aside[data-dark-col="true"] div {
+            color: #e2e8f0;
+          }
+        ` : ''}
+        ${activeSidebarBg ? `
+          #${id} aside,
+          #${id} .resume-col-card {
+            background-color: ${activeSidebarBg} !important;
+            ${colDark ? 'color: #f8fafc !important;' : ''}
+          }
+          ${colDark ? `
+            #${id} aside *, #${id} .resume-col-card * {
+              color: #f1f5f9;
+            }
+          ` : ''}
+        ` : ''}
+      `}</style>
+    );
   };
 
   // ========================================================
@@ -101,6 +143,7 @@ export default function ResumeCanvas({
         className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col font-serif p-10 sm:p-12 transition-all duration-200 print:shadow-none print:m-0`}
         style={{ ...a4CanvasStyle, color: '#111827' }}
       >
+      {renderCustomThemeCss()}
         <header className="text-center border-b pb-4 mb-4" style={{ borderColor: '#d1d5db' }}>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-wide uppercase text-slate-950">
             {header.name || "Candidate Name"}
@@ -265,6 +308,7 @@ export default function ResumeCanvas({
         className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} p-8 sm:p-10 transition-all duration-200 print:shadow-none print:m-0`}
         style={a4CanvasStyle}
       >
+      {renderCustomThemeCss()}
         <header className="flex flex-col sm:flex-row sm:items-end justify-between border-b pb-3.5 mb-4 gap-2" style={{ borderColor: '#e2e8f0' }}>
           <div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
@@ -409,6 +453,7 @@ export default function ResumeCanvas({
         className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} p-6 sm:p-8 transition-all duration-200 print:shadow-none print:m-0`}
         style={a4CanvasStyle}
       >
+      {renderCustomThemeCss()}
         <header className="border-b pb-2.5 mb-3" style={{ borderColor: activeAccent }}>
           <div className="flex flex-col sm:flex-row sm:items-baseline justify-between">
             <h1 className="text-xl sm:text-2xl font-black uppercase text-slate-950 tracking-tight">
@@ -557,16 +602,18 @@ export default function ResumeCanvas({
 
   if (isTwoColLayout) {
     const bulletChar = getBulletSymbol(templateConfig.bulletStyle);
-    const isDarkSidebar = templateConfig.layout === 'two-column-dark';
+    const isDarkSidebar = activeSidebarBg ? isDarkHex(activeSidebarBg) : templateConfig.layout === 'two-column-dark';
     const isRightSidebar = templateConfig.layout === 'two-column-right';
     const isBannerTop = templateConfig.layout === 'banner-two-column';
 
     const sidebarText = isDarkSidebar ? 'text-slate-200' : 'text-slate-600';
     const sidebarHeadingColor = isDarkSidebar ? '#93c5fd' : activeAccent;
     const sidebarBorderColor = isDarkSidebar ? 'rgba(255,255,255,0.16)' : `${activeAccent}33`;
-    const sidebarBgStyle = isDarkSidebar
+    const sidebarBgStyle = activeSidebarBg
+      ? { backgroundColor: activeSidebarBg }
+      : isDarkSidebar
       ? { backgroundColor: '#0f172a' }
-      : { backgroundColor: cv.styleProfile?.sidebarBg || `${activeAccent}08` };
+      : { backgroundColor: `${activeAccent}08` };
 
     const renderSidebarContent = () => (
       <>
@@ -817,6 +864,7 @@ export default function ResumeCanvas({
           className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col text-left ${activeFont} transition-all duration-200 print:shadow-none print:m-0`}
           style={a4CanvasStyle}
         >
+      {renderCustomThemeCss()}
           {/* Full-Width Executive Top Banner */}
           <header className="px-8 py-6 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ backgroundColor: activeAccent }}>
             <div>
@@ -842,7 +890,7 @@ export default function ResumeCanvas({
 
           {/* 2-Column Body Below Banner */}
           <div className="flex flex-row flex-1">
-            <aside className="w-[32%] min-w-[230px] p-6 flex flex-col gap-4 shrink-0 border-r border-slate-200" style={sidebarBgStyle}>
+            <aside data-dark-col={isDarkSidebar ? "true" : "false"} className="w-[32%] min-w-[230px] p-6 flex flex-col gap-4 shrink-0 border-r border-slate-200" style={sidebarBgStyle}>
               {renderSidebarContent()}
             </aside>
             {renderMainBody()}
@@ -857,8 +905,8 @@ export default function ResumeCanvas({
         className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex ${isRightSidebar ? 'flex-row-reverse' : 'flex-row'} text-left ${activeFont} transition-all duration-200 print:shadow-none print:m-0`}
         style={a4CanvasStyle}
       >
-        <aside
-          className={`w-[33%] min-w-[240px] p-6 sm:p-7 flex flex-col gap-5 shrink-0 ${
+      {renderCustomThemeCss()}
+        <aside data-dark-col={isDarkSidebar ? "true" : "false"} className={`w-[33%] min-w-[240px] p-6 sm:p-7 flex flex-col gap-5 shrink-0 ${
             isRightSidebar ? 'border-l border-slate-200' : isDarkSidebar ? '' : 'border-r border-slate-200'
           }`}
           style={sidebarBgStyle}
@@ -881,6 +929,7 @@ export default function ResumeCanvas({
         className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} p-8 sm:p-10 transition-all duration-200 print:shadow-none print:m-0`}
         style={a4CanvasStyle}
       >
+      {renderCustomThemeCss()}
         <header className="border-b-2 pb-3.5 mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2" style={{ borderColor: activeAccent }}>
           <div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-950 uppercase">
@@ -994,6 +1043,7 @@ export default function ResumeCanvas({
         className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} p-7 sm:p-9 transition-all duration-200 print:shadow-none print:m-0`}
         style={a4CanvasStyle}
       >
+      {renderCustomThemeCss()}
         {/* Bento Grid Header */}
         <header className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4">
           <div className="sm:col-span-2 p-3.5 rounded-xl border border-slate-200 bg-slate-50/80 flex flex-col justify-center">
@@ -1129,6 +1179,7 @@ export default function ResumeCanvas({
         className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} p-6 sm:p-8 transition-all duration-200 print:shadow-none print:m-0`}
         style={a4CanvasStyle}
       >
+      {renderCustomThemeCss()}
         <header className="border-b-2 pb-2.5 mb-3 text-center" style={{ borderColor: activeAccent }}>
           <h1 className="text-2xl font-black tracking-tight text-slate-950 uppercase">{header.name || "Candidate Name"}</h1>
           {header.title && <p className="text-xs font-bold mt-0.5" style={{ color: activeAccent }}>{header.title}</p>}
@@ -1569,6 +1620,7 @@ export default function ResumeCanvas({
       className={`resume-canvas bg-white text-slate-900 shadow-xl mx-auto flex flex-col ${activeFont} ${paddingMap[density] || 'p-8 sm:p-10'} transition-all duration-200 print:shadow-none print:m-0`}
       style={a4CanvasStyle}
     >
+      {renderCustomThemeCss()}
       {/* 1. Header */}
       {renderHeader()}
 

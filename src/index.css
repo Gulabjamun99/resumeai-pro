@@ -97,13 +97,20 @@
 }
 
 /* Print & PDF Page Break Hardening */
+@page {
+  size: A4 portrait;
+  margin: 12mm 0;
+}
+
 @media print {
   body {
     background-color: #ffffff !important;
     color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  header, footer, .no-print {
+  aside.no-print, .no-print {
     display: none !important;
   }
 
@@ -112,10 +119,17 @@
   #resume-document,
   #preview-resume-updated-screen8 {
     box-shadow: none !important;
-    margin: 0 !important;
-    width: 100% !important;
+    margin: 0 auto !important;
+    width: 210mm !important;
+    max-width: 210mm !important;
   }
 
+  .resume-canvas section,
+  .resume-canvas h1,
+  .resume-canvas h2,
+  .resume-canvas h3,
+  .resume-canvas li,
+  .break-inside-avoid,
   .page-break-inside-avoid,
   .cv-section,
   .cv-experience-item,

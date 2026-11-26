@@ -11,6 +11,7 @@ import { exportResumeToPdf } from '../utils/pdfExporter.js';
 import { exportResumeToDocx } from '../utils/docxExporter.js';
 import { refineCvWithAi, tailorCvToJd } from '../services/geminiService.js';
 import { calculateAutoFitTokens } from '../utils/autoFitEngine.js';
+import { RESUME_FONTS, ACCENT_PALETTE, TEXT_COLOR_PALETTE, COLUMN_BG_PALETTE } from '../utils/resumeStyles.js';
 import confetti from 'canvas-confetti';
 
 export { TEMPLATES };
@@ -234,6 +235,8 @@ export default function InteractiveLiveStudio({
   );
   const [selectedAccent, setSelectedAccent] = useState(resume?.styleProfile?.accentColor || '#2563eb');
   const [selectedFont, setSelectedFont] = useState(resume?.styleProfile?.fontFamily || 'font-sans');
+  const [selectedTextColor, setSelectedTextColor] = useState(resume?.styleProfile?.textColor || '');
+  const [selectedSidebarBg, setSelectedSidebarBg] = useState(resume?.styleProfile?.sidebarBg || '');
   const [jdInputText, setJdInputText] = useState('');
   const [jdMatchResult, setJdMatchResult] = useState(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -298,14 +301,24 @@ export default function InteractiveLiveStudio({
   }, [versionHistory, onRollback]);
 
   // Handle Design & Style Updates (Persists to CV State)
-  const handleUpdateStyle = (newTemplate, newAccent, newFont) => {
+  const handleUpdateStyle = (
+    newTemplate,
+    newAccent,
+    newFont,
+    newTextColor = selectedTextColor,
+    newSidebarBg = selectedSidebarBg
+  ) => {
     const templateToUse = newTemplate || selectedTemplate;
     const accentToUse = newAccent || selectedAccent;
     const fontToUse = newFont || selectedFont;
+    const textColorToUse = newTextColor !== undefined ? newTextColor : selectedTextColor;
+    const sidebarBgToUse = newSidebarBg !== undefined ? newSidebarBg : selectedSidebarBg;
 
     setSelectedTemplate(templateToUse);
     setSelectedAccent(accentToUse);
     setSelectedFont(fontToUse);
+    setSelectedTextColor(textColorToUse);
+    setSelectedSidebarBg(sidebarBgToUse);
 
     const tplMeta = getTemplateById(templateToUse);
     const resolvedLayout = tplMeta?.layout || 'single-column';
@@ -319,10 +332,12 @@ export default function InteractiveLiveStudio({
         templateId: templateToUse,
         accentColor: accentToUse,
         fontFamily: fontToUse,
+        textColor: textColorToUse,
+        sidebarBg: sidebarBgToUse,
         layoutType: resolvedLayout
       }
     };
-    onUpdateResume(updatedCv, `Applied ${templateToUse} template`);
+    onUpdateResume(updatedCv, `Applied ${templateToUse} style`);
   };
 
   // Filter templates: global search across all 75 templates when query present, otherwise by category
@@ -457,7 +472,7 @@ export default function InteractiveLiveStudio({
     setIsExportingPdf(true);
     try {
       const candidateName = resume?.header?.name || 'Candidate';
-      await exportResumeToPdf('resume-document', candidateName);
+      await exportResumeToPdf('resume-document', candidateName, pageMode);
     } catch (err) {
       console.error("PDF Export failed:", err);
       alert(`PDF Export Failed: ${err.message}`);
@@ -482,7 +497,7 @@ export default function InteractiveLiveStudio({
     <div className="w-full h-screen flex flex-col md:flex-row overflow-hidden bg-slate-100">
       
       {/* LEFT CONTROL PANEL (40% width) */}
-      <aside className="w-full md:w-[42%] lg:w-[40%] flex flex-col h-full bg-white border-r border-slate-200 z-10 shadow-sm">
+      <aside className="no-print w-full md:w-[42%] lg:w-[40%] flex flex-col h-full bg-white border-r border-slate-200 z-10 shadow-sm">
         
         {/* Studio Navigation Header */}
         <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
@@ -836,52 +851,140 @@ export default function InteractiveLiveStudio({
               )}
             </div>
 
-            {/* Accent Color Palette */}
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                <Palette className="w-3.5 h-3.5 text-blue-600" />
-                <span>Executive Accent Color</span>
-              </h4>
-              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                {ACCENT_COLORS.map(c => (
+            {/* 1. Accent / Heading Color Palette + Custom Picker */}
+            <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Accent & Heading Color</span>
+                </h4>
+                <label className="flex items-center gap-1.5 text-[10.5px] font-semibold text-slate-600 cursor-pointer bg-white border border-slate-200 px-2 py-1 rounded-lg hover:border-blue-400">
+                  <input
+                    type="color"
+                    value={selectedAccent || '#2563eb'}
+                    onChange={(e) => handleUpdateStyle(selectedTemplate, e.target.value, selectedFont)}
+                    className="w-4 h-4 rounded cursor-pointer border-0 p-0 bg-transparent"
+                  />
+                  <span>Custom</span>
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {ACCENT_PALETTE.map(c => (
                   <button
                     key={c.value}
                     type="button"
                     onClick={() => handleUpdateStyle(selectedTemplate, c.value, selectedFont)}
                     title={c.name}
-                    className={`h-9 rounded-lg flex items-center justify-center transition cursor-pointer shadow-xs ${
-                      selectedAccent === c.value ? 'ring-2 ring-offset-2 ring-slate-900 scale-105' : 'hover:scale-102'
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition cursor-pointer shadow-2xs ${
+                      selectedAccent === c.value ? 'ring-2 ring-offset-1 ring-slate-900 scale-110' : 'hover:scale-105'
                     }`}
                     style={{ backgroundColor: c.value }}
                   >
-                    {selectedAccent === c.value && <Check className="w-4 h-4 text-white" />}
+                    {selectedAccent === c.value && <Check className="w-3.5 h-3.5 text-white" />}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Typography Fonts */}
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5">
-                Typography Font
-              </h4>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: "Modern Sans", value: "font-sans" },
-                  { label: "Classic Serif", value: "font-serif" },
-                  { label: "Tech Mono", value: "font-mono" }
-                ].map(f => (
+            {/* 2. All Text Color Palette + Custom Picker */}
+            <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  All Text Color
+                </h4>
+                <label className="flex items-center gap-1.5 text-[10.5px] font-semibold text-slate-600 cursor-pointer bg-white border border-slate-200 px-2 py-1 rounded-lg hover:border-blue-400">
+                  <input
+                    type="color"
+                    value={selectedTextColor || '#0f172a'}
+                    onChange={(e) => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, e.target.value, selectedSidebarBg)}
+                    className="w-4 h-4 rounded cursor-pointer border-0 p-0 bg-transparent"
+                  />
+                  <span>Custom</span>
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {TEXT_COLOR_PALETTE.map(c => (
                   <button
-                    key={f.value}
+                    key={c.name}
                     type="button"
-                    onClick={() => handleUpdateStyle(selectedTemplate, selectedAccent, f.value)}
-                    className={`p-2.5 rounded-lg border text-center text-xs font-medium transition cursor-pointer ${
-                      selectedFont === f.value
-                        ? 'border-blue-600 bg-blue-50/50 text-blue-700 font-bold'
+                    onClick={() => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, c.value, selectedSidebarBg)}
+                    title={c.name}
+                    className={`h-7 px-2 rounded-lg border text-[10.5px] font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                      selectedTextColor === c.value
+                        ? 'ring-2 ring-blue-600 border-blue-600 bg-white text-slate-900'
                         : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
                     }`}
                   >
-                    {f.label}
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0"
+                      style={{ backgroundColor: c.value || '#334155' }}
+                    />
+                    <span>{c.value ? c.name.split(' ')[0] : 'Auto'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. Column / Sidebar Background Color Palette + Custom Picker */}
+            <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Column / Sidebar Color
+                </h4>
+                <label className="flex items-center gap-1.5 text-[10.5px] font-semibold text-slate-600 cursor-pointer bg-white border border-slate-200 px-2 py-1 rounded-lg hover:border-blue-400">
+                  <input
+                    type="color"
+                    value={selectedSidebarBg || '#f8fafc'}
+                    onChange={(e) => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, selectedTextColor, e.target.value)}
+                    className="w-4 h-4 rounded cursor-pointer border-0 p-0 bg-transparent"
+                  />
+                  <span>Custom</span>
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {COLUMN_BG_PALETTE.map(c => (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, selectedTextColor, c.value)}
+                    title={c.name}
+                    className={`h-7 px-2 rounded-lg border text-[10.5px] font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+                      selectedSidebarBg === c.value
+                        ? 'ring-2 ring-blue-600 border-blue-600 bg-white text-slate-900'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0"
+                      style={{ background: c.value || 'linear-gradient(135deg,#f8fafc 50%,#cbd5e1 50%)' }}
+                    />
+                    <span>{c.value ? c.name.split(' ')[0] : 'Auto'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 4. 19 Professional Resume Fonts */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                <span>Resume Font Style ({RESUME_FONTS.length})</span>
+                <span className="text-[10px] font-normal text-slate-500 normal-case">ATS-Readable Typefaces</span>
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                {RESUME_FONTS.map(f => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => handleUpdateStyle(selectedTemplate, selectedAccent, f.id)}
+                    style={{ fontFamily: f.cssFamily }}
+                    className={`px-2.5 py-2 rounded-lg border text-left text-xs transition cursor-pointer flex items-center justify-between gap-1 ${
+                      selectedFont === f.id
+                        ? 'border-blue-600 bg-blue-50/70 text-blue-700 font-bold ring-1 ring-blue-600'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                    }`}
+                  >
+                    <span className="truncate">{f.label}</span>
+                    <span className="text-[9px] text-slate-400 font-sans shrink-0">{f.category}</span>
                   </button>
                 ))}
               </div>
@@ -1024,7 +1127,7 @@ export default function InteractiveLiveStudio({
       {/* RIGHT PREVIEW CANVAS PANEL (60% width) */}
       <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-200/60 relative">
         {/* Floating Top Control Toolbar */}
-        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-2xs">
+        <div className="no-print sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-2xs">
           {/* Zoom Controls & Page Info */}
           <div className="flex items-center gap-2">
             <button
@@ -1145,6 +1248,8 @@ export default function InteractiveLiveStudio({
               id="resume-document"
               accentColor={selectedAccent}
               fontFamily={selectedFont}
+              textColor={selectedTextColor}
+              sidebarBgColor={selectedSidebarBg}
               templateId={selectedTemplate}
               autoFitTokens={autoFitTokens}
               highlightedPaths={highlightedPaths}

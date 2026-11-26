@@ -1,13 +1,14 @@
 import { test, expect } from '@playwright/test';
+import fs from 'fs';
 
-test.describe('Auto-Fit 1/2-Page Engine & Clickable Link Badges', () => {
+test.describe('Auto-Fit 1/2-Page Engine, Multicolor/Fonts & Vector PDF', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => localStorage.clear());
     await page.reload();
   });
 
-  test('Auto-Fit toggle switches between Strict 1-Page and Max 2-Page mode and export buttons are active', async ({ page }) => {
+  test('Auto-Fit toggle, 19 Fonts, Text/Column Colors, and Vector Selectable PDF Download', async ({ page }) => {
     // Upload test CV to enter Interactive Live Studio
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles('tests/fixtures/e2e_test_candidate.txt');
@@ -18,23 +19,36 @@ test.describe('Auto-Fit 1/2-Page Engine & Clickable Link Badges', () => {
     // Verify Strict 1-Page and Max 2-Page buttons exist
     const strict1PageBtn = page.getByRole('button', { name: /Strict 1-Page/i });
     const max2PageBtn = page.getByRole('button', { name: /Max 2-Page/i });
-
     await expect(strict1PageBtn).toBeVisible();
     await expect(max2PageBtn).toBeVisible();
 
-    // Toggle to Max 2-Page
     await max2PageBtn.click();
-    await page.waitForTimeout(300);
-
-    // Toggle back to Strict 1-Page
+    await page.waitForTimeout(200);
     await strict1PageBtn.click();
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(200);
 
-    // Verify Export buttons exist and are active
-    const pdfBtn = page.getByRole('button', { name: /Download PDF/i });
-    const docxBtn = page.getByRole('button', { name: /Word DOCX/i });
+    // Open Templates & Styles tab and verify 19 fonts + Text Color + Column Color
+    await page.click('button:has-text("Templates & Styles")');
+    await expect(page.locator('text=Accent & Heading Color')).toBeVisible();
+    await expect(page.locator('text=All Text Color')).toBeVisible();
+    await expect(page.locator('text=Column / Sidebar Color')).toBeVisible();
+    await expect(page.locator('text=Resume Font Style (19)')).toBeVisible();
 
-    await expect(pdfBtn).toBeVisible();
-    await expect(docxBtn).toBeVisible();
+    // Select a two-column template + Merriweather font
+    await page.click('button:has-text("Modern Two-Column Pro")');
+    await page.click('button:has-text("Merriweather")');
+    await expect(page.locator('#resume-document')).toHaveClass(/font-serif/);
+
+    // Verify Download PDF produces a true Vector PDF (contains /Type /Font and no /Subtype /Image)
+    const downloadPromise = page.waitForEvent('download', { timeout: 15000 });
+    await page.getByRole('button', { name: /Download PDF/i }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/_ATS_Resume\.pdf$/);
+
+    const pdfPath = await download.path();
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    const pdfRaw = pdfBuffer.toString('latin1');
+    expect(pdfRaw).toContain('/Type /Font');
+    expect(pdfRaw).not.toContain('/Subtype /Image');
   });
 });
