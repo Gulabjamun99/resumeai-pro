@@ -79,16 +79,22 @@ export function normalizeCvSchema(rawCv) {
 
   // 6. Projects Normalization
   const rawProj = cv.projects || cv.keyProjects || [];
-  cv.projects = (Array.isArray(rawProj) ? rawProj : [rawProj]).filter(Boolean).map(proj => ({
-    title: proj.title || proj.name || "Project",
-    description: proj.description || proj.summary || "",
-    tech: proj.tech || proj.technologies || "",
-    link: proj.link || proj.url || "",
-    url: proj.url || proj.link || "",
-    bullets: Array.isArray(proj.bullets)
-      ? proj.bullets.filter(b => typeof b === 'string' && b.trim().length > 0)
-      : (proj.description ? [proj.description] : [])
-  }));
+  cv.projects = (Array.isArray(rawProj) ? rawProj : [rawProj]).filter(Boolean).map(proj => {
+    const rawTech = proj.tech || proj.technologies || "";
+    const techStr = Array.isArray(rawTech)
+      ? rawTech.map(t => String(t).trim()).filter(Boolean).join(', ')
+      : String(rawTech || "").trim();
+    return {
+      title: proj.title || proj.name || "Project",
+      description: proj.description || proj.summary || "",
+      tech: techStr,
+      link: proj.link || proj.url || "",
+      url: proj.url || proj.link || "",
+      bullets: Array.isArray(proj.bullets)
+        ? proj.bullets.filter(b => typeof b === 'string' && b.trim().length > 0)
+        : (proj.description ? [proj.description] : [])
+    };
+  });
 
   // 7. Certifications Normalization
   const rawCerts = cv.certifications || cv.certificates || [];

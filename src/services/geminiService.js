@@ -335,36 +335,69 @@ function applyHeuristicRefinements(userInstruction, currentCv) {
   // -------------------------------------------------------------
   // 2. Project Name Renaming / Replacement (e.g. 'Kharcha Book ke jgah kharcha desk krye')
   // -------------------------------------------------------------
-  const replaceMatch = text.match(/([a-zA-Z0-9\s_-]+?)\s*(?:ke\s*jgah|ke\s*badle|replace\s*with|ko)\s*([a-zA-Z0-9\s_-]+?)\s*(?:krye|kariye|karo|likho|rakho|kardo|make|set)/i) ||
-                       text.match(/(?:replace|badal\s*ke)\s*["']?([a-zA-Z0-9\s_-]+)["']?\s*(?:with|se|to)\s*["']?([a-zA-Z0-9\s_-]+)["']?/i);
+  const replaceMatch = text.match(/([a-zA-Z0-9\s_-]+?)\s*(?:ke\s*jgah|ke\s*jagah|ke\s*badle|replace\s*with|ko)\s*([a-zA-Z0-9\s_-]+?)\s*(?:krye|kariye|karo|likho|rakho|kardo|kar\s*do|make|set)/i) ||
+                       text.match(/(?:replace|change|edit|badal\s*ke)\s*["']?([a-zA-Z0-9\s_-]+)["']?\s*(?:with|se|to)\s*["']?([a-zA-Z0-9\s_-]+)["']?/i);
   if (replaceMatch && replaceMatch[1] && replaceMatch[2]) {
     const oldName = replaceMatch[1].trim().replace(/^['"]|['"]$/g, '');
     const newName = replaceMatch[2].trim().replace(/^['"]|['"]$/g, '');
-    if (oldName.length > 2 && newName.length > 1) {
+    if (oldName.length > 1 && newName.length > 1) {
+      const escapedOld = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const oldRe = new RegExp(escapedOld, 'i');
+      const oldReGlobal = new RegExp(escapedOld, 'gi');
       let replacedCount = 0;
+
       if (Array.isArray(cv.projects)) {
         cv.projects.forEach(p => {
-          if (p.title && new RegExp(oldName, 'i').test(p.title)) {
-            p.title = p.title.replace(new RegExp(oldName, 'gi'), newName);
+          if (p.title && oldRe.test(p.title)) {
+            p.title = p.title.replace(oldReGlobal, newName);
             replacedCount++;
           }
-          if (p.description && new RegExp(oldName, 'i').test(p.description)) {
-            p.description = p.description.replace(new RegExp(oldName, 'gi'), newName);
+          if (p.tech && typeof p.tech === 'string' && oldRe.test(p.tech)) {
+            p.tech = p.tech.replace(oldReGlobal, newName);
+            replacedCount++;
+          }
+          if (p.description && oldRe.test(p.description)) {
+            p.description = p.description.replace(oldReGlobal, newName);
             replacedCount++;
           }
           if (Array.isArray(p.bullets)) {
-            p.bullets = p.bullets.map(b => b.replace(new RegExp(oldName, 'gi'), newName));
+            p.bullets = p.bullets.map(b => {
+              if (oldRe.test(b)) { replacedCount++; return b.replace(oldReGlobal, newName); }
+              return b;
+            });
           }
         });
       }
-      if (cv.header?.summary && new RegExp(oldName, 'i').test(cv.header.summary)) {
-        cv.header.summary = cv.header.summary.replace(new RegExp(oldName, 'gi'), newName);
+      if (Array.isArray(cv.experiences)) {
+        cv.experiences.forEach(e => {
+          if (e.company && oldRe.test(e.company)) { e.company = e.company.replace(oldReGlobal, newName); replacedCount++; }
+          if (e.role && oldRe.test(e.role)) { e.role = e.role.replace(oldReGlobal, newName); replacedCount++; }
+          if (Array.isArray(e.bullets)) {
+            e.bullets = e.bullets.map(b => {
+              if (oldRe.test(b)) { replacedCount++; return b.replace(oldReGlobal, newName); }
+              return b;
+            });
+          }
+        });
+      }
+      if (Array.isArray(cv.skills)) {
+        cv.skills = cv.skills.map(s => {
+          if (oldRe.test(s)) { replacedCount++; return s.replace(oldReGlobal, newName); }
+          return s;
+        });
+      }
+      if (cv.header?.title && oldRe.test(cv.header.title)) {
+        cv.header.title = cv.header.title.replace(oldReGlobal, newName);
+        replacedCount++;
+      }
+      if (cv.header?.summary && oldRe.test(cv.header.summary)) {
+        cv.header.summary = cv.header.summary.replace(oldReGlobal, newName);
         replacedCount++;
       }
       if (replacedCount > 0) {
         changed = true;
-        summary = `Renamed '${oldName}' to '${newName}'`;
-        explanation = `Aapke kehne par '${oldName}' ko professional corporate standard ke mutabiq '${newName}' se replace kar diya hai!`;
+        summary = `Updated '${oldName}' to '${newName}'`;
+        explanation = `Aapke kehne par '${oldName}' ko '${newName}' se replace kar diya gaya hai!`;
       }
     }
   }
@@ -584,11 +617,12 @@ function applyHeuristicRefinements(userInstruction, currentCv) {
   const isRemovalIntent = /(hataye|hataiye|hata\s*do|hatao|hata\s*de|nikal\s*do|nikalo|remove|delete|drop|hide|clear)/i.test(text);
   if (isRemovalIntent && !changed) {
     let targetRaw = text
-      .replace(/(?:usme\s*se|isme\s*se|cv\s*se|resume\s*(?:me|mein)?\s*se|please|pls|kripya|ye|isko|usse|ko|abhi|kuch)/gi, ' ')
-      .replace(/(?:hataye|hataiye|hata\s*do|hatao|hata\s*de|nikal\s*do|nikalo|remove|delete|drop|hide|clear|karo|kariye|krye|kardo|kar\s*do|kar\s*dijiye|dijiye)/gi, ' ')
+      .replace(/\b(?:hataye|hataiye|hata\s*do|hatao|hata\s*de|nikal\s*do|nikalo|remove|delete|drop|hide|clear|karo|kariye|krye|kardo|kar\s*do|kar\s*dijiye|dijiye)\b/gi, ' ')
+      .replace(/\b(?:usme\s*se|isme\s*se|cv\s*se|resume\s*(?:me|mein)?\s*se|please|pls|kripya|ye\s*sab|ye|isko|usse|ko|abhi|kuch|likha\s*hua|likha|hua|word[s]?|text|line[s]?|tag[s]?)\b/gi, ' ')
+      .replace(/["'`]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .replace(/^['"]|['"]$/g, '');
+      .replace(/^[-:,\s]+|[-:,\s]+$/g, '');
 
     if (targetRaw.length >= 2) {
       const lowerTarget = targetRaw.toLowerCase();
@@ -638,6 +672,38 @@ function applyHeuristicRefinements(userInstruction, currentCv) {
               removedParts.push(`project "${term}"`);
             } else {
               cv.projects.forEach(p => {
+                // Normalize p.tech if it is an array
+                if (Array.isArray(p.tech)) {
+                  p.tech = p.tech.map(t => String(t).trim()).filter(Boolean).join(', ');
+                }
+                if (p.tech && typeof p.tech === 'string') {
+                  const techCompact = p.tech.replace(/[\s,|•]+/g, '').toLowerCase();
+                  const termCompact = term.replace(/[\s,|•]+/g, '').toLowerCase();
+                  if (techCompact && termCompact && (techCompact === termCompact || techCompact.includes(termCompact))) {
+                    // Remove matching individual tech tokens or clear entire tech string if full match
+                    if (techCompact === termCompact) {
+                      p.tech = '';
+                      removedParts.push(`tech stack from ${p.title || 'project'}`);
+                    } else {
+                      const techItems = p.tech.split(/[,|•]+/).map(s => s.trim()).filter(Boolean);
+                      const remaining = techItems.filter(item => {
+                        const ic = item.replace(/\s+/g, '').toLowerCase();
+                        return !re.test(item) && !termCompact.includes(ic);
+                      });
+                      if (remaining.length < techItems.length) {
+                        p.tech = remaining.join(', ');
+                        removedParts.push(`"${term}" from ${p.title || 'project'} tech`);
+                      }
+                    }
+                  } else if (re.test(p.tech)) {
+                    p.tech = p.tech
+                      .split(/[,|•]+/)
+                      .map(s => s.trim())
+                      .filter(s => s && !re.test(s))
+                      .join(', ');
+                    removedParts.push(`"${term}" from ${p.title || 'project'} tech`);
+                  }
+                }
                 if (Array.isArray(p.bullets)) {
                   const bLen = p.bullets.length;
                   p.bullets = p.bullets.filter(b => !re.test(b));
@@ -712,7 +778,7 @@ function applyHeuristicRefinements(userInstruction, currentCv) {
     const topProjects = Array.isArray(cv.projects) && cv.projects.length > 0 ? cv.projects.slice(0, 3).map(p => p.title).filter(Boolean).join(', ') : '';
     const projectPhrase = topProjects ? ` Key initiatives include ${topProjects}.` : '';
 
-    cv.header.summary = `Results-driven ${title} with proven expertise in ${topSkills}. Demonstrated track record of delivering high-impact solutions, optimizing operational workflows, and driving measurable business outcomes.${projectPhrase}`;
+    cv.header.summary = `Results-driven ${title} with a proven track record and expertise in ${topSkills}. Demonstrated capability in delivering high-impact solutions, optimizing operational workflows, and driving measurable business outcomes.${projectPhrase}`;
 
     changed = true;
     summary = "Synthesized executive summary from verified CV skills & projects";
@@ -1010,7 +1076,26 @@ Apply the requested changes and return strictly valid JSON:`;
     const rawResult = await callGeminiApi(prompt, systemInstruction, chatHistory, { responseMimeType: "application/json" });
     const parsed = parseJsonSafely(rawResult);
     if (parsed && (parsed.updatedCv || parsed.cv)) {
-      const cvObj = parsed.updatedCv || parsed.cv;
+      let cvObj = parsed.updatedCv || parsed.cv;
+
+      // Ensure projects[].tech is always a clean comma-separated string, never an array
+      if (Array.isArray(cvObj.projects)) {
+        cvObj.projects = cvObj.projects.map(p => ({
+          ...p,
+          tech: Array.isArray(p.tech)
+            ? p.tech.map(t => String(t).trim()).filter(Boolean).join(', ')
+            : String(p.tech || '').trim()
+        }));
+      }
+
+      // Post-verification: if user asked to remove/delete something, ensure it's actually gone
+      if (/(hataye|hataiye|hata\s*do|hatao|hata\s*de|nikal\s*do|nikalo|remove|delete|drop|hide|clear)/i.test(userInstruction)) {
+        const verifiedRemoval = applyHeuristicRefinements(userInstruction, cvObj);
+        if (verifiedRemoval?.updatedCv) {
+          cvObj = verifiedRemoval.updatedCv;
+        }
+      }
+
       const modifiedPaths = parsed.modifiedFieldPaths || detectModifiedFieldPaths(currentCv, cvObj);
       return {
         ...parsed,
