@@ -578,22 +578,145 @@ function applyHeuristicRefinements(userInstruction, currentCv) {
   }
 
   // -------------------------------------------------------------
-  // 6. Comprehensive Profile Summary Overhaul
-  // (e.g. 'profile summary cv ke hisab acha banaye abhi chij ko bhi cover krye ache jisse job mil ske')
+  // 5B. Universal Removal / Deletion Handler (Hindi / Hinglish / English)
+  // Handles: "usme se X hataye", "X hata do", "remove X", "delete Y", "certifications hatao"
   // -------------------------------------------------------------
-  const isSummaryRequest = /(?:summary|profile|about|bio|intro|objective|parichay)/i.test(text) ||
-                           (/(?:sab[hi]?\s*chij|pura\s*cv|cv\s*ke\s*hisab)/i.test(text) && /(?:cover|acha|achha|ban)/i.test(text));
+  const isRemovalIntent = /(hataye|hataiye|hata\s*do|hatao|hata\s*de|nikal\s*do|nikalo|remove|delete|drop|hide|clear)/i.test(text);
+  if (isRemovalIntent && !changed) {
+    let targetRaw = text
+      .replace(/(?:usme\s*se|isme\s*se|cv\s*se|resume\s*(?:me|mein)?\s*se|please|pls|kripya|ye|isko|usse|ko|abhi|kuch)/gi, ' ')
+      .replace(/(?:hataye|hataiye|hata\s*do|hatao|hata\s*de|nikal\s*do|nikalo|remove|delete|drop|hide|clear|karo|kariye|krye|kardo|kar\s*do|kar\s*dijiye|dijiye)/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^['"]|['"]$/g, '');
+
+    if (targetRaw.length >= 2) {
+      const lowerTarget = targetRaw.toLowerCase();
+      const removedParts = [];
+
+      // Whole section checks
+      if (/^(?:certifications?|certs?)$/i.test(lowerTarget) && Array.isArray(cv.certifications) && cv.certifications.length > 0) {
+        cv.certifications = [];
+        removedParts.push('Certifications section');
+      } else if (/^(?:languages?)$/i.test(lowerTarget) && Array.isArray(cv.languages) && cv.languages.length > 0) {
+        cv.languages = [];
+        removedParts.push('Languages section');
+      } else if (/^(?:summary|profile\s*summary|about)$/i.test(lowerTarget) && cv.header?.summary) {
+        cv.header.summary = '';
+        removedParts.push('Profile Summary');
+      } else if (/^(?:projects?)$/i.test(lowerTarget) && Array.isArray(cv.projects) && cv.projects.length > 0) {
+        cv.projects = [];
+        removedParts.push('Projects section');
+      } else if (/^(?:location|address)$/i.test(lowerTarget) && cv.contact?.location) {
+        cv.contact.location = '';
+        removedParts.push('Location');
+      } else if (/^(?:phone|mobile|number)$/i.test(lowerTarget) && cv.contact?.phone) {
+        cv.contact.phone = '';
+        removedParts.push('Phone number');
+      } else if (/^(?:github)$/i.test(lowerTarget) && cv.contact?.github) {
+        cv.contact.github = '';
+        removedParts.push('GitHub link');
+      } else if (/^(?:linkedin)$/i.test(lowerTarget) && cv.contact?.linkedin) {
+        cv.contact.linkedin = '';
+        removedParts.push('LinkedIn link');
+      } else {
+        // Surgical item/text removal across all sections
+        const terms = targetRaw.split(/[,&+]|\band\b|\baur\b/i).map(s => s.trim()).filter(s => s.length >= 2);
+        for (const term of terms) {
+          const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+          if (Array.isArray(cv.skills)) {
+            const before = cv.skills.length;
+            cv.skills = cv.skills.filter(s => !re.test(s));
+            if (cv.skills.length < before) removedParts.push(`skill "${term}"`);
+          }
+
+          if (Array.isArray(cv.projects)) {
+            const beforeP = cv.projects.length;
+            cv.projects = cv.projects.filter(p => !re.test(p.title || ''));
+            if (cv.projects.length < beforeP) {
+              removedParts.push(`project "${term}"`);
+            } else {
+              cv.projects.forEach(p => {
+                if (Array.isArray(p.bullets)) {
+                  const bLen = p.bullets.length;
+                  p.bullets = p.bullets.filter(b => !re.test(b));
+                  if (p.bullets.length < bLen) removedParts.push(`project bullet matching "${term}"`);
+                }
+                if (p.description && re.test(p.description)) {
+                  p.description = p.description.replace(new RegExp(`[^.]*${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^.]*\\.?`, 'gi'), '').trim();
+                  removedParts.push(`"${term}" from project description`);
+                }
+              });
+            }
+          }
+
+          if (Array.isArray(cv.experiences)) {
+            const beforeE = cv.experiences.length;
+            cv.experiences = cv.experiences.filter(e => !re.test(e.company || '') && !re.test(e.role || ''));
+            if (cv.experiences.length < beforeE) {
+              removedParts.push(`experience "${term}"`);
+            } else {
+              cv.experiences.forEach(e => {
+                if (Array.isArray(e.bullets)) {
+                  const bLen = e.bullets.length;
+                  e.bullets = e.bullets.filter(b => !re.test(b));
+                  if (e.bullets.length < bLen) removedParts.push(`experience bullet matching "${term}"`);
+                }
+              });
+            }
+          }
+
+          if (Array.isArray(cv.certifications)) {
+            const beforeC = cv.certifications.length;
+            cv.certifications = cv.certifications.filter(c => !re.test(typeof c === 'string' ? c : c.name || ''));
+            if (cv.certifications.length < beforeC) removedParts.push(`certification "${term}"`);
+          }
+
+          if (Array.isArray(cv.languages)) {
+            const beforeL = cv.languages.length;
+            cv.languages = cv.languages.filter(l => !re.test(l.name || ''));
+            if (cv.languages.length < beforeL) removedParts.push(`language "${term}"`);
+          }
+
+          if (cv.header?.summary && re.test(cv.header.summary)) {
+            cv.header.summary = cv.header.summary
+              .replace(new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[,;]?\\s*`, 'gi'), '')
+              .replace(/\s{2,}/g, ' ')
+              .trim();
+            removedParts.push(`"${term}" from summary`);
+          }
+        }
+      }
+
+      if (removedParts.length > 0) {
+        changed = true;
+        summary = `Removed ${removedParts.join(', ')}`;
+        explanation = `Aapke bataye mutabik ${removedParts.join(', ')} resume se cleanly hata diya gaya hai!`;
+      }
+    }
+  }
+
+  // -------------------------------------------------------------
+  // 6. Comprehensive Profile Summary Overhaul
+  // -------------------------------------------------------------
+  const isSummaryRequest = !isRemovalIntent && (
+    /(?:summary|profile|about|bio|intro|objective|parichay)/i.test(text) ||
+    (/(?:sab[hi]?\s*chij|pura\s*cv|cv\s*ke\s*hisab)/i.test(text) && /(?:cover|acha|achha|ban)/i.test(text))
+  );
 
   if (isSummaryRequest && !changed) {
     if (!cv.header) cv.header = {};
-    const title = cv.header.title || "Full-Stack AI Product Architect & Solutions Consultant";
-    
-    // Synthesize an executive summary covering candidate's real CV items
-    cv.header.summary = `Results-driven ${title} with a proven track record of architecting, building, and deploying production mobile and web applications from scratch. Creator of published Google Play Store applications (Gharmantra, Kharcha Desk, Lensdraft) and high-performance cloud web platforms (Jyotish Connect, Mausam Veda, Turtleping) leveraging modern AI-assisted engineering (Antigravity, Claude, ChatGPT), Supabase, Firebase, and Vercel. Expert in end-to-end full-stack systems, automated ATS optimization, and rapid product delivery, driving measurable user engagement and robust architectural scalability.`;
-    
+    const title = cv.header.title || "Industry Specialist";
+    const topSkills = Array.isArray(cv.skills) && cv.skills.length > 0 ? cv.skills.slice(0, 5).join(', ') : 'modern enterprise workflows';
+    const topProjects = Array.isArray(cv.projects) && cv.projects.length > 0 ? cv.projects.slice(0, 3).map(p => p.title).filter(Boolean).join(', ') : '';
+    const projectPhrase = topProjects ? ` Key initiatives include ${topProjects}.` : '';
+
+    cv.header.summary = `Results-driven ${title} with proven expertise in ${topSkills}. Demonstrated track record of delivering high-impact solutions, optimizing operational workflows, and driving measurable business outcomes.${projectPhrase}`;
+
     changed = true;
-    summary = "Synthesized comprehensive executive summary covering all projects & AI stack";
-    explanation = "Aapka Profile Summary poore CV ke hisaab se shandar tareeqe se update kar diya gaya hai! Isme aapka Independent Consultant role, live Play Store apps (Gharmantra, Kharcha Desk, Lensdraft), Vercel web projects (Jyotish Connect, Mausam Veda), aur AI stack (Antigravity, Claude, Firebase, Supabase) sabhi ko high-impact Corporate English mein cover kiya gaya hai taaki recruiters aur ATS par maximum impact pade.";
+    summary = "Synthesized executive summary from verified CV skills & projects";
+    explanation = "Aapka Profile Summary aapke actual skills aur projects ke hisaab se high-impact Corporate English me update kar diya gaya hai.";
   }
 
   // -------------------------------------------------------------
@@ -700,18 +823,10 @@ function applyHeuristicRefinements(userInstruction, currentCv) {
   }
 
   // -------------------------------------------------------------
-  // 13. Universal Safety Fallback (Guarantees NEVER returning null)
+  // 13. Honest Fallback when no heuristic matched
   // -------------------------------------------------------------
   if (!changed) {
-    // If the user typed anything asking to improve, check, polish or format
-    if (!cv.header) cv.header = {};
-    if (!cv.header.summary) {
-      const title = cv.header.title || "Industry Specialist";
-      cv.header.summary = `Results-driven and high-impact ${title} with proven expertise in driving scalable end-to-end solutions, optimizing cross-functional performance, and delivering measurable business outcomes within fast-paced enterprise environments.`;
-    }
-    changed = true;
-    summary = `Refined resume with ATS corporate standards: "${text.slice(0, 35)}..."`;
-    explanation = `Aapka instruction process kar liya gaya hai aur resume canvas ko ATS-compliant corporate standards ke sath refine kar diya gaya hai!`;
+    return null;
   }
 
   const modifiedPaths = detectModifiedFieldPaths(currentCv, cv);
@@ -866,7 +981,10 @@ CRITICAL RULES:
    - "Har projects ko thora explain krte na":
      Expand all projects in "projects" array with 2-3 technical impact bullets and technologies.
 
-3. STRICT FACT PRESERVATION:
+3. SURGICAL REMOVAL & SMALL EDITS MANDATE:
+   - If the user asks to REMOVE, DELETE, or HIDE any specific word, bullet, skill, project, experience, link, or section (e.g., "usme se ye hataye", "X hata do", "remove Y", "delete bullet"), you MUST remove that exact item from "updatedCv" immediately while leaving all other data 100% untouched.
+
+4. STRICT FACT PRESERVATION:
    - Base all resume content strictly on the candidate's actual CV data and explicit user input.
    - Never invent phantom employers, fake degrees, or unmentioned dates.
    - When asked to improve, quantify, or add impact, formulate high-impact STAR bullets relevant to the candidate's actual role and domain.

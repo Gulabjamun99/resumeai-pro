@@ -235,8 +235,11 @@ export default function InteractiveLiveStudio({
   );
   const [selectedAccent, setSelectedAccent] = useState(resume?.styleProfile?.accentColor || '#2563eb');
   const [selectedFont, setSelectedFont] = useState(resume?.styleProfile?.fontFamily || 'font-sans');
+  const [selectedNameColor, setSelectedNameColor] = useState(resume?.styleProfile?.nameColor || '');
   const [selectedTextColor, setSelectedTextColor] = useState(resume?.styleProfile?.textColor || '');
   const [selectedSidebarBg, setSelectedSidebarBg] = useState(resume?.styleProfile?.sidebarBg || '');
+  const [selectedMainBg, setSelectedMainBg] = useState(resume?.styleProfile?.mainBg || '');
+  const [selectedCardBg, setSelectedCardBg] = useState(resume?.styleProfile?.cardBg || '');
   const [jdInputText, setJdInputText] = useState('');
   const [jdMatchResult, setJdMatchResult] = useState(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -306,19 +309,28 @@ export default function InteractiveLiveStudio({
     newAccent,
     newFont,
     newTextColor = selectedTextColor,
-    newSidebarBg = selectedSidebarBg
+    newSidebarBg = selectedSidebarBg,
+    newNameColor = selectedNameColor,
+    newMainBg = selectedMainBg,
+    newCardBg = selectedCardBg
   ) => {
     const templateToUse = newTemplate || selectedTemplate;
     const accentToUse = newAccent || selectedAccent;
     const fontToUse = newFont || selectedFont;
     const textColorToUse = newTextColor !== undefined ? newTextColor : selectedTextColor;
     const sidebarBgToUse = newSidebarBg !== undefined ? newSidebarBg : selectedSidebarBg;
+    const nameColorToUse = newNameColor !== undefined ? newNameColor : selectedNameColor;
+    const mainBgToUse = newMainBg !== undefined ? newMainBg : selectedMainBg;
+    const cardBgToUse = newCardBg !== undefined ? newCardBg : selectedCardBg;
 
     setSelectedTemplate(templateToUse);
     setSelectedAccent(accentToUse);
     setSelectedFont(fontToUse);
     setSelectedTextColor(textColorToUse);
     setSelectedSidebarBg(sidebarBgToUse);
+    setSelectedNameColor(nameColorToUse);
+    setSelectedMainBg(mainBgToUse);
+    setSelectedCardBg(cardBgToUse);
 
     const tplMeta = getTemplateById(templateToUse);
     const resolvedLayout = tplMeta?.layout || 'single-column';
@@ -332,8 +344,11 @@ export default function InteractiveLiveStudio({
         templateId: templateToUse,
         accentColor: accentToUse,
         fontFamily: fontToUse,
+        nameColor: nameColorToUse,
         textColor: textColorToUse,
         sidebarBg: sidebarBgToUse,
+        mainBg: mainBgToUse,
+        cardBg: cardBgToUse,
         layoutType: resolvedLayout
       }
     };
@@ -886,21 +901,32 @@ export default function InteractiveLiveStudio({
               </div>
             </div>
 
-            {/* 2. All Text Color Palette + Custom Picker */}
-            <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+            {/* 2. Name & All Text Color Controls */}
+            <div className="space-y-3 p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  All Text Color
+                  Text Colors (Name & Body)
                 </h4>
-                <label className="flex items-center gap-1.5 text-[10.5px] font-semibold text-slate-600 cursor-pointer bg-white border border-slate-200 px-2 py-1 rounded-lg hover:border-blue-400">
-                  <input
-                    type="color"
-                    value={selectedTextColor || '#0f172a'}
-                    onChange={(e) => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, e.target.value, selectedSidebarBg)}
-                    className="w-4 h-4 rounded cursor-pointer border-0 p-0 bg-transparent"
-                  />
-                  <span>Custom</span>
-                </label>
+                <div className="flex items-center gap-1.5">
+                  <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-600 cursor-pointer bg-white border border-slate-200 px-2 py-1 rounded-lg hover:border-blue-400" title="Custom Name Color">
+                    <input
+                      type="color"
+                      value={selectedNameColor || '#0f172a'}
+                      onChange={(e) => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, selectedTextColor, selectedSidebarBg, e.target.value)}
+                      className="w-3.5 h-3.5 rounded cursor-pointer border-0 p-0 bg-transparent"
+                    />
+                    <span>Name</span>
+                  </label>
+                  <label className="flex items-center gap-1 text-[10px] font-semibold text-slate-600 cursor-pointer bg-white border border-slate-200 px-2 py-1 rounded-lg hover:border-blue-400" title="Custom Body Text Color">
+                    <input
+                      type="color"
+                      value={selectedTextColor || '#0f172a'}
+                      onChange={(e) => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, e.target.value, selectedSidebarBg)}
+                      className="w-3.5 h-3.5 rounded cursor-pointer border-0 p-0 bg-transparent"
+                    />
+                    <span>Body</span>
+                  </label>
+                </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {TEXT_COLOR_PALETTE.map(c => (
@@ -925,29 +951,73 @@ export default function InteractiveLiveStudio({
               </div>
             </div>
 
-            {/* 3. Column / Sidebar Background Color Palette + Custom Picker */}
-            <div className="space-y-2.5 p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
-              <div className="flex items-center justify-between">
+            {/* 3. Column & Box Background Colors (Sidebar, Main Column, Match Both, Cards) */}
+            <div className="space-y-3 p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80">
+              <div className="flex items-center justify-between flex-wrap gap-1.5">
                 <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Column / Sidebar Color
+                  Column & Box Colors
                 </h4>
-                <label className="flex items-center gap-1.5 text-[10.5px] font-semibold text-slate-600 cursor-pointer bg-white border border-slate-200 px-2 py-1 rounded-lg hover:border-blue-400">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const col = selectedSidebarBg || selectedMainBg || '#f8fafc';
+                      handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, selectedTextColor, col, selectedNameColor, col, col);
+                    }}
+                    className="text-[10px] font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg transition cursor-pointer"
+                    title="Dono columns aur boxes ko same color me karein"
+                  >
+                    Same Color Both
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, '', '', '', '', '')}
+                    className="text-[10px] font-semibold bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-lg transition cursor-pointer"
+                    title="Reset custom text & box colors"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Custom Pickers for Col 1, Col 2, and Project Cards */}
+              <div className="grid grid-cols-3 gap-1.5">
+                <label className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-700 cursor-pointer bg-white border border-slate-200 px-2 py-1.5 rounded-lg hover:border-blue-400">
                   <input
                     type="color"
                     value={selectedSidebarBg || '#f8fafc'}
                     onChange={(e) => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, selectedTextColor, e.target.value)}
-                    className="w-4 h-4 rounded cursor-pointer border-0 p-0 bg-transparent"
+                    className="w-3.5 h-3.5 rounded cursor-pointer border-0 p-0 bg-transparent"
                   />
-                  <span>Custom</span>
+                  <span>Sidebar</span>
+                </label>
+                <label className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-700 cursor-pointer bg-white border border-slate-200 px-2 py-1.5 rounded-lg hover:border-blue-400">
+                  <input
+                    type="color"
+                    value={selectedMainBg || '#ffffff'}
+                    onChange={(e) => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, selectedTextColor, selectedSidebarBg, selectedNameColor, e.target.value)}
+                    className="w-3.5 h-3.5 rounded cursor-pointer border-0 p-0 bg-transparent"
+                  />
+                  <span>Main Page</span>
+                </label>
+                <label className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-slate-700 cursor-pointer bg-white border border-slate-200 px-2 py-1.5 rounded-lg hover:border-blue-400">
+                  <input
+                    type="color"
+                    value={selectedCardBg || '#f8fafc'}
+                    onChange={(e) => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, selectedTextColor, selectedSidebarBg, selectedNameColor, selectedMainBg, e.target.value)}
+                    className="w-3.5 h-3.5 rounded cursor-pointer border-0 p-0 bg-transparent"
+                  />
+                  <span>Card Boxes</span>
                 </label>
               </div>
+
               <div className="flex flex-wrap gap-1.5">
                 {COLUMN_BG_PALETTE.map(c => (
                   <button
                     key={c.name}
                     type="button"
                     onClick={() => handleUpdateStyle(selectedTemplate, selectedAccent, selectedFont, selectedTextColor, c.value)}
-                    title={c.name}
+                    title={`Sidebar: ${c.name}`}
                     className={`h-7 px-2 rounded-lg border text-[10.5px] font-semibold flex items-center gap-1.5 transition cursor-pointer ${
                       selectedSidebarBg === c.value
                         ? 'ring-2 ring-blue-600 border-blue-600 bg-white text-slate-900'
@@ -1248,8 +1318,11 @@ export default function InteractiveLiveStudio({
               id="resume-document"
               accentColor={selectedAccent}
               fontFamily={selectedFont}
+              nameColor={selectedNameColor}
               textColor={selectedTextColor}
               sidebarBgColor={selectedSidebarBg}
+              mainBgColor={selectedMainBg}
+              cardBgColor={selectedCardBg}
               templateId={selectedTemplate}
               autoFitTokens={autoFitTokens}
               highlightedPaths={highlightedPaths}

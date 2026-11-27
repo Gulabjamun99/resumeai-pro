@@ -22,8 +22,11 @@ export default function ResumeCanvas({
   id = "resume-document", 
   accentColor = "#2563eb",
   fontFamily = "font-sans",
+  nameColor = "",
   textColor = "",
   sidebarBgColor = "",
+  mainBgColor = "",
+  cardBgColor = "",
   templateId = "modern-executive",
   autoFitTokens = null,
   highlightedPaths = []
@@ -48,8 +51,11 @@ export default function ResumeCanvas({
   const rawFont = fontFamily || cv.styleProfile?.fontFamily || templateConfig.fontFamily || "font-sans";
   const resolvedFont = resolveFontStyle(rawFont);
   const activeFont = resolvedFont.baseClass;
+  const activeNameColor = nameColor || cv.styleProfile?.nameColor || "";
   const activeTextColor = textColor || cv.styleProfile?.textColor || "";
   const activeSidebarBg = sidebarBgColor || cv.styleProfile?.sidebarBg || "";
+  const activeMainBg = mainBgColor || cv.styleProfile?.mainBg || "";
+  const activeCardBg = cardBgColor || cv.styleProfile?.cardBg || "";
 
   // Visual highlight helper for modified field paths
   const isPathHighlighted = (pathPrefix) => {
@@ -92,6 +98,7 @@ export default function ResumeCanvas({
     boxSizing: 'border-box',
     fontFamily: resolvedFont.cssFamily,
     ...(activeTextColor ? { color: activeTextColor } : {}),
+    ...(activeMainBg ? { backgroundColor: activeMainBg } : {}),
     '--font-scale': `${autoFitTokens?.fontScale || 1.0}`,
     '--line-height': `${autoFitTokens?.lineHeight || 1.35}`,
     '--section-spacing': `${autoFitTokens?.sectionSpacingPx || 14}px`,
@@ -100,12 +107,24 @@ export default function ResumeCanvas({
     lineHeight: `var(--line-height, 1.35)`
   };
 
-  // Dynamic scoped style override when user picks custom Text Color or Column Background Color
+  // Dynamic scoped style override when user picks custom Text, Name, Column, or Card Box colors
   const renderCustomThemeCss = () => {
-    if (!activeTextColor && !activeSidebarBg) return null;
+    if (!activeNameColor && !activeTextColor && !activeSidebarBg && !activeMainBg && !activeCardBg) return null;
     const colDark = isDarkHex(activeSidebarBg);
+    const mainDark = isDarkHex(activeMainBg);
+    const cardDark = isDarkHex(activeCardBg);
     return (
       <style>{`
+        ${activeMainBg ? `
+          #${id}, #${id} main {
+            background-color: ${activeMainBg} !important;
+          }
+          ${mainDark ? `
+            #${id} main p, #${id} main li, #${id} main span, #${id} main h1, #${id} main h2 {
+              color: #f1f5f9;
+            }
+          ` : ''}
+        ` : ''}
         ${activeTextColor ? `
           #${id} p, #${id} li, #${id} div, #${id} span:not([style*="color"]) {
             color: ${activeTextColor};
@@ -117,14 +136,33 @@ export default function ResumeCanvas({
             color: #e2e8f0;
           }
         ` : ''}
+        ${activeNameColor ? `
+          #${id} h1 {
+            color: ${activeNameColor} !important;
+          }
+        ` : ''}
         ${activeSidebarBg ? `
-          #${id} aside,
-          #${id} .resume-col-card {
+          #${id} aside {
             background-color: ${activeSidebarBg} !important;
             ${colDark ? 'color: #f8fafc !important;' : ''}
           }
           ${colDark ? `
-            #${id} aside *, #${id} .resume-col-card * {
+            #${id} aside *:not(a) {
+              color: #f1f5f9;
+            }
+          ` : ''}
+        ` : ''}
+        ${activeCardBg ? `
+          #${id} div.rounded-lg,
+          #${id} div.rounded-xl,
+          #${id} header.rounded-xl {
+            background-color: ${activeCardBg} !important;
+            ${cardDark ? 'color: #f8fafc !important; border-color: rgba(255,255,255,0.18) !important;' : ''}
+          }
+          ${cardDark ? `
+            #${id} div.rounded-lg *,
+            #${id} div.rounded-xl *,
+            #${id} header.rounded-xl * {
               color: #f1f5f9;
             }
           ` : ''}

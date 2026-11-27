@@ -192,19 +192,20 @@ export async function exportResumeToPdf(
           }
         }
 
-        // Background fill (skip root white canvas)
+        // Background fill (paint root/main/aside full-height if non-white)
+        const bg = parseRgba(style.backgroundColor);
+        if (bg && !(bg[0] >= 253 && bg[1] >= 253 && bg[2] >= 253)) {
+          bgRects.push({
+            x,
+            y,
+            w,
+            h,
+            rgb: [bg[0], bg[1], bg[2]],
+            isFullColumn: node === element || tag === 'aside' || tag === 'main'
+          });
+        }
+
         if (node !== element) {
-          const bg = parseRgba(style.backgroundColor);
-          if (bg && !(bg[0] >= 253 && bg[1] >= 253 && bg[2] >= 253)) {
-            bgRects.push({
-              x,
-              y,
-              w,
-              h,
-              rgb: [bg[0], bg[1], bg[2]],
-              isFullColumn: tag === 'aside'
-            });
-          }
 
           // Borders (top, right, bottom, left)
           const bTop = parseFloat(style.borderTopWidth) || 0;

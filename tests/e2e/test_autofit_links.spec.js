@@ -27,11 +27,18 @@ test.describe('Auto-Fit 1/2-Page Engine, Multicolor/Fonts & Vector PDF', () => {
     await strict1PageBtn.click();
     await page.waitForTimeout(200);
 
-    // Open Templates & Styles tab and verify 19 fonts + Text Color + Column Color
+    // Verify Chat small removal instruction ("usme se Python hataye")
+    const chatInput = page.locator('input[placeholder*="Hindi, Hinglish, English"]');
+    await chatInput.fill('usme se Python hataye');
+    await chatInput.press('Enter');
+    await expect(page.locator('#resume-document')).not.toContainText('Python', { timeout: 10000 });
+
+    // Open Templates & Styles tab and verify 19 fonts + Text/Box/Column Colors
     await page.click('button:has-text("Templates & Styles")');
     await expect(page.locator('text=Accent & Heading Color')).toBeVisible();
-    await expect(page.locator('text=All Text Color')).toBeVisible();
-    await expect(page.locator('text=Column / Sidebar Color')).toBeVisible();
+    await expect(page.locator('text=Text Colors (Name & Body)')).toBeVisible();
+    await expect(page.locator('text=Column & Box Colors')).toBeVisible();
+    await expect(page.locator('button:has-text("Same Color Both")')).toBeVisible();
     await expect(page.locator('text=Resume Font Style (19)')).toBeVisible();
 
     // Select a two-column template + Merriweather font
